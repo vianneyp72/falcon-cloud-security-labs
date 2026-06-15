@@ -22,7 +22,7 @@ export default function Layout({ manifest }) {
           {sidebarOpen ? '\u2715' : '\u2630'}
         </button>
         <div className="app-header__logo">
-          <img src="/falcon-logo.png" alt="Falcon" style={{ height: '28px', width: 'auto' }} />
+          <img src={`${import.meta.env.BASE_URL}falcon-logo.png`} alt="Falcon" style={{ height: '28px', width: 'auto' }} />
           Falcon Sensor Installs
         </div>
         <div className="app-header__progress">
