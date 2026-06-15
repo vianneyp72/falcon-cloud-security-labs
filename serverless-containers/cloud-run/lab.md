@@ -38,40 +38,48 @@ This lab builds a complete CI/CD pipeline:
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          GitHub Actions Runner                               │
-│                                                                             │
-│  ┌───────────────────┐   ┌──────────────────────┐   ┌───────────────────┐  │
-│  │ Auth to GCP (WIF) │──▶│ falconutil-action     │──▶│ Push patched      │  │
-│  │ + GAR Docker login │   │                      │   │ image to GAR      │  │
-│  └───────────────────┘   │ source: :1.0         │   └───────────────────┘  │
-│                           │ sensor: falcon-ctr    │                          │
-│                           │ target: :1.0-falcon   │                          │
-│                           └──────────────────────┘                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-         │ Workload Identity Federation (OIDC)            │
-         ▼                                                ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Google Artifact Registry (GAR)                             │
-│                                                                             │
-│  us-central1-docker.pkg.dev/<PROJECT>/falcon-lab/                           │
-│  ├── nginx:1.0                  (unpatched, dev pushed)                     │
-│  ├── nginx:1.0-falcon           (patched by pipeline)                       │
-│  ├── python-flask:1.0                                                       │
-│  ├── python-flask:1.0-falcon                                                │
-│  ├── node-express:1.0                                                       │
-│  ├── node-express:1.0-falcon                                                │
-│  └── falcon-container:latest    (sensor image, pulled from CrowdStrike)     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼ Deploy :*-falcon only
-                        ┌───────────────────────┐
-                        │   Google Cloud Run     │
-                        │   (2nd gen execution)  │
-                        │                       │
-                        │   falcon-sensor +     │
-                        │   your application    │
-                        └───────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                             GitHub Actions Runner                                     │
+│                                                                                      │
+│                        ┌──────────────────────────────────┐                          │
+│                        │  Falcon Container Sensor Image    │                          │
+│                        │  falcon-container:latest          │                          │
+│                        │  (contains falconutil binary +    │                          │
+│                        │   sensor runtime)                 │                          │
+│                        └────────────────┬─────────────────┘                          │
+│                                         │                                            │
+│                                         ▼                                            │
+│  ┌───────────────────┐   ┌──────────────────────────────┐   ┌───────────────────┐   │
+│  │ Auth to GCP (WIF) │──▶│     falconutil patch-image    │──▶│ Push patched      │   │
+│  │ + GAR Docker login │   │                              │   │ image to GAR      │   │
+│  └───────────────────┘   │  source: app:1.0             │   └───────────────────┘   │
+│          ▲                │  sensor: falcon-container     │            │              │
+│          │                │  target: app:1.0-falcon       │            │              │
+│          │                └──────────────────────────────┘            │              │
+└──────────┼───────────────────────────────────────────────────────────┼──────────────┘
+           │ Workload Identity Federation (OIDC)                       │
+           │                                                           ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                       Google Artifact Registry (GAR)                                   │
+│                                                                                      │
+│  us-central1-docker.pkg.dev/<PROJECT>/falcon-lab/                                    │
+│  ├── nginx:1.0                  (unpatched, dev pushed)                              │
+│  ├── nginx:1.0-falcon           (patched by pipeline)                                │
+│  ├── python-flask:1.0                                                                │
+│  ├── python-flask:1.0-falcon                                                         │
+│  ├── node-express:1.0                                                                │
+│  ├── node-express:1.0-falcon                                                         │
+│  └── falcon-container:latest    (sensor image, pulled from CrowdStrike registry)     │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                                         │
+                                         ▼ Deploy :*-falcon only
+                             ┌───────────────────────┐
+                             │   Google Cloud Run     │
+                             │   (2nd gen execution)  │
+                             │                       │
+                             │   falcon-sensor +     │
+                             │   your application    │
+                             └───────────────────────┘
 ```
 
 **Tagging convention:** Unpatched images keep their original tag (`:1.0`). Patched images get a `-falcon` suffix (`:1.0-falcon`). Only `-falcon` tagged images are approved for Cloud Run deployment.
