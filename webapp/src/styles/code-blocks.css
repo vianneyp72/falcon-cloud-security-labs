@@ -1,0 +1,286 @@
+.code-block {
+  margin: 1rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.code-block__header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+  gap: 0.5rem;
+}
+
+.code-block__dots {
+  display: flex;
+  gap: 5px;
+}
+
+.code-block__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.code-block__dot--red { background: #ff5f57; }
+.code-block__dot--yellow { background: #febc2e; }
+.code-block__dot--green { background: #28c840; }
+
+.code-block__lang {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+.code-block__copy {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.code-block__copy:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.code-block__copy--copied {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.code-block pre code {
+  font-family: var(--font-mono);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* highlight.js token colors (GitHub Dark-ish) */
+.hljs-keyword { color: #ff7b72; }
+.hljs-string { color: #a5d6ff; }
+.hljs-comment { color: #8b949e; font-style: italic; }
+.hljs-number { color: #79c0ff; }
+.hljs-built_in { color: #ffa657; }
+.hljs-title { color: #d2a8ff; }
+.hljs-attr { color: #79c0ff; }
+.hljs-variable { color: #ffa657; }
+.hljs-meta { color: #8b949e; }
+.hljs-selector-tag { color: #7ee787; }
+.hljs-addition { color: #aff5b4; background: rgba(46,160,67,0.15); }
+.hljs-deletion { color: #ffdcd7; background: rgba(248,81,73,0.15); }
+
+/* Flow Diagram */
+.flow-diagram {
+  width: 100%;
+  height: 500px;
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  border: 1px solid rgba(97, 196, 201, 0.12);
+  background: #0c0e14;
+  overflow: hidden;
+}
+
+.flow-diagram .react-flow__background {
+  background: #0c0e14;
+}
+
+.flow-diagram .react-flow__edge-text {
+  font-size: 10px;
+  fill: rgba(180, 180, 195, 0.8);
+}
+
+.flow-diagram .react-flow__edge-textbg {
+  fill: #0c0e14;
+}
+
+/* Nodes */
+.flow-node {
+  padding: 0.6rem 0.8rem;
+  padding-left: 2.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(22, 28, 45, 0.95);
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  color: var(--text);
+  min-width: 100px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Icon badge */
+.flow-node::before {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(97, 196, 201, 0.12);
+  border: 1px solid rgba(97, 196, 201, 0.25);
+}
+
+/* Container nodes (groups) */
+.flow-node--container {
+  background: transparent;
+  border: 1.5px solid rgba(97, 196, 201, 0.2);
+  border-radius: 12px;
+  justify-content: flex-start;
+  padding: 0.5rem 0.75rem;
+  padding-left: 0.75rem;
+  box-shadow: none;
+}
+
+.flow-node--container::before {
+  display: none;
+}
+
+.flow-node__title {
+  font-weight: 600;
+  color: #e8e8ef;
+  font-size: 0.82rem;
+  margin-bottom: 0.1rem;
+  line-height: 1.3;
+}
+
+.flow-node__subtitle,
+.flow-node__detail {
+  color: rgba(160, 165, 185, 0.75);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.flow-node__section {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.flow-node__section:last-child {
+  border-bottom: none;
+}
+
+.flow-node__section-title {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.72rem;
+  margin-bottom: 0.1rem;
+}
+
+.flow-node__section-item {
+  color: rgba(160, 165, 185, 0.7);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.flow-node--sectioned {
+  padding: 0.4rem 0.7rem;
+  padding-left: 2.5rem;
+}
+
+/* Cloud node variant - green */
+.flow-node--cloud {
+  border-color: rgba(63, 185, 80, 0.3);
+}
+
+.flow-node--cloud::before {
+  background: rgba(63, 185, 80, 0.12);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+
+.flow-node--cloud .flow-node__title {
+  color: #3fb950;
+}
+
+/* Phase container variant - dashed purple outline */
+.flow-node--phase {
+  background: transparent;
+  border: 1.5px dashed rgba(163, 113, 247, 0.35);
+  border-radius: 12px;
+  padding-left: 0.75rem;
+  box-shadow: none;
+}
+
+.flow-node--phase::before {
+  display: none;
+}
+
+.flow-node--phase > .flow-node__title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a371f7;
+  font-weight: 700;
+}
+
+/* API node variant - purple */
+.flow-node--api::before {
+  background: rgba(163, 113, 247, 0.12);
+  border-color: rgba(163, 113, 247, 0.35);
+}
+
+.flow-node--api .flow-node__title {
+  color: #c9a5ff;
+}
+
+/* React Flow controls override */
+.flow-diagram .react-flow__controls {
+  background: rgba(22, 28, 45, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.flow-diagram .react-flow__controls button {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+}
+
+.flow-diagram .react-flow__controls button:hover {
+  background: rgba(97, 196, 201, 0.1);
+}
+
+.flow-diagram .react-flow__controls button svg {
+  fill: var(--text-muted);
+}
+
+.flow-diagram .react-flow__minimap {
+  background: rgba(22, 28, 45, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.flow-diagram .react-flow__panel {
+  margin: 8px;
+}
+
+.flow-diagram .react-flow__attribution {
+  display: none;
+}

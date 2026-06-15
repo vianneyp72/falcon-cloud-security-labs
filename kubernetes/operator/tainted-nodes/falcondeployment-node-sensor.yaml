@@ -1,0 +1,21 @@
+apiVersion: falcon.crowdstrike.com/v1alpha1
+kind: FalconDeployment
+metadata:
+  labels:
+    crowdstrike.com/component: sample
+    crowdstrike.com/created-by: falcon-operator
+    crowdstrike.com/instance: falcondeployment-sample
+    crowdstrike.com/managed-by: kustomize
+    crowdstrike.com/name: falcon-deployment
+    crowdstrike.com/part-of: Falcon
+    crowdstrike.com/provider: crowdstrike
+  name: falcon-deployment
+spec:
+  falcon_api:
+    client_id: <CLIENT_ID>
+    client_secret: <CLIENT_SECRET>
+    cloud_region: autodiscover
+  falconNodeSensor:
+    node:
+      tolerations:
+        - operator: Exists

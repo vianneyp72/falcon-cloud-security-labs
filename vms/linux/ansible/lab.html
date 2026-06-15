@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Falcon Sensor Deployment with Ansible Collection Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a2028;
+  --bg-tertiary: #232b35;
+  --bg-code: #0d1117;
+  --text-primary: #e6edf3;
+  --text-secondary: #9ca8b6;
+  --text-muted: #636d77;
+  --accent: #58a6b0;
+  --accent-bright: #7dd3e0;
+  --accent-dim: #3d7a82;
+  --border: #2a3540;
+  --border-active: #58a6b0;
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-comment: #636d77;
+  --sidebar-width: 260px;
+  --toc-width: 220px;
+  --header-height: 56px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+/* HEADER */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo svg { width: 28px; height: 28px; fill: var(--accent); }
+
+.header-logo span {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.header-logo span em {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.header-progress {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-bar-container {
+  width: 200px;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent-bright));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+.progress-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.reset-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.2s;
+}
+
+.reset-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* LAYOUT */
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr var(--toc-width);
+  margin-top: var(--header-height);
+  min-height: calc(100vh - var(--header-height));
+}
+
+/* SIDEBAR */
+.sidebar {
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+  padding: 24px 16px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sidebar-section {
+  margin-bottom: 8px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.sidebar-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sidebar-link.active {
+  background: rgba(88, 166, 176, 0.1);
+  color: var(--accent-bright);
+  border-left: 2px solid var(--accent);
+}
+
+.sidebar-link .section-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 18px;
+}
+
+.sidebar-link .section-check {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.sidebar-link.completed .section-check {
+  opacity: 1;
+  color: var(--success);
+}
+
+/* MAIN CONTENT */
+.main-content {
+  padding: 40px 56px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* TOC (right sidebar) */
+.toc {
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+  padding: 24px 16px;
+  border-left: 1px solid var(--border);
+}
+
+.toc-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.toc-link {
+  display: block;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.toc-link:hover { color: var(--text-primary); }
+.toc-link.active { color: var(--accent-bright); }
+
+/* TYPOGRAPHY */
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+h1::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: var(--accent);
+  margin-top: 12px;
+  border-radius: 2px;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 56px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  padding-top: 16px;
+}
+
+h2::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: var(--accent);
+  margin-top: 8px;
+  border-radius: 1px;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+p { margin-bottom: 14px; color: var(--text-secondary); }
+
+/* PREREQS BOX */
+.prereqs {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+
+.prereqs-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.prereqs ul {
+  list-style: none;
+  padding: 0;
+}
+
+.prereqs li {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prereqs li::before {
+  content: '>';
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-dim);
+  font-size: 12px;
+}
+
+/* TIME BADGE */
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(88, 166, 176, 0.1);
+  border: 1px solid var(--accent-dim);
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-bright);
+  margin-bottom: 16px;
+}
+
+/* WHAT & WHY BOX */
+.what-why {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.what-why::before {
+  content: 'What & Why';
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* CHECKBOXES */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  margin-bottom: 4px;
+}
+
+.task-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-code);
+  cursor: pointer;
+  position: relative;
+  margin-top: 2px;
+  transition: all 0.2s;
+}
+
+.task-item input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.task-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 6px;
+  height: 10px;
+  border: solid var(--bg-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.task-item label {
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  flex: 1;
+}
+
+.task-item input[type="checkbox"]:checked + label {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--accent-dim);
+}
+
+/* CODE BLOCKS */
+.code-block {
+  position: relative;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 12px 0 20px 0;
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.code-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.code-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.code-dots span:nth-child(1) { background: var(--danger); }
+.code-dots span:nth-child(2) { background: var(--warning); }
+.code-dots span:nth-child(3) { background: var(--success); }
+
+.code-lang {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.copy-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copy-btn.copied {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.code-block pre {
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.code-block pre::-webkit-scrollbar { height: 4px; }
+.code-block pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* SYNTAX HIGHLIGHTING */
+.kw { color: var(--code-keyword); }
+.str { color: var(--code-string); }
+.cmt { color: var(--code-comment); }
+.var { color: #ffa657; }
+.fn { color: #d2a8ff; }
+
+/* DETAILS/COLLAPSIBLE */
+.collapsible {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+
+.collapsible summary {
+  padding: 12px 18px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.collapsible summary:hover { background: var(--bg-tertiary); }
+
+.collapsible summary::marker { display: none; content: ''; }
+
+.collapsible summary::before {
+  content: '>';
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.collapsible[open] summary::before { transform: rotate(90deg); }
+
+.collapsible-content {
+  padding: 0 18px 18px;
+}
+
+/* NOTE/TIP/WARNING */
+.note {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin: 12px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.note-info {
+  background: rgba(88, 166, 176, 0.08);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-bright);
+}
+
+.note-warning {
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  color: var(--warning);
+}
+
+.note-success {
+  background: rgba(63, 185, 80, 0.08);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+  color: var(--success);
+}
+
+/* REFERENCE TABLE */
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13px;
+}
+
+.ref-table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ref-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.ref-table a {
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.ref-table a:hover { text-decoration: underline; }
+
+/* ARCHITECTURE DIAGRAM */
+.arch-diagram {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin: 20px 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent-bright);
+  white-space: pre;
+}
+
+/* KEY DIFFERENCES LIST */
+.key-diff {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+
+.key-diff li {
+  padding: 8px 0;
+  padding-left: 20px;
+  position: relative;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.key-diff li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* SECTION DIVIDER */
+.section-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 48px 0;
+}
+
+/* CHALLENGE CARDS */
+.challenge-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.challenge-card h4 {
+  color: var(--accent-bright);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.challenge-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* RESPONSIVE */
+@media (max-width: 1200px) {
+  .layout { grid-template-columns: var(--sidebar-width) 1fr; }
+  .toc { display: none; }
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main-content { padding: 24px; }
+}
+
+/* SCROLL ANIMATIONS */
+.fade-in {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.4s, transform 0.4s;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* INLINE CODE */
+code:not(pre code) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent-bright);
+}
+
+strong { color: var(--text-primary); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24"><path d="M2 2l4.5 4.5L12 3l5.5 3.5L22 2l-3 7-5-1.5L12 12l-2-4.5L5 9z"/></svg>
+    <span>CrowdStrike <em>Lab Guide</em></span>
+  </div>
+  <div class="header-progress">
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <span class="progress-text" id="progressText">0 / 0</span>
+    <button class="reset-btn" onclick="resetProgress()">reset</button>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <a href="#intro" class="sidebar-link active">
+        <span class="section-num">1</span> Intro & Architecture
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#prereqs-setup" class="sidebar-link">
+        <span class="section-num">2</span> Prerequisites & Setup
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#create-vms" class="sidebar-link">
+        <span class="section-num">3</span> Create 2 GCE VMs
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#ansible-playbook" class="sidebar-link">
+        <span class="section-num">4</span> Inventory & Playbook
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#deploy" class="sidebar-link">
+        <span class="section-num">5</span> Deploy the Sensor
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#verify" class="sidebar-link">
+        <span class="section-num">6</span> Verify in Console
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#terraform" class="sidebar-link">
+        <span class="section-num">7</span> Connect to Terraform
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#challenges" class="sidebar-link">
+        <span class="section-num">8</span> Challenges
+        <span class="section-check">&#10003;</span>
+      </a>
+      <a href="#reference" class="sidebar-link">
+        <span class="section-num">9</span> Quick Reference
+        <span class="section-check">&#10003;</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <h1>Falcon Sensor Deployment with Ansible Collection</h1>
+
+    <!-- Prerequisites Box -->
+    <div class="prereqs">
+      <div class="prereqs-title">Prerequisites</div>
+      <ul>
+        <li>GCP project with Compute Engine API enabled</li>
+        <li><code>gcloud</code> CLI installed and authenticated</li>
+        <li>Python 3.7+ on your workstation</li>
+        <li>CrowdStrike Falcon console access (API client creation + Sensor Downloads)</li>
+        <li>Terraform >= 1.0 installed</li>
+        <li>~70 minutes</li>
+      </ul>
+    </div>
+
+    <!-- Reference Docs Table -->
+    <table class="ref-table">
+      <thead>
+        <tr><th>Source</th><th>Link</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>crowdstrike.falcon Ansible Collection</td><td><a href="https://github.com/CrowdStrike/ansible_collection_falcon" target="_blank">GitHub</a></td></tr>
+        <tr><td>falcon_install Role README</td><td><a href="https://github.com/CrowdStrike/ansible_collection_falcon/blob/main/roles/falcon_install/README.md" target="_blank">GitHub</a></td></tr>
+        <tr><td>falcon_configure Role README</td><td><a href="https://github.com/CrowdStrike/ansible_collection_falcon/blob/main/roles/falcon_configure/README.md" target="_blank">GitHub</a></td></tr>
+        <tr><td>GCP Console - Create a VM</td><td><a href="https://cloud.google.com/compute/docs/instances/create-start-instance" target="_blank">Google Cloud Docs</a></td></tr>
+        <tr><td>Terraform google_compute_instance</td><td><a href="https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance" target="_blank">Terraform Registry</a></td></tr>
+      </tbody>
+    </table>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 1 -->
+    <section id="intro" class="fade-in">
+      <h2>1. Intro & Architecture</h2>
+      <span class="time-badge">~5 min | Beginner</span>
+
+      <p>The <code>crowdstrike.falcon</code> Ansible collection is CrowdStrike's official automation toolkit for sensor lifecycle management. Instead of manually SSHing into each host to copy and install packages, the collection talks directly to the Falcon API to download the correct sensor for each target OS, install it, configure the CID and tags, and start the service -- all in one playbook run.</p>
+
+      <div class="arch-diagram">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;  Your Workstation (Ansible Control Node)                                 &#9474;
+&#9474;                                                                          &#9474;
+&#9474;  ansible-playbook deploy-falcon.yml                                      &#9474;
+&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9474;
+&#9474;  &#9474;  crowdstrike.falcon.falcon_install                                 &#9474;  &#9474;
+&#9474;  &#9474;  - Authenticates to Falcon API (OAuth2)                            &#9474;  &#9474;
+&#9474;  &#9474;  - Downloads correct .deb for target OS                            &#9474;  &#9474;
+&#9474;  &#9474;  - Installs the package                                            &#9474;  &#9474;
+&#9474;  &#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;  &#9474;
+&#9474;  &#9474;  crowdstrike.falcon.falcon_configure                               &#9474;  &#9474;
+&#9474;  &#9474;  - Sets CID (auto-fetched from API)                                &#9474;  &#9474;
+&#9474;  &#9474;  - Applies grouping tags                                           &#9474;  &#9474;
+&#9474;  &#9474;  - Starts falcon-sensor service                                    &#9474;  &#9474;
+&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+              &#9474; SSH                             &#9474; SSH
+              &#9660;                                 &#9660;
+&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;       &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+&#9474;  falcon-linux-deb-12   &#9474;       &#9474;  falcon-linux-deb-13   &#9474;
+&#9474;  (Debian 12 Bookworm)  &#9474;       &#9474;  (Debian 13 Trixie)    &#9474;
+&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;       &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+             &#9474;                                &#9474;
+             &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                        &#9474; HTTPS/443
+                        &#9660;
+            &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+            &#9474;  CrowdStrike Cloud    &#9474;
+            &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</div>
+
+      <p><strong>Key differences from bare Ansible:</strong></p>
+      <ul class="key-diff">
+        <li>No need to download <code>.deb</code> files manually -- the collection fetches them via API</li>
+        <li>No OS-specific branching -- the roles detect the OS automatically</li>
+        <li>CID is auto-fetched from the API -- you don't need to copy it from the console</li>
+        <li>Idempotent -- re-running won't reinstall if the sensor is already present</li>
+      </ul>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 2 -->
+    <section id="prereqs-setup" class="fade-in">
+      <h2>2. Prerequisites & Ansible Setup</h2>
+      <span class="time-badge">~10 min | Intermediate</span>
+
+      <h3>Step 1: Install Ansible</h3>
+      <div class="what-why">Ansible runs on your workstation and connects to target VMs via SSH. The <code>crowdstrike.falcon</code> collection also requires the FalconPy SDK on the control node to authenticate with the Falcon API.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t1" data-section="prereqs-setup">
+        <label for="t1">Install Ansible and the FalconPy dependency</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>pip3 install ansible crowdstrike-falconpy</pre>
+      </div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t2" data-section="prereqs-setup">
+        <label for="t2">Verify installation</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible --version</pre>
+      </div>
+      <div class="note note-info">Look for <code>ansible [core 2.15+]</code> -- the collection requires 2.15 or newer.</div>
+
+      <h3>Step 2: Install the crowdstrike.falcon collection</h3>
+      <div class="what-why">The collection provides the <code>falcon_install</code> and <code>falcon_configure</code> roles that handle the entire sensor lifecycle. Without it, you'd write all the installation logic yourself.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t3" data-section="prereqs-setup">
+        <label for="t3">Install from Galaxy</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible-galaxy collection install crowdstrike.falcon</pre>
+      </div>
+      <div class="note note-info">Look for: <code>crowdstrike.falcon:&lt;version&gt; was installed successfully</code></div>
+
+      <h3>Step 3: Create a Falcon API Client</h3>
+      <div class="what-why">The collection authenticates to the Falcon API to download the sensor installer and fetch your CID. You need an API client with the right scopes.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t4" data-section="prereqs-setup">
+        <label for="t4"><strong>Console:</strong> Navigate to <strong>Support and resources</strong> > <strong>Resources and tools</strong> > <strong>API clients and keys</strong> > Click <strong>Create API client</strong><br>
+        &nbsp;&nbsp;Client name: <code>ansible-lab</code><br>
+        &nbsp;&nbsp;Scope: <strong>Sensor Download</strong> [read] and <strong>Sensor update policies</strong> [read]</label>
+      </div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t5" data-section="prereqs-setup">
+        <label for="t5">Copy the <strong>Client ID</strong> and <strong>Client Secret</strong></label>
+      </div>
+      <div class="note note-warning">The secret is only shown once. Copy it immediately. If you lose it, you'll need to create a new client.</div>
+
+      <details class="collapsible">
+        <summary>CLI equivalent (verify credentials via FalconPy)</summary>
+        <div class="collapsible-content">
+          <div class="code-block">
+            <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            <pre><span class="kw">python3</span> -c "
+<span class="kw">from</span> falconpy <span class="kw">import</span> OAuth2
+auth = OAuth2(client_id=<span class="str">'&lt;YOUR_CLIENT_ID&gt;'</span>, client_secret=<span class="str">'&lt;YOUR_CLIENT_SECRET&gt;'</span>)
+<span class="fn">print</span>(auth.token()[<span class="str">'status_code'</span>])  <span class="cmt"># Should print 201</span>
+"</pre>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 3 -->
+    <section id="create-vms" class="fade-in">
+      <h2>3. Create 2 GCE VMs</h2>
+      <span class="time-badge">~10 min | Intermediate</span>
+
+      <h3>Step 1: Create the Debian 12 VM</h3>
+      <div class="what-why">These are your target hosts where the Falcon sensor will be deployed. We create them in the GCP Console first for muscle memory, then import them into Terraform later.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t6" data-section="create-vms">
+        <label for="t6"><strong>Console:</strong> Compute Engine > VM Instances > Create Instance<br>
+        &nbsp;&nbsp;Name: <code>falcon-linux-deb-12</code> | Region: <code>us-central1-a</code> | Type: <code>e2-medium</code><br>
+        &nbsp;&nbsp;Boot disk: Debian GNU/Linux 12 (Bookworm) | Tag: <code>falcon-lab</code></label>
+      </div>
+
+      <details class="collapsible">
+        <summary>CLI equivalent</summary>
+        <div class="collapsible-content">
+          <div class="code-block">
+            <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            <pre>gcloud compute instances create falcon-linux-deb-12 \
+  --machine-type=e2-medium \
+  --image-family=debian-12 \
+  --image-project=debian-cloud \
+  --tags=falcon-lab \
+  --zone=us-central1-a</pre>
+          </div>
+        </div>
+      </details>
+
+      <h3>Step 2: Create the Debian 13 VM</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t7" data-section="create-vms">
+        <label for="t7"><strong>Console:</strong> Same as above but with:<br>
+        &nbsp;&nbsp;Name: <code>falcon-linux-deb-13</code> | Boot disk: Debian GNU/Linux 13 (Trixie)</label>
+      </div>
+
+      <details class="collapsible">
+        <summary>CLI equivalent</summary>
+        <div class="collapsible-content">
+          <div class="code-block">
+            <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            <pre>gcloud compute instances create falcon-linux-deb-13 \
+  --machine-type=e2-medium \
+  --image-family=debian-13 \
+  --image-project=debian-cloud \
+  --tags=falcon-lab \
+  --zone=us-central1-a</pre>
+          </div>
+        </div>
+      </details>
+
+      <h3>Step 3: Lock down SSH to your IP only</h3>
+      <div class="what-why">GCP's default VPC includes a <code>default-allow-ssh</code> rule that allows port 22 from <code>0.0.0.0/0</code>. We'll add firewall rules scoped to our <code>falcon-lab</code> tag that allow SSH only from your IP.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t8" data-section="create-vms">
+        <label for="t8">Find your public IP</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>curl -s ifconfig.me</pre>
+      </div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t9" data-section="create-vms">
+        <label for="t9"><strong>Console:</strong> Create firewall rule <code>falcon-lab-allow-ssh</code> (priority 1000, allow TCP:22 from your IP/32, target tag: falcon-lab)</label>
+      </div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t10" data-section="create-vms">
+        <label for="t10"><strong>Console:</strong> Create firewall rule <code>falcon-lab-deny-ssh</code> (priority 1001, deny TCP:22 from 0.0.0.0/0, target tag: falcon-lab)</label>
+      </div>
+
+      <details class="collapsible">
+        <summary>CLI equivalent</summary>
+        <div class="collapsible-content">
+          <div class="code-block">
+            <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            <pre>MY_IP=$(curl -s ifconfig.me)
+
+gcloud compute firewall-rules create falcon-lab-allow-ssh \
+  --network=default \
+  --priority=1000 \
+  --direction=INGRESS \
+  --action=ALLOW \
+  --rules=tcp:22 \
+  --source-ranges="${MY_IP}/32" \
+  --target-tags=falcon-lab
+
+gcloud compute firewall-rules create falcon-lab-deny-ssh \
+  --network=default \
+  --priority=1001 \
+  --direction=INGRESS \
+  --action=DENY \
+  --rules=tcp:22 \
+  --source-ranges=0.0.0.0/0 \
+  --target-tags=falcon-lab</pre>
+          </div>
+        </div>
+      </details>
+
+      <div class="note note-info">GCP evaluates firewall rules by priority (lower = higher). Your IP matches the allow rule at 1000 first. All others hit the deny rule at 1001.</div>
+
+      <h3>Step 4: Verify both are running</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t11" data-section="create-vms">
+        <label for="t11"><strong>Console:</strong> VM Instances page shows green checkmarks for both VMs. Note the external IPs.</label>
+      </div>
+
+      <h3>Step 5: Initialize SSH keys</h3>
+      <div class="what-why">Ansible connects via SSH. Running <code>gcloud compute ssh</code> once per VM pushes your SSH key to GCE metadata.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t12" data-section="create-vms">
+        <label for="t12">Run once per VM to initialize keys</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>gcloud compute ssh falcon-linux-deb-12 --zone=us-central1-a --command="echo connected"
+gcloud compute ssh falcon-linux-deb-13 --zone=us-central1-a --command="echo connected"</pre>
+      </div>
+      <div class="note note-info">Look for: <code>connected</code> printed for each.</div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 4 -->
+    <section id="ansible-playbook" class="fade-in">
+      <h2>4. Write the Ansible Inventory & Playbook</h2>
+      <span class="time-badge">~15 min | Intermediate</span>
+
+      <h3>Step 1: Create the project structure</h3>
+      <div class="what-why">A clean Ansible project separates inventory (which hosts), playbook (what to do), and variables (secrets). This structure scales from 2 VMs to 2,000.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t13" data-section="ansible-playbook">
+        <label for="t13">Create the Ansible directory structure</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>cd ~/projects/falcon-sensor-installs/vm-linux/falcon-ansible-gce
+mkdir -p group_vars/all</pre>
+      </div>
+
+      <h3>Step 2: Write the inventory</h3>
+      <div class="what-why">The inventory tells Ansible which hosts to target and how to connect. We group by OS version so we can apply different tags per group later.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t14" data-section="ansible-playbook">
+        <label for="t14">Create <code>inventory.ini</code></label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">ini</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><span class="cmt">[debian12]</span>
+falcon-linux-deb-12 ansible_host=<span class="var">&lt;EXTERNAL_IP_1&gt;</span>
+
+<span class="cmt">[debian13]</span>
+falcon-linux-deb-13 ansible_host=<span class="var">&lt;EXTERNAL_IP_2&gt;</span>
+
+<span class="cmt">[falcon_hosts:children]</span>
+debian12
+debian13
+
+<span class="cmt">[falcon_hosts:vars]</span>
+ansible_user=<span class="var">&lt;YOUR_GCP_USERNAME&gt;</span>
+ansible_ssh_private_key_file=~/.ssh/google_compute_engine
+ansible_ssh_common_args=-o StrictHostKeyChecking=no</pre>
+      </div>
+
+      <h3>Step 3: Encrypt API credentials with Ansible Vault</h3>
+      <div class="what-why">API secrets should never be in plaintext. Ansible Vault encrypts them at rest so the file is safe to commit to version control.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t15" data-section="ansible-playbook">
+        <label for="t15">Create the encrypted vars file</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible-vault create group_vars/all/vault.yml</pre>
+      </div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t16" data-section="ansible-playbook">
+        <label for="t16">Add credentials when the editor opens</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><span class="var">vault_falcon_client_id</span>: <span class="str">"&lt;YOUR_CLIENT_ID&gt;"</span>
+<span class="var">vault_falcon_client_secret</span>: <span class="str">"&lt;YOUR_CLIENT_SECRET&gt;"</span></pre>
+      </div>
+      <div class="note note-warning">Remember your vault password. You'll need it every time you run the playbook.</div>
+
+      <h3>Step 4: Create the variable reference file</h3>
+      <div class="what-why">This unencrypted file maps vault variables to the names the collection expects. It separates "what variables exist" (visible) from "what their values are" (encrypted).</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t17" data-section="ansible-playbook">
+        <label for="t17">Create <code>group_vars/all/falcon.yml</code></label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><span class="cmt">---</span>
+<span class="var">falcon_client_id</span>: <span class="str">"{{ vault_falcon_client_id }}"</span>
+<span class="var">falcon_client_secret</span>: <span class="str">"{{ vault_falcon_client_secret }}"</span>
+<span class="var">falcon_sensor_version_decrement</span>: 2</pre>
+      </div>
+      <div class="note note-info">We use <code>falcon_sensor_version_decrement: 2</code> to install N-2 (two versions behind latest) -- CrowdStrike's recommended practice for production stability.</div>
+
+      <h3>Step 5: Write the playbook</h3>
+      <div class="what-why">This is the main deployment file. It calls two roles from the collection: <code>falcon_install</code> (downloads + installs) and <code>falcon_configure</code> (sets CID, tags, starts the service).</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t18" data-section="ansible-playbook">
+        <label for="t18">Create <code>deploy-falcon.yml</code></label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><span class="cmt">---</span>
+- <span class="var">name</span>: Deploy CrowdStrike Falcon Sensor
+  <span class="var">hosts</span>: falcon_hosts
+  <span class="var">vars</span>:
+    <span class="var">falcon_tags</span>: <span class="str">"GCP/us-central1,Lab,ansible-deployed"</span>
+
+  <span class="var">roles</span>:
+    - <span class="var">role</span>: crowdstrike.falcon.falcon_install
+      <span class="var">vars</span>:
+        <span class="var">falcon_sensor_version_decrement</span>: 2
+
+    - <span class="var">role</span>: crowdstrike.falcon.falcon_configure
+      <span class="var">vars</span>:
+        <span class="var">falcon_tags</span>: <span class="str">"{{ falcon_tags }}"</span></pre>
+      </div>
+      <div class="note note-warning">Do NOT add <code>become: true</code> at the play level. The roles handle privilege escalation internally.</div>
+
+      <h3>Step 6: Test connectivity</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t19" data-section="ansible-playbook">
+        <label for="t19">Verify Ansible can reach all hosts</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible -i inventory.ini falcon_hosts -m ping</pre>
+      </div>
+      <div class="note note-info">Look for: <code>SUCCESS</code> with <code>"pong"</code> for both hosts.</div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 5 -->
+    <section id="deploy" class="fade-in">
+      <h2>5. Deploy the Sensor</h2>
+      <span class="time-badge">~10 min | Intermediate</span>
+
+      <h3>Step 1: Run the playbook</h3>
+      <div class="what-why">This single command deploys the Falcon sensor to both VMs. The collection authenticates to the Falcon API, downloads the correct package for each OS version, installs it, sets the CID, applies tags, and starts the service.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t20" data-section="deploy">
+        <label for="t20">Deploy</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass</pre>
+      </div>
+      <div class="note note-success">Look for the PLAY RECAP: <code>failed=0</code> across both hosts.</div>
+
+      <h3>Step 2: Verify idempotency</h3>
+      <div class="what-why">Running the same playbook again should show mostly <code>ok</code> (green) instead of <code>changed</code> (yellow). This proves the collection won't reinstall a sensor that's already present.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t21" data-section="deploy">
+        <label for="t21">Run again to confirm idempotency</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass</pre>
+      </div>
+      <div class="note note-info">Most tasks should show <code>ok</code>. The collection skips installation if the sensor is already at the correct version.</div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 6 -->
+    <section id="verify" class="fade-in">
+      <h2>6. Verify in Falcon Console</h2>
+      <span class="time-badge">~5 min | Intermediate</span>
+
+      <h3>Step 1: Confirm hosts registered</h3>
+      <div class="what-why">The sensor phones home to CrowdStrike cloud after starting. Hosts should appear within 2-5 minutes.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t22" data-section="verify">
+        <label for="t22"><strong>Console:</strong> Host setup and management > Manage endpoints > Host management</label>
+      </div>
+      <div class="task-item">
+        <input type="checkbox" id="t23" data-section="verify">
+        <label for="t23">Search for <code>falcon-linux-deb-12</code> and <code>falcon-linux-deb-13</code> -- both show Online (green dot)</label>
+      </div>
+
+      <div class="note note-success">Confirm: Status Online, Platform Linux, OS Debian 12/13, Sensor version N-2, Tags: <code>GCP/us-central1,Lab,ansible-deployed</code></div>
+
+      <h3>Step 2: Verify tags</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t24" data-section="verify">
+        <label for="t24">Click on any host > Check <strong>Grouping Tags</strong> field shows correct tags</label>
+      </div>
+
+      <div class="note note-warning">Hosts not appearing? Check VPC firewall allows egress to <code>*.cloudsink.net:443</code>. Run: <code>ansible ... -m command -a "systemctl status falcon-sensor" --become</code></div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 7 -->
+    <section id="terraform" class="fade-in">
+      <h2>7. Connect Back to Terraform</h2>
+      <span class="time-badge">~15 min | Intermediate</span>
+
+      <p>You've built everything by hand -- now let's make it repeatable. Import your existing GCE VMs into Terraform so you can tear down and recreate with one command.</p>
+
+      <div class="note note-info">Terraform manages <strong>infrastructure</strong> (VMs, network). Ansible manages <strong>configuration</strong> (sensor deployment). Together: <code>terraform apply</code> creates the VMs, then <code>ansible-playbook</code> deploys the sensor.</div>
+
+      <h3>Step 1: Initialize Terraform</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t25" data-section="terraform">
+        <label for="t25">Run terraform init</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>cd ~/projects/falcon-sensor-installs/vm-linux/falcon-ansible-gce
+terraform init</pre>
+      </div>
+
+      <h3>Step 2: Fill in terraform.tfvars</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t26" data-section="terraform">
+        <label for="t26">Edit <code>terraform.tfvars</code> with your values</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">hcl</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre><span class="var">project_id</span>   = <span class="str">"&lt;YOUR_GCP_PROJECT_ID&gt;"</span>
+<span class="var">region</span>       = <span class="str">"us-central1"</span>
+<span class="var">zone</span>         = <span class="str">"us-central1-a"</span>
+<span class="var">machine_type</span> = <span class="str">"e2-medium"</span>
+<span class="var">my_ip_cidr</span>   = <span class="str">"&lt;YOUR_PUBLIC_IP&gt;/32"</span>  <span class="cmt"># Run: curl -s ifconfig.me</span></pre>
+      </div>
+
+      <h3>Step 3: Import existing resources</h3>
+      <div class="what-why"><code>terraform import</code> tells Terraform "this resource in my .tf file corresponds to this real VM that already exists." After import, Terraform tracks it in state.</div>
+
+      <div class="task-item">
+        <input type="checkbox" id="t27" data-section="terraform">
+        <label for="t27">Import all 4 resources (2 VMs + 2 firewall rules)</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>terraform import google_compute_instance.falcon_linux_deb_12 \
+  projects/&lt;YOUR_PROJECT&gt;/zones/us-central1-a/instances/falcon-linux-deb-12
+
+terraform import google_compute_instance.falcon_linux_deb_13 \
+  projects/&lt;YOUR_PROJECT&gt;/zones/us-central1-a/instances/falcon-linux-deb-13
+
+terraform import google_compute_firewall.falcon_lab_allow_ssh \
+  projects/&lt;YOUR_PROJECT&gt;/global/firewalls/falcon-lab-allow-ssh
+
+terraform import google_compute_firewall.falcon_lab_deny_ssh \
+  projects/&lt;YOUR_PROJECT&gt;/global/firewalls/falcon-lab-deny-ssh</pre>
+      </div>
+
+      <h3>Step 4: Validate with terraform plan</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t28" data-section="terraform">
+        <label for="t28">Run plan and confirm no changes</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>terraform plan</pre>
+      </div>
+      <div class="note note-success">Look for: <code>No changes. Your infrastructure matches the configuration.</code></div>
+
+      <h3>Step 5: Test the full lifecycle</h3>
+      <div class="task-item">
+        <input type="checkbox" id="t29" data-section="terraform">
+        <label for="t29">Destroy, recreate, and re-deploy sensor</label>
+      </div>
+      <div class="code-block">
+        <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+        <button class="copy-btn" onclick="copyCode(this)">copy</button>
+        <pre>terraform destroy
+terraform apply
+ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass</pre>
+      </div>
+      <div class="note note-success">You now have a fully repeatable workflow: <code>terraform apply</code> > <code>ansible-playbook</code> > sensors deployed.</div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 8 -->
+    <section id="challenges" class="fade-in">
+      <h2>8. Challenges</h2>
+
+      <div class="challenge-card">
+        <h4>Challenge 1: Per-Group Tags via Inventory Variables</h4>
+        <p>Your team runs web servers on Debian 12 and databases on Debian 13. They want each group to automatically get different sensor grouping tags without modifying the playbook.</p>
+
+        <details class="collapsible" style="margin-top:12px;background:var(--bg-primary)">
+          <summary>Hint</summary>
+          <div class="collapsible-content">
+            <p>Create <code>group_vars/debian12/falcon.yml</code> and <code>group_vars/debian13/falcon.yml</code> with different <code>falcon_tags</code> values. Ansible merges group variables automatically.</p>
+          </div>
+        </details>
+
+        <details class="collapsible" style="margin-top:8px;background:var(--bg-primary)">
+          <summary>Solution</summary>
+          <div class="collapsible-content">
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre>mkdir -p group_vars/debian12 group_vars/debian13</pre>
+            </div>
+            <p><code>group_vars/debian12/falcon.yml</code>:</p>
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+              <pre><span class="var">falcon_tags</span>: <span class="str">"GCP/us-central1,Production,WebTier"</span></pre>
+            </div>
+            <p><code>group_vars/debian13/falcon.yml</code>:</p>
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+              <pre><span class="var">falcon_tags</span>: <span class="str">"GCP/us-central1,Production,DatabaseTier"</span></pre>
+            </div>
+            <p>Remove <code>falcon_tags</code> from the play-level vars in <code>deploy-falcon.yml</code> and re-run.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="challenge-card">
+        <h4>Challenge 2: Use a Sensor Update Policy Instead of Version Decrement</h4>
+        <p>Your security team manages sensor versions via Falcon Sensor Update Policies. Use the policy name to determine which version to install instead of hardcoding <code>falcon_sensor_version_decrement</code>.</p>
+
+        <details class="collapsible" style="margin-top:12px;background:var(--bg-primary)">
+          <summary>Hint</summary>
+          <div class="collapsible-content">
+            <p>The <code>falcon_install</code> role accepts <code>falcon_sensor_update_policy_name</code> as a variable. Set it to the exact policy name from your Falcon console.</p>
+          </div>
+        </details>
+
+        <details class="collapsible" style="margin-top:8px;background:var(--bg-primary)">
+          <summary>Solution</summary>
+          <div class="collapsible-content">
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><span class="cmt">---</span>
+- <span class="var">name</span>: Deploy CrowdStrike Falcon Sensor
+  <span class="var">hosts</span>: falcon_hosts
+  <span class="var">roles</span>:
+    - <span class="var">role</span>: crowdstrike.falcon.falcon_install
+      <span class="var">vars</span>:
+        <span class="var">falcon_sensor_update_policy_name</span>: <span class="str">"Production Linux - N-2"</span>
+
+    - <span class="var">role</span>: crowdstrike.falcon.falcon_configure
+      <span class="var">vars</span>:
+        <span class="var">falcon_tags</span>: <span class="str">"{{ falcon_tags }}"</span></pre>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="challenge-card">
+        <h4>Challenge 3: Dynamic Inventory with falcon_hosts Plugin (Stretch)</h4>
+        <p>Use the <code>crowdstrike.falcon.falcon_hosts</code> inventory plugin to dynamically pull hosts from the Falcon console based on tags.</p>
+
+        <details class="collapsible" style="margin-top:12px;background:var(--bg-primary)">
+          <summary>Hint</summary>
+          <div class="collapsible-content">
+            <p>Create a file ending in <code>falcon.yml</code> with the plugin config. Use <code>filter</code> with FQL to target hosts by tag.</p>
+          </div>
+        </details>
+
+        <details class="collapsible" style="margin-top:8px;background:var(--bg-primary)">
+          <summary>Solution</summary>
+          <div class="collapsible-content">
+            <p>Create <code>inventory_falcon.yml</code>:</p>
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre><span class="cmt">---</span>
+<span class="var">plugin</span>: crowdstrike.falcon.falcon_hosts
+<span class="var">client_id</span>: <span class="str">"{{ lookup('env', 'FALCON_CLIENT_ID') }}"</span>
+<span class="var">client_secret</span>: <span class="str">"{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"</span>
+<span class="var">filter</span>: <span class="str">"tags:'GCP/us-central1'"</span>
+<span class="var">hostnames</span>:
+  - hostname
+<span class="var">compose</span>:
+  <span class="var">ansible_host</span>: external_ip</pre>
+            </div>
+            <div class="code-block">
+              <div class="code-block-header"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+              <pre>export FALCON_CLIENT_ID="&lt;your-id&gt;"
+export FALCON_CLIENT_SECRET="&lt;your-secret&gt;"
+ansible-inventory -i inventory_falcon.yml --graph</pre>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- SECTION 9 -->
+    <section id="reference" class="fade-in">
+      <h2>9. Quick Reference</h2>
+
+      <h3>Ansible Commands</h3>
+      <table class="ref-table">
+        <thead><tr><th>Action</th><th>Command</th></tr></thead>
+        <tbody>
+          <tr><td>Install collection</td><td><code>ansible-galaxy collection install crowdstrike.falcon</code></td></tr>
+          <tr><td>Ping hosts</td><td><code>ansible -i inventory.ini falcon_hosts -m ping</code></td></tr>
+          <tr><td>Deploy sensor</td><td><code>ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass</code></td></tr>
+          <tr><td>Dry run</td><td><code>ansible-playbook -i inventory.ini deploy-falcon.yml --check --ask-vault-pass</code></td></tr>
+          <tr><td>Create vault file</td><td><code>ansible-vault create group_vars/all/vault.yml</code></td></tr>
+          <tr><td>Edit vault file</td><td><code>ansible-vault edit group_vars/all/vault.yml</code></td></tr>
+          <tr><td>Ad-hoc sensor status</td><td><code>ansible -i inventory.ini falcon_hosts -m command -a "systemctl status falcon-sensor" --become</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Console Paths</h3>
+      <table class="ref-table">
+        <thead><tr><th>Action</th><th>Path</th></tr></thead>
+        <tbody>
+          <tr><td>Create API client</td><td>Support and resources > Resources and tools > API clients and keys</td></tr>
+          <tr><td>Create VM</td><td>Compute Engine > VM Instances > Create Instance</td></tr>
+          <tr><td>Verify hosts</td><td>Host setup and management > Manage endpoints > Host management</td></tr>
+          <tr><td>Sensor update policies</td><td>Host setup and management > Sensor update policy</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Key Collection Variables</h3>
+      <table class="ref-table">
+        <thead><tr><th>Variable</th><th>Purpose</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>falcon_client_id</code></td><td>API auth</td><td><code>"abc123..."</code></td></tr>
+          <tr><td><code>falcon_client_secret</code></td><td>API auth</td><td><code>"xyz789..."</code></td></tr>
+          <tr><td><code>falcon_cloud</code></td><td>API region</td><td><code>us-1, us-2, eu-1</code></td></tr>
+          <tr><td><code>falcon_sensor_version_decrement</code></td><td>Install N-x version</td><td><code>2</code></td></tr>
+          <tr><td><code>falcon_sensor_update_policy_name</code></td><td>Policy-driven version</td><td><code>"Prod Linux"</code></td></tr>
+          <tr><td><code>falcon_tags</code></td><td>Grouping tags</td><td><code>"GCP,Production"</code></td></tr>
+          <tr><td><code>falcon_provisioning_token</code></td><td>Install token</td><td><code>"ABCD1234"</code></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <!-- RIGHT TOC -->
+  <aside class="toc">
+    <div class="toc-title">On this page</div>
+    <a href="#intro" class="toc-link">1. Intro & Architecture</a>
+    <a href="#prereqs-setup" class="toc-link">2. Prerequisites & Setup</a>
+    <a href="#create-vms" class="toc-link">3. Create 2 GCE VMs</a>
+    <a href="#ansible-playbook" class="toc-link">4. Inventory & Playbook</a>
+    <a href="#deploy" class="toc-link">5. Deploy the Sensor</a>
+    <a href="#verify" class="toc-link">6. Verify in Console</a>
+    <a href="#terraform" class="toc-link">7. Connect to Terraform</a>
+    <a href="#challenges" class="toc-link">8. Challenges</a>
+    <a href="#reference" class="toc-link">9. Quick Reference</a>
+  </aside>
+
+</div>
+
+<script>
+// --- PROGRESS TRACKING (localStorage) ---
+const STORAGE_KEY = 'falcon-ansible-lab-progress';
+
+function getCheckedState() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch { return {}; }
+}
+
+function saveCheckedState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function initCheckboxes() {
+  const state = getCheckedState();
+  const checkboxes = document.querySelectorAll('.task-item input[type="checkbox"]');
+  checkboxes.forEach(cb => {
+    if (state[cb.id]) cb.checked = true;
+    cb.addEventListener('change', () => {
+      const s = getCheckedState();
+      s[cb.id] = cb.checked;
+      saveCheckedState(s);
+      updateProgress();
+      updateSidebar();
+    });
+  });
+  updateProgress();
+  updateSidebar();
+}
+
+function updateProgress() {
+  const checkboxes = document.querySelectorAll('.task-item input[type="checkbox"]');
+  const checked = document.querySelectorAll('.task-item input[type="checkbox"]:checked');
+  const total = checkboxes.length;
+  const done = checked.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = done + ' / ' + total;
+}
+
+function updateSidebar() {
+  const sections = ['prereqs-setup', 'create-vms', 'ansible-playbook', 'deploy', 'verify', 'terraform'];
+  sections.forEach(section => {
+    const tasks = document.querySelectorAll(`[data-section="${section}"]`);
+    const checked = document.querySelectorAll(`[data-section="${section}"]:checked`);
+    const link = document.querySelector(`.sidebar-link[href="#${section}"]`);
+    if (link && tasks.length > 0 && tasks.length === checked.length) {
+      link.classList.add('completed');
+    } else if (link) {
+      link.classList.remove('completed');
+    }
+  });
+}
+
+function resetProgress() {
+  if (confirm('Reset all progress? This cannot be undone.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    document.querySelectorAll('.task-item input[type="checkbox"]').forEach(cb => cb.checked = false);
+    updateProgress();
+    updateSidebar();
+  }
+}
+
+// --- COPY TO CLIPBOARD ---
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// --- SCROLL ANIMATIONS ---
+function initScrollObserver() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+}
+
+// --- ACTIVE SIDEBAR LINK ---
+function initActiveSidebar() {
+  const sections = document.querySelectorAll('section[id]');
+  const links = document.querySelectorAll('.sidebar-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+}
+
+// --- INIT ---
+document.addEventListener('DOMContentLoaded', () => {
+  initCheckboxes();
+  initScrollObserver();
+  initActiveSidebar();
+});
+</script>
+
+</body>
+</html>
