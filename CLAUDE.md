@@ -82,6 +82,10 @@ Brief explanation of what this method is.
 - `scripts/` — Shell scripts for the method
 - `_common/` — Shared reference docs, not labs
 
+## Webapp dependency management
+
+When you add new packages locally, just run `npm run fix-lockfile` before committing to rewrite the Artifactory URLs back to public ones.
+
 ## Do NOT
 
 - Create separate folders per cloud provider when the steps are identical (use `k8s-standard/` not `eks/` + `gke/` + `aks/`)

@@ -1,4 +1,0 @@
----
-falcon_client_id: "{{ vault_falcon_client_id }}"
-falcon_client_secret: "{{ vault_falcon_client_secret }}"
-falcon_sensor_version_decrement: 2
