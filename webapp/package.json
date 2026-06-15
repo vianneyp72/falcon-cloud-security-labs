@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fix-lockfile": "sed -i '' 's|https://artifactory.cicd.dc/artifactory/api/npm/npm-prod-virtual/|https://registry.npmjs.org/|g' package-lock.json"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.2",
