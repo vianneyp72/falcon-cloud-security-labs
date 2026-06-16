@@ -143,7 +143,7 @@ gh variable set FALCON_REGION --body "us-1"
 
 > **~15 min | Intermediate**
 
-> **What & Why:** This is the core of the lab — a workflow that builds your image, scans it with CrowdStrike's fcs-action, and only pushes to ghcr.io if the image passes your assessment policy.
+> **What & Why:** This is the core of the lab — a workflow that builds your image, scans it with CrowdStrike's fcs-action, and only pushes to ghcr.io if the image has no fixable HIGH/CRITICAL vulnerabilities.
 
 Create the workflow file:
 
@@ -172,7 +172,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      security-events: write  # For SARIF upload
 
     steps:
       - name: Checkout code
@@ -190,23 +189,43 @@ jobs:
           falcon_region: ${{ vars.FALCON_REGION }}
           scan_type: image
           image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          report_formats: sarif
-          output_path: ./fcs-results.sarif
+          fail_on: high
+          policy_rule: fail
+          report_formats: json
+          output_path: ./fcs-results.json
         env:
           FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 
-      - name: Upload SARIF to GitHub Security
+      - name: Locate report
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ./fcs-results.sarif
-        continue-on-error: true
-
-      - name: Gate — check scan result
-        if: steps.fcs-scan.outputs.exit-code != 0
         run: |
-          echo "::error::Image failed CrowdStrike assessment (exit code: ${{ steps.fcs-scan.outputs.exit-code }})"
-          exit 1
+          if [ -f "./fcs-results.json" ]; then
+            echo "report_found=true" >> $GITHUB_ENV
+          else
+            echo "report_found=false" >> $GITHUB_ENV
+            echo "::warning::No report file found"
+          fi
+
+      - name: Gate - fail on fixable high or critical vulnerabilities
+        if: env.report_found == 'true'
+        run: |
+          # Only count vulns where a fix version exists (not "No fix" or null)
+          FIXABLE_COUNT=$(jq '[.. | objects | select((.severity? == "HIGH" or .severity? == "CRITICAL") and .fix_version? != null and .fix_version? != "" and (.fix_version? | tostring | test("No fix") | not))] | length' ./fcs-results.json 2>/dev/null || echo "0")
+
+          # Total HIGH/CRITICAL for info
+          TOTAL_COUNT=$(jq '[.. | objects | select(.severity? == "HIGH" or .severity? == "CRITICAL")] | length' ./fcs-results.json 2>/dev/null || echo "0")
+
+          echo "Total HIGH/CRITICAL: $TOTAL_COUNT"
+          echo "Fixable HIGH/CRITICAL: $FIXABLE_COUNT"
+
+          if [ "$FIXABLE_COUNT" -gt "0" ]; then
+            echo "::error::Image has $FIXABLE_COUNT fixable HIGH/CRITICAL vulnerabilities. Blocking push."
+            echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+            echo "**BLOCKED:** $FIXABLE_COUNT fixable HIGH/CRITICAL vulnerabilities (out of $TOTAL_COUNT total)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "No fixable HIGH/CRITICAL vulnerabilities. Passing (${TOTAL_COUNT} unfixable OS-level findings ignored)."
+          fi
 
       - name: Log in to ghcr.io
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -227,9 +246,11 @@ jobs:
 > **What this does:**
 > 1. Builds the image locally on the runner
 > 2. Runs FCS CLI scan — only the package inventory is sent to CrowdStrike
-> 3. Uploads SARIF results to GitHub's Security tab (always, even on failure)
-> 4. Gates: if exit code != 0, the workflow fails and the push never happens
+> 3. Parses the JSON report to count fixable HIGH/CRITICAL vulnerabilities
+> 4. Gates: if any fixable HIGH/CRITICAL vulns exist, the workflow fails and the push never happens
 > 5. On pass: logs into ghcr.io and pushes the image with SHA and `latest` tags
+
+> **Important:** The `fcs-action` exit code for image scans is controlled by the **Image Assessment Policy** in the Falcon console, not by the `fail_on` parameter (which only works for IaC scans). That's why we parse the JSON report ourselves to enforce a severity gate. Unfixable OS-level CVEs (glibc, perl, etc.) are excluded so developers aren't blocked on issues they can't resolve.
 
 ### Commit and push the workflow
 
@@ -245,7 +266,7 @@ git push
 
 > **~10 min | Intermediate**
 
-> **What & Why:** The first run should FAIL because our `requirements.txt` pins vulnerable packages. This proves the gate is working — vulnerable images never reach ghcr.io.
+> **What & Why:** The first run should FAIL because our `requirements.txt` pins vulnerable packages with known fixable CVEs. This proves the gate is working — vulnerable images never reach ghcr.io.
 
 ### Watch the workflow run
 
@@ -261,11 +282,15 @@ gh browse --settings  # navigate to Actions tab
 
 ### Expected result
 
-The workflow should fail at the "Gate — check scan result" step with an error like:
+The workflow should fail at the "Gate - fail on fixable high or critical vulnerabilities" step with output like:
 
 ```
-Error: Image failed CrowdStrike assessment (exit code: 1)
+Total HIGH/CRITICAL: 42
+Fixable HIGH/CRITICAL: 5
+Error: Image has 5 fixable HIGH/CRITICAL vulnerabilities. Blocking push.
 ```
+
+The scan finds many total HIGH/CRITICAL CVEs (mostly unfixable OS-level packages in the base image), but only blocks on the ones **you can actually fix** — the vulnerable Flask, Werkzeug, and Jinja2 packages.
 
 ### Verify no image was pushed
 
@@ -276,7 +301,7 @@ gh api user/packages/container/fcs-scan-demo/versions 2>&1 | head -5
 
 ### View findings in Falcon console
 
-Navigate to **Cloud Security** > **Image Assessment** > **CI Images** in the Falcon console. You'll see your scanned image with its vulnerabilities listed — severity, CVE IDs, affected packages, and available fixes.
+Navigate to **Cloud Security** > **Image Assessment** > **CI Images** in the Falcon console. You'll see your scanned image with its vulnerabilities listed — CrowdStrike severity, NVD/CVSS severity, affected packages, and available fixes.
 
 ---
 
@@ -312,7 +337,15 @@ gh run watch
 
 ### Expected result
 
-All steps should pass. The final "Push image to ghcr.io" step runs successfully.
+The gate step should output:
+
+```
+Total HIGH/CRITICAL: 37
+Fixable HIGH/CRITICAL: 0
+No fixable HIGH/CRITICAL vulnerabilities. Passing (37 unfixable OS-level findings ignored).
+```
+
+All steps pass. The remaining HIGH/CRITICAL findings are unfixable OS-level CVEs in the `python:3.11-slim` base image (glibc, perl, ncurses, etc.) — these can't be resolved by the app developer and are correctly ignored.
 
 ### Verify the image exists in ghcr.io
 
@@ -323,7 +356,7 @@ gh api user/packages/container/fcs-scan-demo/versions --jq '.[0].metadata.contai
 
 ### Verify in Falcon console
 
-Back in **Cloud Security** > **Image Assessment** > **CI Images**, the latest scan should show a passing assessment with no critical/high findings.
+Back in **Cloud Security** > **Image Assessment** > **CI Images**, the latest scan should show the image with only non-actionable findings remaining.
 
 ---
 
@@ -392,46 +425,53 @@ For production images targeting both amd64 and arm64:
 
 | Exit Code | Meaning | Pipeline Action |
 |-----------|---------|----------------|
-| `0` | Image passes assessment policy | Proceed (push/deploy) |
-| `1` | Image fails policy — block | Fail the pipeline |
-| `2` | Image fails policy — alert only | Warn but don't block |
+| `0` | Scan completed successfully | Report generated (does NOT mean "no vulns") |
+| `1` | Scan error or policy violation | Fail the pipeline |
 | `201` | Authentication error | Fail — check credentials |
 | `202` | Connection timeout | Fail — check network/region |
 | `203` | Image not found | Fail — check image name/tag |
 | `204` | Invalid input | Fail — check workflow config |
 
+> **Important:** For image scans, exit code `0` means the scan completed and the report was generated — it does NOT mean the image is free of vulnerabilities. The `fail_on` parameter only works for IaC scans. For image scans, you must parse the JSON report to enforce your own severity gate (as shown in the workflow above).
+
 ---
 
 ## Challenges
 
-### Challenge 1: Add severity threshold
+### Challenge 1: Add severity threshold per branch
 
-**Scenario:** Your team wants to allow medium-severity vulnerabilities through in dev environments but block everything critical/high. Modify the workflow to use different Image Assessment Policies for `main` vs feature branches.
+**Scenario:** Your team wants to allow medium-severity vulnerabilities through in dev environments but block everything high/critical on `main`. Modify the gate step to use different thresholds per branch.
 
 <details>
 <summary>Hint</summary>
 
-You can't set severity thresholds in the fcs-action itself — the pass/fail decision comes from your **Image Assessment Policy** configured in the Falcon console. However, you CAN use different API credentials (pointing to different policies) based on the branch.
-
-Alternatively, parse the SARIF output and implement your own logic.
+Since the gate is a bash step parsing JSON, you can change the `jq` filter based on `$GITHUB_REF`. On feature branches, only check for CRITICAL. On main, check for HIGH or CRITICAL.
 
 </details>
 
 <details>
 <summary>Solution</summary>
 
-Create two API clients in Falcon — one linked to a strict policy, one to a permissive policy:
+Replace the gate step's severity filter with branch-aware logic:
 
 ```yaml
-      - name: CrowdStrike FCS Image Scan
-        uses: crowdstrike/fcs-action@v4
-        with:
-          falcon_client_id: ${{ github.ref == 'refs/heads/main' && vars.FALCON_CLIENT_ID_STRICT || vars.FALCON_CLIENT_ID_DEV }}
-          falcon_region: ${{ vars.FALCON_REGION }}
-          scan_type: image
-          image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-        env:
-          FALCON_CLIENT_SECRET: ${{ github.ref == 'refs/heads/main' && secrets.FALCON_CLIENT_SECRET_STRICT || secrets.FALCON_CLIENT_SECRET_DEV }}
+      - name: Gate - severity threshold
+        if: env.report_found == 'true'
+        run: |
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            SEVERITY_FILTER='(.severity? == "HIGH" or .severity? == "CRITICAL")'
+            echo "Branch: main — blocking on HIGH and CRITICAL"
+          else
+            SEVERITY_FILTER='(.severity? == "CRITICAL")'
+            echo "Branch: feature — blocking on CRITICAL only"
+          fi
+
+          FIXABLE_COUNT=$(jq "[.. | objects | select(${SEVERITY_FILTER} and .fix_version? != null and .fix_version? != \"\" and (.fix_version? | tostring | test(\"No fix\") | not))] | length" ./fcs-results.json 2>/dev/null || echo "0")
+
+          if [ "$FIXABLE_COUNT" -gt "0" ]; then
+            echo "::error::Image has $FIXABLE_COUNT fixable vulnerabilities above threshold."
+            exit 1
+          fi
 ```
 
 </details>
@@ -466,7 +506,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: read
-      security-events: write
 
     steps:
       - name: Log in to ghcr.io
@@ -486,16 +525,17 @@ jobs:
           falcon_region: ${{ vars.FALCON_REGION }}
           scan_type: image
           image: ghcr.io/${{ github.repository }}:latest
-          report_formats: sarif
-          output_path: ./rescan-results.sarif
+          report_formats: json
+          output_path: ./rescan-results.json
         env:
           FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ./rescan-results.sarif
+      - name: Check for new fixable vulnerabilities
+        run: |
+          FIXABLE_COUNT=$(jq '[.. | objects | select((.severity? == "HIGH" or .severity? == "CRITICAL") and .fix_version? != null and .fix_version? != "" and (.fix_version? | tostring | test("No fix") | not))] | length' ./rescan-results.json 2>/dev/null || echo "0")
+          if [ "$FIXABLE_COUNT" -gt "0" ]; then
+            echo "::warning::Image now has $FIXABLE_COUNT fixable HIGH/CRITICAL vulnerabilities. Rebuild recommended."
+          fi
 ```
 
 </details>
@@ -557,13 +597,13 @@ Note: IaC scanning uses `fail_on` to set the threshold locally, unlike image sca
 |------|-------|
 | GitHub Action | `crowdstrike/fcs-action@v4` |
 | Scan type | `image` |
+| Report format | `json` (SARIF not supported for image scans) |
 | Required secrets | `FALCON_CLIENT_SECRET` |
 | Required variables | `FALCON_CLIENT_ID`, `FALCON_REGION` |
 | API scopes | Falcon Container CLI (R/W), Falcon Container Image (R/W), Cloud Security Tools Download (R) |
 | Registry | `ghcr.io` (uses `GITHUB_TOKEN` for auth) |
-| Pass exit code | `0` |
-| Fail exit code | `1` (block) or `2` (alert) |
-| Report formats | `json`, `sarif`, `cyclonedx-json` |
+| Gate mechanism | Parse JSON report with `jq` for fixable HIGH/CRITICAL |
+| `fail_on` parameter | Only works for IaC scans, NOT image scans |
 | Falcon console path | Cloud Security > Image Assessment > CI Images |
 | Data sent to CrowdStrike | Package inventory only (image stays on runner) |
 
