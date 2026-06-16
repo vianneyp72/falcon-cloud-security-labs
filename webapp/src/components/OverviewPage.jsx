@@ -10,10 +10,11 @@ export default function OverviewPage({ section }) {
     return (
       <>
         <main className="content-area">
-          <h1>Falcon Cloud Security - Sensor Installs</h1>
+          <h1>Falcon Cloud Security Deployments</h1>
           <p>
-            Hands-on lab guides for deploying CrowdStrike Falcon sensors across
-            cloud workloads. Choose a compute type to get started.
+            Hands-on lab guides for deploying CrowdStrike Falcon Cloud Security
+            across cloud workloads — sensors, FCS CLI, container protection, and
+            more. Choose a category to get started.
           </p>
           <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
             Maintained by{" "}
