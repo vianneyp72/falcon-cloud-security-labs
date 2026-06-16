@@ -36,24 +36,22 @@ The Falcon sensor for Linux is a lightweight kernel-level agent. Once installed,
 4. Receives policy updates and prevention rules from the cloud in real time
 
 ```
-┌─────────────────────────────────────────┐
-│              Linux Host                  │
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │  falcon-sensor daemon (user space)│  │
-│  └─────────────────┬─────────────────┘  │
-│                    │                     │
-│  ┌─────────────────▼─────────────────┐  │
-│  │  falcon-sensor.ko (kernel space)  │  │
-│  └─────────────────┬─────────────────┘  │
-│                    │                     │
-└────────────────────┼─────────────────────┘
-                     │ TLS 443
-                     ▼
-┌─────────────────────────────────────────┐
-│        CrowdStrike Falcon Cloud          │
-└─────────────────────────────────────────┘
+┌───────────────────────────────┐
+│  falcon-sensor (userspace)    │
+└───────────────┬───────────────┘
+                │ eBPF probes
+                ▼
+┌───────────────────────────────┐
+│  Linux Kernel                  │
+└───────────────┬───────────────┘
+                │ TLS 443
+                ▼
+┌───────────────────────────────┐
+│  CrowdStrike Falcon Cloud      │
+└───────────────────────────────┘
 ```
+
+The sensor runs as a userspace daemon and attaches eBPF probes into the kernel to observe system calls, process events, and file/network activity. Telemetry flows up from the kernel to the daemon, which streams it to the Falcon cloud over a persistent TLS connection.
 
 **Key facts:**
 - The sensor installs to `/opt/CrowdStrike/`
