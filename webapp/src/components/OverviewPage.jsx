@@ -15,15 +15,12 @@ export default function OverviewPage({ section }) {
             Hands-on lab guides for deploying CrowdStrike Falcon sensors across
             cloud workloads. Choose a compute type to get started.
           </p>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Packages available at{" "}
-            <a
-              href="https://artifactory.cicd.dc/ui/packages"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              artifactory.cicd.dc/ui/packages
-            </a>
+          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            Maintained by{" "}
+            <a href="mailto:minh.pham@crowdstrike.com">minh.pham@crowdstrike.com</a>.
+            Content may drift from official recommendations over time. Each lab
+            links to official CrowdStrike and cloud provider docs for additional
+            reference — those should be your source of truth when in doubt.
           </p>
           <div className="overview-grid">
             {section.map((s) => (
