@@ -1,26 +1,24 @@
-# Falcon Sensor for Linux — Manual CLI Installation
+# Falcon Sensor for Linux — CLI Installation
 
-> **What this deploys:** The Falcon kernel sensor on a Linux host via direct CLI commands. No automation tooling, no orchestration — just the sensor package, `falconctl`, and `systemctl`.
+> **What this deploys:** The Falcon sensor on a Linux host using CrowdStrike's official install script. One command handles API auth, package download, installation, CID configuration, and service start.
 
 > **Prerequisites:**
 >
-> - Linux host accessible via SSH (Ubuntu/Debian or RHEL/Amazon Linux/CentOS)
+> - Linux host accessible via SSH (Ubuntu/Debian, RHEL/CentOS/Amazon Linux, SLES)
 > - Root or sudo access on the host
 > - CrowdStrike API client with **Sensor Download: Read** scope
-> - CrowdStrike CID with checksum
-> - `curl` and `jq` installed on the host
+> - `curl` >= 7.55.0 installed on the host
 > - Outbound HTTPS (443) to your CrowdStrike cloud domain
-> - ~45 minutes
+> - ~15 minutes
 
 ## Reference Docs
 
-| Source                                | Link                                                                                       |
-| ------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Deploy Falcon Sensor for Linux        | https://falcon.crowdstrike.com/documentation/page/cba4f917                                 |
-| Sensor Download APIs                  | https://falcon.crowdstrike.com/documentation/page/c1f0f0b8                                 |
-| falconctl Configuration Options       | https://falcon.crowdstrike.com/documentation/page/f4d593ca                                 |
-| Installation Tokens                   | https://falcon.crowdstrike.com/documentation/page/cf475d86                                 |
-| CrowdStrike OAuth2 APIs               | https://falcon.crowdstrike.com/documentation/page/a2a7fc0e                                 |
+| Source                             | Link                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| falcon-linux-install.sh            | https://github.com/CrowdStrike/falcon-scripts/tree/main/bash/install                  |
+| Deploy Falcon Sensor for Linux     | https://falcon.crowdstrike.com/documentation/page/cba4f917                            |
+| falconctl Configuration Options    | https://falcon.crowdstrike.com/documentation/page/f4d593ca                            |
+| Installation Tokens                | https://falcon.crowdstrike.com/documentation/page/cf475d86                            |
 
 ---
 
@@ -28,36 +26,35 @@
 
 > **~5 min | Beginner**
 
-The Falcon sensor for Linux is a lightweight kernel-level agent. Once installed, it:
-
-1. Loads a kernel module (`falcon-sensor.ko`) to observe system calls, process events, and file activity
-2. Maintains a persistent TLS connection to the CrowdStrike Falcon cloud over port 443
-3. Streams telemetry to the cloud for detection, prevention, and threat intelligence enrichment
-4. Receives policy updates and prevention rules from the cloud in real time
+The Falcon sensor for Linux is a lightweight agent that attaches eBPF probes into the kernel from userspace. It observes system calls, process events, and file/network activity, then streams telemetry to the CrowdStrike cloud over a persistent TLS connection.
 
 ```
-┌───────────────────────────────┐
-│  falcon-sensor (userspace)    │
-└───────────────┬───────────────┘
-                │ eBPF probes
-                ▼
-┌───────────────────────────────┐
-│  Linux Kernel                  │
-└───────────────┬───────────────┘
-                │ TLS 443
-                ▼
-┌───────────────────────────────┐
-│  CrowdStrike Falcon Cloud      │
-└───────────────────────────────┘
+┌───────────────────────────────────────┐
+│ Linux Host                            │
+│                                       │
+│  ┌─────────────────────────────────┐  │
+│  │ falcon-sensor (userspace)       │  │
+│  └────────────────┬────────────────┘  │
+│                   │                   │
+│                   │ eBPF              │
+│                   ▼                   │
+│  ┌─────────────────────────────────┐  │
+│  │ Linux Kernel                    │  │
+│  └────────────────┬────────────────┘  │
+│                   │                   │
+└───────────────────┼───────────────────┘
+                    │ TLS 443
+                    ▼
+┌───────────────────────────────────────┐
+│ CrowdStrike Falcon Cloud              │
+└───────────────────────────────────────┘
 ```
-
-The sensor runs as a userspace daemon and attaches eBPF probes into the kernel to observe system calls, process events, and file/network activity. Telemetry flows up from the kernel to the daemon, which streams it to the Falcon cloud over a persistent TLS connection.
 
 **Key facts:**
-- The sensor installs to `/opt/CrowdStrike/`
+- Installs to `/opt/CrowdStrike/`
 - Configuration tool: `/opt/CrowdStrike/falconctl`
 - Runs as `systemd` service: `falcon-sensor.service`
-- Requires a valid CID to register with your tenant
+- Auto-detects distro and uses the correct package manager
 
 ---
 
@@ -65,219 +62,140 @@ The sensor runs as a userspace daemon and attaches eBPF probes into the kernel t
 
 > **~5 min | Beginner**
 
-> **What this does:** Creates an OAuth2 API client in the Falcon console that allows you to download the sensor installer via the API. Without this, you'd have to manually download the package from the console UI.
+> **What this does:** Creates an OAuth2 API client in the Falcon console. The install script uses these credentials to authenticate, download the correct package, and configure the sensor automatically.
 
 1. Log in to the Falcon console at https://falcon.crowdstrike.com
 2. Navigate to **Support and resources** > **Resources and tools** > **API clients and keys**
 3. Click **Create API client**
 4. Name it something descriptive (e.g., `linux-sensor-install`)
-5. Enable the **Sensor download** scope with **Read** permission
+5. Enable the required scopes:
+
+| Scope | Permission | When Needed |
+|-------|-----------|-------------|
+| **Sensor Download** | Read | Always required |
+| **Installation Tokens** | Read | If your tenant enforces provisioning tokens |
+| **Sensor Update Policies** | Read | If using `FALCON_SENSOR_UPDATE_POLICY_NAME` |
+
 6. Click **Create**
 7. Copy the **Client ID** and **Client Secret** immediately — the secret is only shown once
 
-Set these as environment variables on your Linux host:
+---
+
+## 3. Install the Sensor
+
+> **~5 min | Beginner**
+
+> **What this does:** Downloads and runs the official CrowdStrike install script. It handles everything — API authentication, package download for your distro, installation, CID registration, and service start.
+
+### Set environment variables
 
 ```bash
 export FALCON_CLIENT_ID="<your-client-id>"
 export FALCON_CLIENT_SECRET="<your-client-secret>"
 ```
 
-Set your Falcon cloud region:
+> **Note:** The script auto-discovers your cloud region (us-1, us-2, eu-1). For us-gov-1 or us-gov-2, set it explicitly:
+> ```bash
+> export FALCON_CLOUD="us-gov-1"
+> ```
+
+### Run the install script
 
 ```bash
-# Options: api.crowdstrike.com (US-1), api.us-2.crowdstrike.com (US-2),
-#          api.eu-1.crowdstrike.com (EU-1), api.laggar.gcw.crowdstrike.com (US-GOV-1)
-export FALCON_CLOUD="api.crowdstrike.com"
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash
 ```
+
+That's it. The script will:
+1. Authenticate to the Falcon API
+2. Detect your Linux distribution and architecture
+3. Download the latest sensor package
+4. Install it with the appropriate package manager (apt/yum/dnf/zypper)
+5. Configure the CID and start the service
+
+<details>
+<summary>Common environment variables for customization</summary>
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FALCON_CLOUD` | auto-discovered | Cloud region (`us-1`, `us-2`, `eu-1`, `us-gov-1`, `us-gov-2`) |
+| `FALCON_CID` | auto | Customer ID (auto-detected from API credentials) |
+| `FALCON_PROVISIONING_TOKEN` | unset | Installation token if required by your tenant |
+| `FALCON_TAGS` | unset | Comma-separated sensor grouping tags |
+| `FALCON_SENSOR_VERSION_DECREMENT` | 0 (latest) | Install N versions behind latest (e.g., `1` = N-1) |
+| `FALCON_SENSOR_UPDATE_POLICY_NAME` | unset | Pin to a sensor update policy version |
+| `FALCON_APH` | unset | Proxy host |
+| `FALCON_APP` | unset | Proxy port |
+| `FALCON_APD` | unset | Proxy enabled/disabled |
+| `FALCON_BILLING` | default | Billing type (`default` or `metered`) |
+| `FALCON_BACKEND` | auto | Sensor backend (`auto`, `bpf`, `kernel`) |
+| `FALCON_INSTALL_ONLY` | false | Install without registering/starting |
+| `FALCON_DOWNLOAD_ONLY` | false | Download package without installing |
+| `PREP_GOLDEN_IMAGE` | false | Prepare sensor for golden image cloning |
+
+</details>
+
+### Example: Install with tags and a provisioning token
+
+```bash
+export FALCON_CLIENT_ID="<your-client-id>"
+export FALCON_CLIENT_SECRET="<your-client-secret>"
+export FALCON_TAGS="Environment/Production,Team/Platform"
+export FALCON_PROVISIONING_TOKEN="1111AAAA"
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash
+```
+
+### Example: Install a specific version (N-1)
+
+```bash
+export FALCON_CLIENT_ID="<your-client-id>"
+export FALCON_CLIENT_SECRET="<your-client-secret>"
+export FALCON_SENSOR_VERSION_DECREMENT=1
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash
+```
+
+### Example: Download only (for air-gapped staging)
+
+```bash
+export FALCON_CLIENT_ID="<your-client-id>"
+export FALCON_CLIENT_SECRET="<your-client-secret>"
+export FALCON_DOWNLOAD_ONLY=true
+export FALCON_DOWNLOAD_PATH="/tmp/falcon-packages"
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash
+```
+
+### Alternative: Pre-authenticate with an access token
+
+For batch installs across many hosts, generate a token once and reuse it to avoid hitting the OAuth endpoint per-host:
+
+```bash
+# On your workstation — get the token
+export FALCON_CLIENT_ID="<your-client-id>"
+export FALCON_CLIENT_SECRET="<your-client-secret>"
+export GET_ACCESS_TOKEN=true
+
+TOKEN=$(curl -sL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | bash)
+
+# On each target host — install using the token
+export FALCON_ACCESS_TOKEN="$TOKEN"
+export FALCON_CLOUD="us-1"
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash
+```
+
+> **Note:** Access tokens expire after 30 minutes.
 
 ---
 
-## 3. Authenticate & Download the Sensor Package
-
-> **~10 min | Beginner**
-
-> **What this does:** Requests a bearer token from the CrowdStrike OAuth2 API, then uses it to find and download the correct sensor installer for your Linux distribution.
-
-### Step 1: Get a bearer token
-
-```bash
-ACCESS_TOKEN=$(curl -s -X POST "https://${FALCON_CLOUD}/oauth2/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "client_id=${FALCON_CLIENT_ID}&client_secret=${FALCON_CLIENT_SECRET}" \
-  | jq -r '.access_token')
-
-echo "$ACCESS_TOKEN" | head -c 20 && echo "..."  # Verify you got a token (not null)
-```
-
-If you see `null`, double-check your client ID, secret, and cloud region.
-
-> **Note:** Bearer tokens expire after **30 minutes**. If later commands return 401 errors, re-run this step.
-
-### Step 2: Get your CID with checksum
-
-```bash
-FALCON_CID=$(curl -s -X GET "https://${FALCON_CLOUD}/sensors/queries/installers/ccid/v1" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  | jq -r '.resources[0]')
-
-echo "CID: $FALCON_CID"
-```
-
-Save this — you'll need it during sensor configuration.
-
-### Step 3: Find available sensor installers
-
-Query for your OS family:
-
-**Ubuntu / Debian:**
-
-```bash
-curl -s -X GET \
-  "https://${FALCON_CLOUD}/sensors/combined/installers/v3?filter=platform:'linux'%2Bos:'Ubuntu'" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  | jq '.resources[:3] | .[] | {name, version, os, file_type}'
-```
-
-**RHEL / Amazon Linux / CentOS:**
-
-```bash
-curl -s -X GET \
-  "https://${FALCON_CLOUD}/sensors/combined/installers/v3?filter=platform:'linux'%2Bos:'RHEL/CentOS/Oracle'" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  | jq '.resources[:3] | .[] | {name, version, os, file_type}'
-```
-
-Pick the most recent version from the response and note its `sha256` hash:
-
-```bash
-SENSOR_SHA=$(curl -s -X GET \
-  "https://${FALCON_CLOUD}/sensors/combined/installers/v3?filter=platform:'linux'%2Bos:'Ubuntu'" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  | jq -r '.resources[0].sha256')
-
-echo "Installer SHA: $SENSOR_SHA"
-```
-
-> **Tip:** Replace `'Ubuntu'` with `'RHEL/CentOS/Oracle'` or `'Amazon Linux'` to match your distribution.
-
-### Step 4: Download the installer
-
-```bash
-curl -s -X GET \
-  "https://${FALCON_CLOUD}/sensors/entities/download-installer/v3?id=${SENSOR_SHA}" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -o falcon-sensor-installer
-```
-
-Verify the download:
-
-```bash
-ls -lh falcon-sensor-installer
-file falcon-sensor-installer
-```
-
-You should see either a Debian package (.deb) or an RPM package (.rpm) depending on your OS filter.
-
----
-
-## 4. Install the Sensor Package
+## 4. Verify Registration
 
 > **~5 min | Beginner**
 
-> **What this does:** Installs the Falcon sensor binary and kernel module onto the host using your distribution's package manager. The sensor won't start until you configure the CID in the next step.
+> **What this does:** Confirms the sensor is running, the kernel module is loaded, and the host registered with the Falcon cloud.
 
-**Ubuntu / Debian:**
-
-```bash
-sudo dpkg -i falcon-sensor-installer
-```
-
-If you encounter dependency errors:
-
-```bash
-sudo apt-get install -f -y
-sudo dpkg -i falcon-sensor-installer
-```
-
-**RHEL / Amazon Linux / CentOS (yum):**
-
-```bash
-sudo yum install -y ./falcon-sensor-installer
-```
-
-**RHEL 8+ / Amazon Linux 2023 (dnf):**
-
-```bash
-sudo dnf install -y ./falcon-sensor-installer
-```
-
-### Verify installation
-
-Confirm the sensor binary and falconctl are present:
-
-```bash
-ls /opt/CrowdStrike/falconctl
-/opt/CrowdStrike/falconctl --version
-```
-
----
-
-## 5. Configure the Sensor with falconctl
-
-> **~10 min | Beginner**
-
-> **What this does:** Tells the sensor which CrowdStrike tenant to register with by setting your Customer ID (CID). This is the minimum configuration required — without it, the sensor cannot connect to the cloud.
-
-### Step 1: Set the CID (required)
-
-```bash
-sudo /opt/CrowdStrike/falconctl -s --cid="${FALCON_CID}"
-```
-
-### Step 2: Set the cloud region (recommended)
-
-Explicitly setting the cloud avoids auto-discovery delays on first boot:
-
-```bash
-sudo /opt/CrowdStrike/falconctl -s --cloud=us-1
-```
-
-Valid values: `us-1`, `us-2`, `eu-1`, `us-gov-1`, `us-gov-2`
-
-### Step 3: Set a provisioning token (if required by your tenant)
-
-If your CID enforces installation tokens:
-
-```bash
-sudo /opt/CrowdStrike/falconctl -s --provisioning-token="<your-token>"
-```
-
-> **Note:** Installation tokens are optional and configured per-tenant. Check with your Falcon admin if unsure whether your CID requires one.
-
-### Verify the configuration
-
-```bash
-sudo /opt/CrowdStrike/falconctl -g --cid --cloud --provisioning-token
-```
-
-You should see your CID and cloud region echoed back.
-
----
-
-## 6. Start & Verify Registration
-
-> **~10 min | Beginner**
-
-> **What this does:** Starts the sensor daemon, verifies it loaded the kernel module, and confirms it established a connection to the CrowdStrike cloud. This is where you'll know if everything worked.
-
-### Step 1: Start the sensor
-
-```bash
-sudo systemctl start falcon-sensor
-sudo systemctl enable falcon-sensor
-```
-
-### Step 2: Verify the service is running
+### Check service status
 
 ```bash
 sudo systemctl status falcon-sensor
@@ -285,130 +203,61 @@ sudo systemctl status falcon-sensor
 
 Expected: `Active: active (running)`
 
-### Step 3: Verify the kernel module loaded
+### Verify kernel module
 
 ```bash
 lsmod | grep falcon
 ```
 
-Expected output shows `falcon_lsm_serviceable` (or similar) loaded.
+Expected: `falcon_lsm_serviceable` (or similar) loaded.
 
-### Step 4: Verify cloud connectivity
+### Verify cloud connectivity
 
 ```bash
 sudo ss -tnp | grep falcon
 ```
 
-Expected: an `ESTAB` connection to a CrowdStrike endpoint on port 443.
+Expected: an `ESTAB` connection on port 443.
 
-### Step 5: Check the Agent ID (AID)
+### Check Agent ID (AID)
 
 ```bash
 sudo /opt/CrowdStrike/falconctl -g --aid
 ```
 
-A valid AID (32-character hex string) confirms the sensor successfully registered with the Falcon cloud.
+A valid AID (32-character hex string) confirms successful registration.
 
-### Step 6: Find the host in the Falcon console
+### Find the host in the Falcon console
 
-Navigate to **Host setup and management** > **Host management** and search for your host's hostname or AID. The host should appear within 5-10 minutes of starting the sensor.
+Navigate to **Host setup and management** > **Host management** and search for your hostname or AID. The host should appear within 5-10 minutes.
 
 ---
 
-## 7. Optional Configuration (Tags, Proxy, Tokens)
+## 5. Post-Install Configuration
 
-> **~10 min | Intermediate**
+> **~5 min | Intermediate**
 
-> **What this does:** Covers additional falconctl options for organizing hosts with tags, routing traffic through a proxy, and managing installation tokens.
+> **What this does:** Additional falconctl options you can apply after installation for tags, proxy, or cloud pinning.
 
-### Sensor grouping tags
-
-Tags let you organize hosts into logical groups for policy assignment and filtering:
+### Add or change sensor grouping tags
 
 ```bash
 sudo /opt/CrowdStrike/falconctl -s --tags="Environment/Production,Team/Platform"
-```
-
-**Tag rules:**
-- Case-sensitive
-- Allowed characters: letters, numbers, hyphens, underscores, forward slashes
-- Maximum combined length: 256 characters
-- Changes take effect after sensor restart
-
-```bash
 sudo systemctl restart falcon-sensor
 ```
 
-Verify tags:
+Tag rules: case-sensitive, max 256 chars combined, allowed chars: `a-z A-Z 0-9 - _ /`
+
+### Configure a proxy
 
 ```bash
-sudo /opt/CrowdStrike/falconctl -g --tags
-```
-
-### Proxy configuration
-
-If your host routes HTTPS traffic through a proxy:
-
-```bash
-# Set proxy host and port
-sudo /opt/CrowdStrike/falconctl -s --aph=proxy.example.com --app=8080
-
-# Enable the proxy (APD=FALSE means "don't go direct — use the proxy")
-sudo /opt/CrowdStrike/falconctl -s --apd=FALSE
-
-# Restart for proxy changes to take effect
+sudo /opt/CrowdStrike/falconctl -s --aph=proxy.example.com --app=8080 --apd=FALSE
 sudo systemctl restart falcon-sensor
 ```
 
-Verify proxy settings:
+> **Note:** The sensor does not support authenticated proxies.
 
-```bash
-sudo /opt/CrowdStrike/falconctl -g --aph --app --apd
-```
-
-> **Note:** The Falcon sensor does not support proxy authentication (no username/password). Your proxy must allow unauthenticated traffic to CrowdStrike cloud domains.
-
-### Installation tokens via API
-
-If you need to create a provisioning token programmatically (requires **Installation Tokens: Read/Write** scope):
-
-```bash
-curl -s -X POST "https://${FALCON_CLOUD}/installation-tokens/entities/tokens/v1" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"label": "linux-deploy-token", "expires_timestamp": "2027-12-31T00:00:00Z"}' \
-  | jq '.resources[0].value'
-```
-
----
-
-## 8. Troubleshooting
-
-> **~5 min | Beginner**
-
-> **What this does:** Covers the most common failure scenarios and how to diagnose them.
-
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| `systemctl status` shows `inactive (dead)` | CID not set | Run `falconctl -s --cid=<CID>` then start again |
-| `falconctl -g --aid` returns blank | Sensor hasn't connected to cloud yet | Check outbound 443 with `ss -tnp`, verify cloud region |
-| `dpkg: dependency problems` | Missing shared libraries | Run `sudo apt-get install -f -y` |
-| `nothing provides libnl3` (rpm) | Missing dependency on minimal installs | `sudo yum install libnl3` |
-| Sensor in **Reduced Functionality Mode** | Secure Boot blocking unsigned kernel module | Import CrowdStrike signing key via `mokutil` |
-| 401 from API calls | Bearer token expired (30 min lifetime) | Re-run the token request from Step 3 |
-| Host not appearing in console | DNS/firewall blocking CrowdStrike domains | Verify `ts01-b.cloudsink.net` resolves and 443 is open |
-
-### Checking sensor logs
-
-```bash
-# Systemd journal (preferred)
-sudo journalctl -u falcon-sensor --since "10 minutes ago"
-
-# Syslog fallback
-sudo grep falcon /var/log/syslog 2>/dev/null || sudo grep falcon /var/log/messages | tail -20
-```
-
-### Full configuration dump
+### Verify all configuration
 
 ```bash
 sudo /opt/CrowdStrike/falconctl -g --cid --aid --version --tags --cloud --aph --app --apd
@@ -416,18 +265,72 @@ sudo /opt/CrowdStrike/falconctl -g --cid --aid --version --tags --cloud --aph --
 
 ---
 
-## 9. Quick Reference
+## 6. Uninstall
+
+> **~2 min | Beginner**
+
+> **What this does:** Removes the sensor using the official uninstall script.
+
+```bash
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-uninstall.sh | sudo bash
+```
+
+If your sensor has uninstall protection enabled, provide credentials so the script can retrieve the maintenance token:
+
+```bash
+export FALCON_CLIENT_ID="<your-client-id>"
+export FALCON_CLIENT_SECRET="<your-client-secret>"
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-uninstall.sh | sudo bash
+```
+
+Or provide a maintenance token directly:
+
+```bash
+export FALCON_MAINTENANCE_TOKEN="<token>"
+
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-uninstall.sh | sudo bash
+```
+
+---
+
+## 7. Troubleshooting
+
+> **~5 min | Beginner**
+
+### Debug the install script
+
+```bash
+curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh | sudo bash -x
+```
+
+### Common issues
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Script fails with auth error | Invalid credentials or wrong cloud | Verify `FALCON_CLIENT_ID`, `FALCON_CLIENT_SECRET`, `FALCON_CLOUD` |
+| `systemctl status` shows `inactive (dead)` | CID not set | Re-run install script or set manually with `falconctl -s --cid=<CID>` |
+| `falconctl -g --aid` returns blank | Sensor hasn't connected yet | Check outbound 443: `sudo ss -tnp \| grep falcon` |
+| Sensor in **Reduced Functionality Mode** | Secure Boot blocking kernel module | Import CrowdStrike signing key via `mokutil` |
+| Host not appearing in console | DNS/firewall blocking CrowdStrike domains | Verify `ts01-b.cloudsink.net` resolves and 443 is open |
+| cURL security warning | cURL < 7.55.0 | Upgrade cURL or set `ALLOW_LEGACY_CURL=true` (not recommended) |
+
+### Sensor logs
+
+```bash
+sudo journalctl -u falcon-sensor --since "10 minutes ago"
+```
+
+---
+
+## 8. Quick Reference
 
 | Action | Command |
 |--------|---------|
-| Install (deb) | `sudo dpkg -i <package>.deb` |
-| Install (rpm) | `sudo yum install -y ./<package>.rpm` |
-| Set CID | `sudo /opt/CrowdStrike/falconctl -s --cid=<CID>` |
-| Set cloud region | `sudo /opt/CrowdStrike/falconctl -s --cloud=us-1` |
-| Set provisioning token | `sudo /opt/CrowdStrike/falconctl -s --provisioning-token=<TOKEN>` |
+| Install (one-liner) | `curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-install.sh \| sudo bash` |
+| Uninstall | `curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/install/falcon-linux-uninstall.sh \| sudo bash` |
 | Set tags | `sudo /opt/CrowdStrike/falconctl -s --tags="Tag1,Tag2"` |
 | Start sensor | `sudo systemctl start falcon-sensor` |
-| Enable on boot | `sudo systemctl enable falcon-sensor` |
 | Stop sensor | `sudo systemctl stop falcon-sensor` |
 | Restart sensor | `sudo systemctl restart falcon-sensor` |
 | Check status | `sudo systemctl status falcon-sensor` |
@@ -435,9 +338,8 @@ sudo /opt/CrowdStrike/falconctl -g --cid --aid --version --tags --cloud --aph --
 | Get all config | `sudo /opt/CrowdStrike/falconctl -g --cid --aid --version --tags --cloud` |
 | Check kernel module | `lsmod \| grep falcon` |
 | Check connectivity | `sudo ss -tnp \| grep falcon` |
-| Uninstall (deb) | `sudo apt-get remove falcon-sensor` |
-| Uninstall (rpm) | `sudo yum remove falcon-sensor` |
+| Debug install | `curl -L .../falcon-linux-install.sh \| sudo bash -x` |
 
 ---
 
-*Created: 2026-06-16 | Topics: falcon-sensor, linux, manual-install, cli, vm*
+*Created: 2026-06-16 | Topics: falcon-sensor, linux, cli, vm, falcon-scripts*
