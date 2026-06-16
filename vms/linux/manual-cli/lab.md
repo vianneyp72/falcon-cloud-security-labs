@@ -29,25 +29,14 @@
 The Falcon sensor for Linux is a lightweight agent that attaches eBPF probes into the kernel from userspace. It observes system calls, process events, and file/network activity, then streams telemetry to the CrowdStrike cloud over a persistent TLS connection.
 
 ```
-┌───────────────────────────────────────┐
-│ Linux Host                            │
-│                                       │
-│  ┌─────────────────────────────────┐  │
-│  │ falcon-sensor (userspace)       │  │
-│  └────────────────┬────────────────┘  │
-│                   │                   │
-│                   │ eBPF              │
-│                   ▼                   │
-│  ┌─────────────────────────────────┐  │
-│  │ Linux Kernel                    │  │
-│  └────────────────┬────────────────┘  │
-│                   │                   │
-└───────────────────┼───────────────────┘
-                    │ TLS 443
-                    ▼
-┌───────────────────────────────────────┐
-│ CrowdStrike Falcon Cloud              │
-└───────────────────────────────────────┘
+┌───────────────────────────────┐
+│ falcon-sensor (userspace)     │──── eBPF ────▶ Linux Kernel
+└───────────────┬───────────────┘
+                │ TLS 443
+                ▼
+┌───────────────────────────────┐
+│ CrowdStrike Falcon Cloud      │
+└───────────────────────────────┘
 ```
 
 **Key facts:**

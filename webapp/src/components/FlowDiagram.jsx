@@ -428,6 +428,50 @@ const nodeTypes = { custom: CustomNode }
  * A simpler approach: Instead of parsing the complex ASCII, define diagrams
  * declaratively based on content detection.
  */
+function buildSensorArchDiagram(text) {
+  const nodes = [
+    {
+      id: 'linux-host',
+      position: { x: 100, y: 0 },
+      data: { label: 'Linux Host', isContainer: true },
+      type: 'custom',
+      style: { width: 280, height: 220 },
+    },
+    {
+      id: 'falcon-sensor',
+      position: { x: 40, y: 45 },
+      data: { label: 'falcon-sensor', sublabel: 'userspace daemon' },
+      type: 'custom',
+      parentId: 'linux-host',
+      extent: 'parent',
+      style: { width: 200, height: 55 },
+    },
+    {
+      id: 'kernel',
+      position: { x: 40, y: 140 },
+      data: { label: 'Linux Kernel', sublabel: 'syscalls, fs, net' },
+      type: 'custom',
+      parentId: 'linux-host',
+      extent: 'parent',
+      style: { width: 200, height: 55 },
+    },
+    {
+      id: 'falcon-cloud',
+      position: { x: 140, y: 280 },
+      data: { label: 'CrowdStrike Falcon Cloud', sublabel: 'Detections & policy', isCloud: true },
+      type: 'custom',
+      style: { width: 200, height: 55 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-sensor-kernel', source: 'falcon-sensor', target: 'kernel', label: 'eBPF probes', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-host-cloud', source: 'linux-host', target: 'falcon-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content
   if (text.includes('Ansible Control Node') || text.includes('ansible-playbook')) {
@@ -438,6 +482,9 @@ function buildDiagramFromContent(text) {
   }
   if (text.includes('BUILD TIME') || text.includes('falconutil')) {
     return buildDockerPatchDiagram(text)
+  }
+  if (text.includes('falcon-sensor (userspace)') && text.includes('eBPF')) {
+    return buildSensorArchDiagram(text)
   }
   // Fallback: try parsing
   return parseAsciiDiagram(text)
