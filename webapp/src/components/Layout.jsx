@@ -27,7 +27,7 @@ export default function Layout({ manifest }) {
             alt="Falcon"
             style={{ height: "28px", width: "auto" }}
           />
-          FCS Falcon Sensor Installs
+          Falcon Cloud Security Labs
         </Link>
         <div className="app-header__progress">
           <ProgressBar checked={totalChecked} total={totalCheckboxes} />

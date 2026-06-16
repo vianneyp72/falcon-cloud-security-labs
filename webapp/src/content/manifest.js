@@ -32,6 +32,7 @@ import cipJenkins from '@content/container-image-patching/jenkins/lab.md?raw'
 import scAzureApps from '@content/serverless-containers/azure-container-apps/lab.md?raw'
 import scAzureInstances from '@content/serverless-containers/azure-container-instances/lab.md?raw'
 import scCloudRun from '@content/serverless-containers/cloud-run/lab.md?raw'
+import fcsGithubActions from '@content/fcs-cli/github-actions-image-scan/lab.md?raw'
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
@@ -78,6 +79,7 @@ const labs = {
   'serverless-containers/azure-container-apps/lab.md': scAzureApps,
   'serverless-containers/azure-container-instances/lab.md': scAzureInstances,
   'serverless-containers/cloud-run/lab.md': scCloudRun,
+  'fcs-cli/github-actions-image-scan/lab.md': fcsGithubActions,
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
@@ -220,6 +222,10 @@ export const manifest = [
     lab('Azure Container Instances', 'azure-container-instances', 'serverless-containers/azure-container-instances/lab.md'),
     lab('Cloud Run', 'cloud-run', 'serverless-containers/cloud-run/lab.md'),
   ], 'serverless-containers/README.md'),
+
+  section('FCS CLI', 'fcs-cli', [
+    lab('GitHub Actions Image Scan', 'github-actions-image-scan', 'fcs-cli/github-actions-image-scan/lab.md'),
+  ]),
 
   section('Common (Reference)', 'common', [
     lab('API Credentials', 'api-credentials', '_common/api-credentials.md'),

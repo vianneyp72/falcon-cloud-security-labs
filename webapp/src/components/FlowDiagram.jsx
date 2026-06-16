@@ -621,6 +621,70 @@ function buildGitHubActionsPatchDiagram(text) {
   return { nodes, edges }
 }
 
+function buildFcsImageScanDiagram(text) {
+  const nodes = [
+    // GitHub Actions Runner
+    {
+      id: 'gh-runner',
+      position: { x: 20, y: 0 },
+      data: { label: 'GitHub Actions Runner', isContainer: true },
+      type: 'custom',
+      style: { width: 360, height: 160 },
+    },
+    {
+      id: 'docker-build',
+      position: { x: 20, y: 50 },
+      data: { label: 'docker build', sublabel: 'Local Image' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    {
+      id: 'fcs-scan',
+      position: { x: 190, y: 50 },
+      data: { label: 'fcs-action', sublabel: 'scan image' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    // CrowdStrike Cloud
+    {
+      id: 'cs-cloud',
+      position: { x: 440, y: 30 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Image Assessment', isCloud: true },
+      type: 'custom',
+      style: { width: 180, height: 55 },
+    },
+    // Gate decision
+    {
+      id: 'gate',
+      position: { x: 170, y: 210 },
+      data: { label: 'Gate', sublabel: 'exit code 0 = pass' },
+      type: 'custom',
+      style: { width: 140, height: 55 },
+    },
+    // ghcr.io
+    {
+      id: 'ghcr',
+      position: { x: 440, y: 210 },
+      data: { label: 'ghcr.io', sublabel: 'Container Registry', isCloud: true },
+      type: 'custom',
+      style: { width: 160, height: 55 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-build-scan', source: 'docker-build', target: 'fcs-scan', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-scan-cloud', source: 'fcs-scan', target: 'cs-cloud', label: 'Inventory only', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-cloud-gate', source: 'cs-cloud', target: 'gate', label: 'Pass / Fail', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-gate-push', source: 'gate', target: 'ghcr', label: 'docker push', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
   if (text.includes('Ansible Control Node') || text.includes('ansible-playbook')) {
@@ -631,6 +695,9 @@ function buildDiagramFromContent(text) {
   }
   if (text.includes('Google Artifact Registry') && text.includes('Cloud Run')) {
     return buildCloudRunPipelineDiagram(text)
+  }
+  if (text.includes('fcs-action') && text.includes('Image Assessment')) {
+    return buildFcsImageScanDiagram(text)
   }
   if (text.includes('falconutil-action') && text.includes('ECR')) {
     return buildGitHubActionsPatchDiagram(text)
