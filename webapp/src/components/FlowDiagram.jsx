@@ -472,13 +472,168 @@ function buildSensorArchDiagram(text) {
   return { nodes, edges }
 }
 
+function buildCloudRunPipelineDiagram(text) {
+  const nodes = [
+    // GitHub Actions Runner container
+    {
+      id: 'gh-runner',
+      position: { x: 40, y: 0 },
+      data: { label: 'GitHub Actions Runner', isContainer: true },
+      type: 'custom',
+      style: { width: 520, height: 220 },
+    },
+    {
+      id: 'sensor-image',
+      position: { x: 170, y: 40 },
+      data: { label: 'Falcon Container Image', sublabel: 'falcon-container:latest' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 180, height: 55 },
+    },
+    {
+      id: 'wif-auth',
+      position: { x: 20, y: 140 },
+      data: { label: 'Auth to GCP', sublabel: 'WIF + GAR login' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    {
+      id: 'falconutil',
+      position: { x: 190, y: 140 },
+      data: { label: 'falconutil', sublabel: 'patch-image' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    {
+      id: 'push-patched',
+      position: { x: 365, y: 140 },
+      data: { label: 'Push patched', sublabel: 'image to GAR' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    // GAR
+    {
+      id: 'gar',
+      position: { x: 60, y: 270 },
+      data: {
+        label: 'Google Artifact Registry',
+        sublabel: 'app:1.0 / app:1.0-falcon',
+        isContainer: true,
+      },
+      type: 'custom',
+      style: { width: 480, height: 70 },
+    },
+    // Cloud Run
+    {
+      id: 'cloud-run',
+      position: { x: 180, y: 390 },
+      data: { label: 'Google Cloud Run', sublabel: 'falcon-sensor + your app', isCloud: true },
+      type: 'custom',
+      style: { width: 240, height: 55 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-sensor-patch', source: 'sensor-image', target: 'falconutil', label: 'sensor layer', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-auth-patch', source: 'wif-auth', target: 'falconutil', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-patch-push', source: 'falconutil', target: 'push-patched', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-push-gar', source: 'push-patched', target: 'gar', label: 'docker push', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-wif-gar', source: 'gar', target: 'gh-runner', label: 'WIF (OIDC)', type: 'smoothstep', style: { stroke: '#61C4C9', strokeWidth: 1, strokeDasharray: '4 3' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-gar-run', source: 'gar', target: 'cloud-run', label: 'Deploy :*-falcon', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+  ]
+
+  return { nodes, edges }
+}
+
+function buildGitHubActionsPatchDiagram(text) {
+  const nodes = [
+    // GitHub Actions Runner container
+    {
+      id: 'gh-runner',
+      position: { x: 40, y: 0 },
+      data: { label: 'GitHub Actions Runner', isContainer: true },
+      type: 'custom',
+      style: { width: 480, height: 180 },
+    },
+    {
+      id: 'ecr-login',
+      position: { x: 20, y: 50 },
+      data: { label: 'ECR Login', sublabel: 'OIDC role' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 120, height: 55 },
+    },
+    {
+      id: 'falconutil-action',
+      position: { x: 175, y: 50 },
+      data: { label: 'falconutil-action', sublabel: 'source → target' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 140, height: 55 },
+    },
+    {
+      id: 'push-ecr',
+      position: { x: 350, y: 50 },
+      data: { label: 'Push patched', sublabel: 'image to ECR' },
+      type: 'custom',
+      parentId: 'gh-runner',
+      extent: 'parent',
+      style: { width: 120, height: 55 },
+    },
+    // ECR repos
+    {
+      id: 'ecr-apps',
+      position: { x: 0, y: 230 },
+      data: {
+        label: 'ECR Repositories',
+        sublabel: ':1.0 (unpatched) / :1.0-falcon (patched)',
+        isContainer: true,
+      },
+      type: 'custom',
+      style: { width: 360, height: 70 },
+    },
+    // Falcon sensor image
+    {
+      id: 'falcon-sensor-ecr',
+      position: { x: 390, y: 230 },
+      data: { label: 'Falcon Container', sublabel: 'falcon-container:latest' },
+      type: 'custom',
+      style: { width: 160, height: 70 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-login-action', source: 'ecr-login', target: 'falconutil-action', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-action-push', source: 'falconutil-action', target: 'push-ecr', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-push-ecr', source: 'push-ecr', target: 'ecr-apps', label: 'docker push', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-sensor-action', source: 'falcon-sensor-ecr', target: 'falconutil-action', label: 'sensor layer', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
-  // Detect which diagram this is based on content
+  // Detect which diagram this is based on content — order matters (specific before generic)
   if (text.includes('Ansible Control Node') || text.includes('ansible-playbook')) {
     return buildAnsibleDiagram(text)
   }
   if (text.includes('WORKLOAD IDENTITY FEDERATION') || text.includes('WIF Pool')) {
     return buildWifDiagram(text)
+  }
+  if (text.includes('Google Artifact Registry') && text.includes('Cloud Run')) {
+    return buildCloudRunPipelineDiagram(text)
+  }
+  if (text.includes('falconutil-action') && text.includes('ECR')) {
+    return buildGitHubActionsPatchDiagram(text)
   }
   if (text.includes('BUILD TIME') || text.includes('falconutil')) {
     return buildDockerPatchDiagram(text)
