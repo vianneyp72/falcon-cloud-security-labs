@@ -37,32 +37,21 @@ The Falcon sensor for Linux is a lightweight kernel-level agent. Once installed,
 
 ```
 ┌─────────────────────────────────────────┐
-│           Linux Host                     │
+│              Linux Host                  │
 │                                         │
 │  ┌───────────────────────────────────┐  │
-│  │  falcon-sensor daemon             │  │
-│  │  (user space)                     │  │
-│  │                                   │  │
-│  │  Manages cloud connection         │  │
-│  │  Applies prevention policies      │  │
-│  │  Streams telemetry                │  │
+│  │  falcon-sensor daemon (user space)│  │
 │  └─────────────────┬─────────────────┘  │
 │                    │                     │
 │  ┌─────────────────▼─────────────────┐  │
-│  │  falcon-sensor.ko kernel module   │  │
-│  │  (kernel space)                   │  │
-│  │                                   │  │
-│  │  Intercepts system calls          │  │
-│  │  Monitors process creation        │  │
-│  │  Tracks file and network I/O      │  │
+│  │  falcon-sensor.ko (kernel space)  │  │
 │  └─────────────────┬─────────────────┘  │
 │                    │                     │
 └────────────────────┼─────────────────────┘
                      │ TLS 443
                      ▼
 ┌─────────────────────────────────────────┐
-│       CrowdStrike Falcon Cloud           │
-│       (ts01-b.cloudsink.net)             │
+│        CrowdStrike Falcon Cloud          │
 └─────────────────────────────────────────┘
 ```
 
