@@ -19,7 +19,8 @@ Deploy CrowdStrike Falcon Cloud Security to an AWS Organization using the offici
 | CrowdStrike Terraform Module (Registry) | https://registry.terraform.io/modules/CrowdStrike/cloud-registration/aws |
 | CrowdStrike Terraform Provider | https://registry.terraform.io/providers/CrowdStrike/crowdstrike |
 | Module Source (GitHub) | https://github.com/CrowdStrike/terraform-aws-cloud-registration |
-| Falcon Cloud Security Docs | https://falcon.crowdstrike.com/documentation/page/cloud-security |
+| Register AWS Org Using Terraform (Docs) | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/o0ad9e78 |
+| Plan Your AWS Registration (Docs) | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/d2f7e2d8 |
 | AWS Organizations CLI Reference | https://docs.aws.amazon.com/cli/latest/reference/organizations/ |
 
 ---
