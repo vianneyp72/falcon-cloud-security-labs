@@ -687,6 +687,9 @@ function buildFcsImageScanDiagram(text) {
 
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
+  if (text.includes('AWS Organization') && text.includes('HOST ACCOUNT') && text.includes('IOM Assessment')) {
+    return buildCspmAwsOrgDiagram(text)
+  }
   if (text.includes('Ansible Control Node') || text.includes('ansible-playbook')) {
     return buildAnsibleDiagram(text)
   }
@@ -710,6 +713,104 @@ function buildDiagramFromContent(text) {
   }
   // Fallback: try parsing
   return parseAsciiDiagram(text)
+}
+
+function buildCspmAwsOrgDiagram(text) {
+  const nodes = [
+    {
+      id: 'org',
+      position: { x: 0, y: 0 },
+      data: { label: 'AWS Organization (r-n7ay)', sublabel: 'OU: cs-demo', isContainer: true },
+      type: 'custom',
+      style: { width: 520, height: 320 },
+    },
+    {
+      id: 'host',
+      position: { x: 20, y: 50 },
+      data: { label: 'Security (494873120176)', sublabel: 'HOST ACCOUNT', items: ['IAM Reader Role', 'Agentless Integration Role', 'Scanner VPC + NAT'] },
+      type: 'custom',
+      parentId: 'org',
+      extent: 'parent',
+      style: { width: 230, height: 130 },
+    },
+    {
+      id: 'dev',
+      position: { x: 270, y: 50 },
+      data: { label: 'Development', sublabel: '934822761019', items: ['IAM Reader Role'] },
+      type: 'custom',
+      parentId: 'org',
+      extent: 'parent',
+      style: { width: 220, height: 55 },
+    },
+    {
+      id: 'prod',
+      position: { x: 270, y: 120 },
+      data: { label: 'Production', sublabel: '517728567948', items: ['IAM Reader Role'] },
+      type: 'custom',
+      parentId: 'org',
+      extent: 'parent',
+      style: { width: 220, height: 55 },
+    },
+    {
+      id: 'sandbox',
+      position: { x: 270, y: 190 },
+      data: { label: 'Sandbox', sublabel: '019313283882', items: ['IAM Reader Role'] },
+      type: 'custom',
+      parentId: 'org',
+      extent: 'parent',
+      style: { width: 220, height: 55 },
+    },
+    {
+      id: 'falcon',
+      position: { x: 130, y: 380 },
+      data: { label: 'CrowdStrike Falcon Cloud', sublabel: 'Asset Inventory + IOM Assessment + IOA Detection', isCloud: true },
+      type: 'custom',
+      style: { width: 260, height: 60 },
+    },
+  ]
+
+  const edges = [
+    {
+      id: 'e-host-falcon',
+      source: 'host',
+      target: 'falcon',
+      label: 'TLS 443',
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#3fb950', strokeWidth: 1.5 },
+      labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 },
+      markerEnd: { type: 'arrowclosed', color: '#3fb950' },
+    },
+    {
+      id: 'e-dev-falcon',
+      source: 'dev',
+      target: 'falcon',
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#61C4C9', strokeWidth: 1.2 },
+      markerEnd: { type: 'arrowclosed', color: '#61C4C9' },
+    },
+    {
+      id: 'e-prod-falcon',
+      source: 'prod',
+      target: 'falcon',
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#61C4C9', strokeWidth: 1.2 },
+      markerEnd: { type: 'arrowclosed', color: '#61C4C9' },
+    },
+    {
+      id: 'e-sandbox-falcon',
+      source: 'sandbox',
+      target: 'falcon',
+      type: 'smoothstep',
+      animated: true,
+      style: { stroke: '#61C4C9', strokeWidth: 1.2 },
+      markerEnd: { type: 'arrowclosed', color: '#61C4C9' },
+    },
+  ]
+
+  return { nodes, edges }
 }
 
 function buildAnsibleDiagram(text) {
