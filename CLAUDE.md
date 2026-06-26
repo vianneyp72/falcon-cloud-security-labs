@@ -15,51 +15,93 @@ vms/linux/ansible/                        ← compute/os/method
 
 Shared prerequisites live in `_common/` (underscore prefix sorts first).
 
-## Lab Format
+## Lab Format (Dual-Mode Standard)
 
-Every deployment method is a folder with `lab.md` as the primary document. Follow this style (modeled after `kubernetes/helm-daemonset/k8s-standard/lab.md`):
+Every deployment method is a folder with `lab.md` as the primary document. All labs use a **dual-mode structure** with two views:
+
+- `<div data-mode="guide">` — **Quick Deploy** (fast path, max 5 steps)
+- `<div data-mode="lab">` — **Full Lab** (comprehensive walkthrough)
+
+The webapp's mode toggle switches between these views. Reference lab: `serverless-containers/cloud-run/lab.md`.
+
+### Content placement
+
+**Above the mode split (shared by both views):**
+- Title and one-line description
+- Performance notes / callouts
+- Prerequisites blockquote (tools, APIs, scopes, time estimate)
+- Reference Docs table (Source | Link)
+- Core concepts and architecture diagrams
+
+**Below the split (inside mode divs):**
+- All hands-on deployment steps
+
+### Skeleton
 
 ```markdown
 # Title — What This Deploys
 
-One-line description of what this does.
+One-line description.
 
-Official GH: <github link>
-Official Docs: <docs link>
+> **Prerequisites:**
+> - Required tools, APIs, scopes
+> - ~X min estimated
 
-## Components Deployed
-- **Component** - Brief description
+| Source | Link |
+|--------|------|
+| Official Docs | <url> |
 
-## Prerequisites
-- Bullet list of what's needed
-- Required API scopes in bold
+## Core Concepts
+
+Brief explanation of key ideas and architecture.
+
+---
 
 ## Deployment Steps
-### 1. Step title
-Code blocks with commands. No excessive prose.
 
-### 2. Next step
-...
+<div data-mode="guide">
+
+### 1. First step
+### 2. Second step
+### 3. Third step
+### 4. Fourth step
+### 5. Verify
+
+</div>
+
+<div data-mode="lab">
+
+## N. Section Title
+
+> **~X min | Difficulty**
+
+### Step 1: ...
+
+</div>
 ```
 
-**Key rules:**
+### Quick Deploy mode rules
+
+- Max 5 H3 numbered steps
+- Console-first: describe the UI navigation, then collapse CLI into `<details><summary>CLI equivalent</summary>`
+- No checkboxes, no time/difficulty markers, no `> **What & Why:**` blocks
+- Minimal prose — get to the point
+
+### Full Lab mode rules
+
+- H2 numbered sections with `> **~X min | Difficulty**`
+- `> **What & Why:**` blockquotes before each step explaining purpose
+- `- [ ]` checkboxes for every hands-on action
+- Console-first with `<details><summary>CLI equivalent</summary>`
+- Challenges section (2-3 progressive) + Quick Reference table at end
+
+### General rules
+
 - Platform-agnostic where possible (one guide covers EKS + GKE + AKS)
 - Keep steps as copy-paste-able commands
 - Use environment variables for user-specific values
 - No emojis in content
-
-## When to use the full lab template (longer guides)
-
-For comprehensive labs (like `container-image-patching/local-docker/lab.md` or `vms/linux/ansible/lab.md`), use the extended format:
-
-- `> **~X min | Difficulty**` time markers per section
-- `> **What & Why:**` blockquotes explaining each step's purpose
-- `- [ ]` checkboxes for every hands-on action
-- `<details><summary>CLI equivalent</summary>` for console-first steps
-- `<details><summary>Hint/Solution</summary>` for challenges
-- Reference Docs table at top
-- Quick Reference table at bottom
-- 2-3 progressive challenges with hints/solutions
+- Console-first applies to BOTH modes (UI navigation as primary, CLI in collapsible details)
 
 ## Stubs
 
