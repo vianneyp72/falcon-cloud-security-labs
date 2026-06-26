@@ -191,6 +191,21 @@ docker push ${GAR_BASE}/<YOUR_IMAGE>:<TAG>-falcon
 
 ### 4. Deploy patched image to Cloud Run
 
+Navigate to **Cloud Run** > **Create Service**:
+- Container image URL: Click **Select** > **Artifact Registry** > select your `-falcon` tagged image
+- Service name: your service name
+- Region: `us-central1`
+- Authentication: **Allow unauthenticated invocations** (for testing)
+- Expand **Container, Networking, Security**:
+  - **Container** tab → Container port: `8080`
+  - **General** tab → Execution environment: **Second generation**
+- Click **Create**
+
+> `Second generation` execution environment is mandatory. Gen1 uses gVisor which blocks the syscalls the Falcon sensor needs.
+
+<details>
+<summary>CLI equivalent</summary>
+
 ```bash
 gcloud run deploy <SERVICE_NAME> \
   --image=${GAR_BASE}/<YOUR_IMAGE>:<TAG>-falcon \
@@ -201,7 +216,7 @@ gcloud run deploy <SERVICE_NAME> \
   --allow-unauthenticated
 ```
 
-> `--execution-environment=gen2` is mandatory. Gen1 uses gVisor which blocks the syscalls the Falcon sensor needs.
+</details>
 
 ### 5. Verify in Falcon console
 
