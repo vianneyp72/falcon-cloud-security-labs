@@ -759,6 +759,8 @@ aws iam delete-role --role-name github-actions-falcon-patching
 
 ---
 
+<div data-mode="lab">
+
 ## 10. Challenges
 
 > **~15 min | Advanced**
@@ -955,6 +957,8 @@ For the lifecycle policy (add to Terraform or apply via console):
 ```
 
 </details>
+
+</div>
 
 ---
 

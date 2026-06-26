@@ -526,6 +526,8 @@ docker stop flask-patched && docker rm flask-patched
 
 ---
 
+<div data-mode="lab">
+
 ## 8. Challenges
 
 > **~15 min | Mixed**
@@ -664,6 +666,8 @@ fi
 ```
 
 </details>
+
+</div>
 
 ---
 

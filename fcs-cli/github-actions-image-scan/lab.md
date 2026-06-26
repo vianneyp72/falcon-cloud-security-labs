@@ -502,6 +502,8 @@ For production images targeting both amd64 and arm64:
 
 ---
 
+<div data-mode="lab">
+
 ## Challenges
 
 ### Challenge 1: Add severity threshold per branch
@@ -654,6 +656,8 @@ Add a parallel job:
 Note: IaC scanning uses `fail_on` to set the threshold locally, unlike image scanning which relies on the console policy.
 
 </details>
+
+</div>
 
 ---
 

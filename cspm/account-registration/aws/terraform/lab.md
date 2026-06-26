@@ -881,6 +881,8 @@ dspm_ebs_access      = true
 
 ---
 
+<div data-mode="lab">
+
 ## 11. Challenges
 
 ### Challenge 1: Drift Detection Workflow
@@ -987,6 +989,8 @@ Then in GitHub > Settings > Branches > Add rule for `main`:
 - Require status checks: all `plan` jobs must pass
 
 </details>
+
+</div>
 
 ---
 

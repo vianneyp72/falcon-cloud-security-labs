@@ -632,7 +632,11 @@ terraform apply
 ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass
 ```
 
+</div>
+
 ---
+
+<div data-mode="lab">
 
 ## 8. Challenges
 
@@ -754,7 +758,11 @@ This pulls all hosts tagged `<YOUR_CLOUD>/<YOUR_REGION>` from your Falcon tenant
 
 </details>
 
+</div>
+
 ---
+
+<div data-mode="lab">
 
 ## 9. Cleanup
 

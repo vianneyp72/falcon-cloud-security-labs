@@ -1073,6 +1073,8 @@ gcloud iam service-accounts delete \
 
 ---
 
+<div data-mode="lab">
+
 ## 12. Challenges
 
 > **~15 min | Advanced**
@@ -1280,6 +1282,8 @@ def trigger_patching(cloud_event):
 This creates a fully automated pipeline: dev pushes image > GAR > Pub/Sub > Cloud Function > GitHub Actions > patched image back in GAR.
 
 </details>
+
+</div>
 
 ---
 
