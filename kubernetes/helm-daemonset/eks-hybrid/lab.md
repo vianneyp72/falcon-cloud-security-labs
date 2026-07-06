@@ -14,14 +14,16 @@ Deploy CrowdStrike Falcon on an EKS cluster running both EC2 nodes and Fargate p
 > - _Optional (only to host images in your own registry):_ Falcon images copied to ECR + the Fargate pod execution role granted ECR read (`AmazonEC2ContainerRegistryReadOnly`)
 > - ~30 minutes (Quick Deploy) / ~75 minutes (Full Lab)
 
+> **Windows:** These commands are written for bash. Run them from **WSL** or **Git Bash** — CrowdStrike's `falcon-container-sensor-pull` script is bash-only, and tools like `grep`/`cut`/`awk` aren't available in native PowerShell.
+
 ## Reference Docs
 
-| Source                                | Link                                                                                 |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| falcon-platform Helm chart (GitHub)   | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-platform     |
-| falcon-sensor Helm chart (Injector)   | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-sensor       |
-| EKS Fargate Pod Execution Role        | https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html      |
-| Deploy Falcon Sensor via Helm (Docs)  | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/l303c850                               |
+| Source                               | Link                                                                             |
+| ------------------------------------ | -------------------------------------------------------------------------------- |
+| falcon-platform Helm chart (GitHub)  | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-platform |
+| falcon-sensor Helm chart (Injector)  | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-sensor   |
+| EKS Fargate Pod Execution Role       | https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html  |
+| Deploy Falcon Sensor via Helm (Docs) | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/l303c850                           |
 
 ---
 
@@ -134,17 +136,19 @@ echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo SET || echo MISSING) ($I
 Every line should read `SET`. Any `MISSING` means that variable didn't populate — re-check the matching command and your API scopes.
 
 ### 3. Add Helm repo
+
 ```bash
 helm repo add crowdstrike https://crowdstrike.github.io/falcon-helm
 helm repo update
 ```
 
 ### 4. deploy DaemonSet + KAC + IAR
+
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="eks-hybrid-nodes" \
+  --set falcon-sensor.falcon.tags="eks-ec2-node" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -160,7 +164,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="eks-hybrid-nodes"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
+> `falcon-sensor.falcon.tags="eks-ec2-node"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
 
 ### 5. Deploy sidecar injector (Fargate pods)
 
@@ -423,7 +427,7 @@ helm search repo crowdstrike/falcon-sensor
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="eks-hybrid-nodes" \
+  --set falcon-sensor.falcon.tags="eks-ec2-node" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -439,7 +443,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="eks-hybrid-nodes"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
+> `falcon-sensor.falcon.tags="eks-ec2-node"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
 
 ### Step 2: Verify EC2 sensor pods
 
@@ -661,7 +665,7 @@ Set up a CronJob that pulls the latest Falcon sensor images from CrowdStrike's r
 | `LUMOS_SENSOR_REGISTRY`     | CrowdStrike (or ECR) repo for sidecar sensor   | falcon-sensor chart (injector)                                                                        |
 | `KAC_REGISTRY`              | CrowdStrike (or ECR) repo for KAC image        | falcon-platform chart                                                                                 |
 | `IAR_REGISTRY`              | CrowdStrike (or ECR) repo for IAR image        | falcon-platform chart                                                                                 |
-| `FALCON_PULL_TOKEN`     | Base64 registry pull token                     | Both charts: `global.containerRegistry.configJSON` / `container.image.pullSecrets.registryConfigJSON` |
+| `FALCON_PULL_TOKEN`         | Base64 registry pull token                     | Both charts: `global.containerRegistry.configJSON` / `container.image.pullSecrets.registryConfigJSON` |
 | `CLUSTER_NAME`              | EKS cluster name                               | IAR cluster identification                                                                            |
 
 </div>

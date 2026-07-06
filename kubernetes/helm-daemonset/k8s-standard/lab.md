@@ -16,6 +16,8 @@ Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, 
 > - CrowdStrike CID (with checksum)
 > - ~30 minutes (Quick Deploy) / ~60 minutes (Full Lab)
 
+> **Windows:** These commands are written for bash. Run them from **WSL** or **Git Bash** — CrowdStrike's `falcon-container-sensor-pull` script is bash-only, and tools like `grep`/`cut` aren't available in native PowerShell.
+
 ## Reference Docs
 
 | Source                               | Link                                                                                                 |
