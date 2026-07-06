@@ -996,105 +996,157 @@ function buildGkeAutopilotDiagram(text) {
       position: { x: 0, y: 0 },
       data: { label: 'GKE Autopilot Cluster', isContainer: true },
       type: 'custom',
-      style: { width: 860, height: 430 },
+      style: { width: 920, height: 680 },
     },
-    // Allowlist authorization flow (top row)
+    // Allowlist authorization chain — top row, reads left-to-right
+    // (wide gaps so the fetch/authorize connectors are clearly visible)
     {
       id: 'synchronizer',
-      position: { x: 25, y: 55 },
+      position: { x: 30, y: 65 },
       data: { label: 'AllowlistSynchronizer', sublabel: 'CRD you apply' },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
-      style: { width: 240, height: 60 },
+      zIndex: 20,
+      style: { width: 250, height: 58 },
     },
     {
       id: 'allowlists',
-      position: { x: 305, y: 55 },
+      position: { x: 335, y: 65 },
       data: { label: 'WorkloadAllowlists', sublabel: 'fetched from CrowdStrike' },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
-      style: { width: 240, height: 60 },
+      zIndex: 20,
+      style: { width: 250, height: 58 },
     },
     {
       id: 'warden',
-      position: { x: 585, y: 55 },
+      position: { x: 640, y: 65 },
       data: { label: 'GKE Warden', sublabel: 'admission enforcement', isApi: true },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
-      style: { width: 240, height: 60 },
+      zIndex: 20,
+      style: { width: 250, height: 58 },
     },
-    // DaemonSet band
+    // 3 tall Node columns (rendered first = behind everything else)
+    {
+      id: 'node1',
+      position: { x: 25, y: 165 },
+      data: { label: 'Node 1', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 460 },
+    },
+    {
+      id: 'node2',
+      position: { x: 325, y: 165 },
+      data: { label: 'Node 2', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 460 },
+    },
+    {
+      id: 'node3',
+      position: { x: 625, y: 165 },
+      data: { label: 'Node 3', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 460 },
+    },
+    // DaemonSet band — spans all 3 nodes, one privileged sensor pod per node
     {
       id: 'daemonset',
-      position: { x: 25, y: 155 },
+      position: { x: 35, y: 215 },
       data: { label: 'DaemonSet — falcon-sensor (1 privileged pod per node)', isContainer: true, isPhase: true },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
-      style: { width: 800, height: 120 },
+      style: { width: 845, height: 130 },
     },
     {
-      id: 'sensor',
-      position: { x: 300, y: 45 },
+      id: 'sensor1',
+      position: { x: 15, y: 55 },
       data: { label: 'falcon-sensor', sublabel: 'bpf backend' },
       type: 'custom',
       parentId: 'daemonset',
       extent: 'parent',
       style: { width: 200, height: 55 },
     },
-    // KAC + IAR bands
     {
-      id: 'kac',
-      position: { x: 25, y: 300 },
-      data: { label: 'Falcon KAC', sublabel: 'Deployment — Admission Controller' },
+      id: 'sensor2',
+      position: { x: 315, y: 55 },
+      data: { label: 'falcon-sensor', sublabel: 'bpf backend' },
       type: 'custom',
-      parentId: 'cluster',
+      parentId: 'daemonset',
       extent: 'parent',
-      zIndex: 10,
-      style: { width: 390, height: 70 },
+      style: { width: 200, height: 55 },
     },
+    {
+      id: 'sensor3',
+      position: { x: 615, y: 55 },
+      data: { label: 'falcon-sensor', sublabel: 'bpf backend' },
+      type: 'custom',
+      parentId: 'daemonset',
+      extent: 'parent',
+      style: { width: 200, height: 55 },
+    },
+    // Falcon Image Analyzer — wide band spanning all 3 nodes
     {
       id: 'iar',
-      position: { x: 435, y: 300 },
-      data: { label: 'Falcon Image Analyzer', sublabel: 'Deployment — Image Assessment' },
+      position: { x: 35, y: 385 },
+      data: { label: 'Falcon Image Analyzer', sublabel: 'Deployment (1 replica) — Image Assessment' },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
       zIndex: 10,
-      style: { width: 390, height: 70 },
+      style: { width: 845, height: 70 },
     },
-    // External: CrowdStrike registry (image source)
+    // Falcon KAC — wide band spanning all 3 nodes
+    {
+      id: 'kac',
+      position: { x: 35, y: 495 },
+      data: { label: 'Falcon KAC', sublabel: 'Deployment (1 replica) — Admission Controller' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 10,
+      style: { width: 845, height: 70 },
+    },
+    // External: CrowdStrike registry — pulled well out to the left so the image-pull line is visible
     {
       id: 'cs-registry',
-      position: { x: 70, y: 500 },
-      data: { label: 'registry.crowdstrike.com', sublabel: 'Sensor (required) + KAC + IAR images', isCloud: true },
+      position: { x: -450, y: 245 },
+      data: { label: 'registry.crowdstrike.com', sublabel: 'Sensor image required here (KAC + IAR default here too)', isCloud: true },
       type: 'custom',
-      style: { width: 300, height: 60 },
+      style: { width: 300, height: 70 },
     },
-    // External: CrowdStrike cloud (telemetry)
+    // External: CrowdStrike cloud — dropped lower so the telemetry (TLS 443) lines are visible
     {
       id: 'cs-cloud',
-      position: { x: 520, y: 500 },
+      position: { x: 340, y: 770 },
       data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
       type: 'custom',
-      style: { width: 260, height: 60 },
+      style: { width: 230, height: 60 },
     },
   ]
 
   const edges = [
-    // Authorization flow
-    { id: 'e-sync-al', source: 'synchronizer', target: 'allowlists', label: 'fetches', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
-    { id: 'e-al-warden', source: 'allowlists', target: 'warden', label: 'authorizes', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
-    { id: 'e-warden-ds', source: 'warden', target: 'daemonset', label: 'admits privileged pods', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
-    // Image pulls
-    { id: 'e-reg-sensor', source: 'cs-registry', target: 'sensor', label: 'image pull (must be CS registry)', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    { id: 'e-reg-kac', source: 'cs-registry', target: 'kac', type: 'smoothstep', style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    { id: 'e-reg-iar', source: 'cs-registry', target: 'iar', type: 'smoothstep', style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    // Telemetry
-    { id: 'e-sensor-cloud', source: 'sensor', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    // Allowlist authorization chain (horizontal, left-to-right)
+    { id: 'e-sync-al', source: 'synchronizer', sourceHandle: 'right-source', target: 'allowlists', targetHandle: 'left-target', label: 'fetches', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-al-warden', source: 'allowlists', sourceHandle: 'right-source', target: 'warden', targetHandle: 'left-target', label: 'authorizes', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    // Warden admits the privileged DaemonSet
+    { id: 'e-warden-ds', source: 'warden', target: 'daemonset', label: 'admits privileged pods', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    // Image pull — registry feeds the DaemonSet from the left (allowlist-gated)
+    { id: 'e-reg-ds', source: 'cs-registry', sourceHandle: 'right-source', target: 'daemonset', targetHandle: 'left-target', label: 'sensor image (CS registry required)', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    // Telemetry — each sensor drops down to the cloud (dashed red, behind the bands)
+    { id: 'e-s1-cloud', source: 'sensor1', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    { id: 'e-s2-cloud', source: 'sensor2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', zIndex: 0, animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-s3-cloud', source: 'sensor3', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
   ]
 
   return { nodes, edges }
