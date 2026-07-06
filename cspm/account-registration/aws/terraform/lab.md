@@ -96,7 +96,7 @@ account_id      = "<host-account-id>"
 ### 3. Deploy
 
 ```bash
-cd ~/projects/falcon-sensor-installs-workspace/cspm/account-registration/aws/terraform
+cd ~/projects/falcon-cloud-security-labs-workspace/cspm/account-registration/aws/terraform
 terraform init
 terraform plan -out=tfplan
 terraform apply tfplan
@@ -186,7 +186,7 @@ export FALCON_CLIENT_SECRET="<your-client-secret>"
 - [ ] Navigate to the workspace directory:
 
 ```bash
-cd ~/projects/falcon-sensor-installs-workspace/cspm/account-registration/aws/terraform
+cd ~/projects/falcon-cloud-security-labs-workspace/cspm/account-registration/aws/terraform
 ```
 
 - [ ] Initialize Terraform:
@@ -431,7 +431,7 @@ aws organizations move-account \
 - [ ] Create a new workspace and apply:
 
 ```bash
-cd ~/projects/falcon-sensor-installs-workspace/cspm/account-registration/aws/terraform
+cd ~/projects/falcon-cloud-security-labs-workspace/cspm/account-registration/aws/terraform
 
 terraform workspace new staging 2>/dev/null || terraform workspace select staging
 ```
@@ -748,7 +748,7 @@ The pipeline will automatically deploy to the new account on merge to `main`.
 - [ ] Destroy member accounts first:
 
 ```bash
-cd ~/projects/falcon-sensor-installs-workspace/cspm/account-registration/aws/terraform
+cd ~/projects/falcon-cloud-security-labs-workspace/cspm/account-registration/aws/terraform
 
 for ws in development production sandbox; do
   terraform workspace select $ws

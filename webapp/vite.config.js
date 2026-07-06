@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/falcon-sensor-installs/',
+  base: '/falcon-cloud-security-labs/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

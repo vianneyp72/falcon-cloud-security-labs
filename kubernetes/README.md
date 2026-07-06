@@ -42,7 +42,6 @@ There are three primary deployment methods:
 |-------|-------------|
 | [eks-fargate/](helm-sidecar/eks-fargate/) | EKS Fargate-only clusters |
 | [aks-virtual-nodes/](helm-sidecar/aks-virtual-nodes/) | AKS with virtual node pools |
-| [any-cluster/](helm-sidecar/any-cluster/) | Generic sidecar injection on any cluster |
 
 ### Operator
 

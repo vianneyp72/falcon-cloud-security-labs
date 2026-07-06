@@ -690,6 +690,187 @@ function buildFcsImageScanDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEksHybridDiagram(text) {
+  const nodes = [
+    // EKS Cluster container
+    {
+      id: 'cluster',
+      position: { x: 220, y: 0 },
+      data: { label: 'EKS Hybrid Cluster', isContainer: true },
+      type: 'custom',
+      style: { width: 680, height: 480 },
+    },
+    // Fargate Node
+    {
+      id: 'fargate-node',
+      position: { x: 20, y: 55 },
+      data: { label: 'Fargate-Node-1', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 200, height: 410, borderColor: 'rgba(210, 153, 34, 0.4)' },
+    },
+    {
+      id: 'app-pod-1',
+      position: { x: 15, y: 45 },
+      data: { label: 'App-Pod-1', sublabel: 'LUMOS sidecar' },
+      type: 'custom',
+      parentId: 'fargate-node',
+      extent: 'parent',
+      style: { width: 170, height: 50 },
+    },
+    {
+      id: 'app-pod-2',
+      position: { x: 15, y: 110 },
+      data: { label: 'App-Pod-2', sublabel: 'LUMOS sidecar' },
+      type: 'custom',
+      parentId: 'fargate-node',
+      extent: 'parent',
+      style: { width: 170, height: 50 },
+    },
+    {
+      id: 'injector',
+      position: { x: 15, y: 185 },
+      data: { label: 'Falcon-Pod-1', sublabel: 'Sensor Injector' },
+      type: 'custom',
+      parentId: 'fargate-node',
+      extent: 'parent',
+      style: { width: 170, height: 50 },
+    },
+    // EC2 Node 1
+    {
+      id: 'ec2-node-1',
+      position: { x: 240, y: 55 },
+      data: { label: 'EC2-Node-1', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 200, height: 410, borderColor: 'rgba(210, 153, 34, 0.4)' },
+    },
+    {
+      id: 'app-pod-3',
+      position: { x: 15, y: 45 },
+      data: { label: 'App-Pod-3' },
+      type: 'custom',
+      parentId: 'ec2-node-1',
+      extent: 'parent',
+      style: { width: 170, height: 45 },
+    },
+    {
+      id: 'app-pod-4',
+      position: { x: 15, y: 105 },
+      data: { label: 'App-Pod-4' },
+      type: 'custom',
+      parentId: 'ec2-node-1',
+      extent: 'parent',
+      style: { width: 170, height: 45 },
+    },
+    {
+      id: 'falcon-ds-1',
+      position: { x: 15, y: 175 },
+      data: { label: 'Falcon-Pod-2', sublabel: 'DaemonSet Sensor' },
+      type: 'custom',
+      parentId: 'ec2-node-1',
+      extent: 'parent',
+      style: { width: 170, height: 50 },
+    },
+    // EC2 Node 2
+    {
+      id: 'ec2-node-2',
+      position: { x: 460, y: 55 },
+      data: { label: 'EC2-Node-2', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 200, height: 410, borderColor: 'rgba(210, 153, 34, 0.4)' },
+    },
+    {
+      id: 'app-pod-5',
+      position: { x: 15, y: 45 },
+      data: { label: 'App-Pod-5' },
+      type: 'custom',
+      parentId: 'ec2-node-2',
+      extent: 'parent',
+      style: { width: 170, height: 45 },
+    },
+    {
+      id: 'app-pod-6',
+      position: { x: 15, y: 105 },
+      data: { label: 'App-Pod-6' },
+      type: 'custom',
+      parentId: 'ec2-node-2',
+      extent: 'parent',
+      style: { width: 170, height: 45 },
+    },
+    {
+      id: 'falcon-ds-2',
+      position: { x: 15, y: 175 },
+      data: { label: 'Falcon-Pod-3', sublabel: 'DaemonSet Sensor' },
+      type: 'custom',
+      parentId: 'ec2-node-2',
+      extent: 'parent',
+      style: { width: 170, height: 50 },
+    },
+    // Image Registry — left of cluster
+    {
+      id: 'registry',
+      position: { x: 0, y: 60 },
+      data: { label: 'Image Registry', sublabel: 'CRWD or Customer ECR', isContainer: true },
+      type: 'custom',
+      style: { width: 190, height: 180 },
+    },
+    {
+      id: 'lumos-image',
+      position: { x: 15, y: 50 },
+      data: { label: 'LUMOS Sensor', sublabel: 'Image', isDanger: true },
+      type: 'custom',
+      parentId: 'registry',
+      extent: 'parent',
+      style: { width: 160, height: 45 },
+    },
+    {
+      id: 'ds-image',
+      position: { x: 15, y: 115 },
+      data: { label: 'DaemonSet Sensor', sublabel: 'Image', isDanger: true },
+      type: 'custom',
+      parentId: 'registry',
+      extent: 'parent',
+      style: { width: 160, height: 45 },
+    },
+    // DaemonSet controller — below cluster
+    {
+      id: 'daemonset-ctrl',
+      position: { x: 440, y: 510 },
+      data: { label: 'DaemonSet', sublabel: '1 sensor pod per EC2 node', isPhase: true },
+      type: 'custom',
+      style: { width: 220, height: 50 },
+    },
+    // Notes box — right side
+    {
+      id: 'notes',
+      position: { x: 930, y: 60 },
+      data: { label: 'Notes', items: ['2 Helm charts, 2 sensor images', 'Fargate profiles required for injector', 'IRSA role needed for ECR pull', 'DaemonSet ignored on Fargate nodes'] },
+      type: 'custom',
+      style: { width: 220, height: 140 },
+    },
+  ]
+
+  const edges = [
+    // LUMOS image → injector
+    { id: 'e-lumos-inj', source: 'lumos-image', target: 'injector', type: 'smoothstep', sourceHandle: 'right-source', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    // DaemonSet image → DaemonSet controller
+    { id: 'e-ds-img-ctrl', source: 'ds-image', target: 'daemonset-ctrl', type: 'smoothstep', sourceHandle: 'right-source', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    // DaemonSet controller → sensor pods on EC2 nodes
+    { id: 'e-ds-pod1', source: 'daemonset-ctrl', target: 'falcon-ds-1', type: 'smoothstep', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-ds-pod2', source: 'daemonset-ctrl', target: 'falcon-ds-2', type: 'smoothstep', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    // Injector → sidecar pods (shows injection)
+    { id: 'e-inj-pod1', source: 'injector', target: 'app-pod-1', type: 'smoothstep', label: 'injects', style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 9 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-inj-pod2', source: 'injector', target: 'app-pod-2', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildK8sDaemonsetDiagram(text) {
   const nodes = [
     // Kubernetes Cluster container
@@ -773,6 +954,7 @@ function buildK8sDaemonsetDiagram(text) {
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
+      zIndex: 10,
       style: { width: 750, height: 70 },
     },
     // Falcon KAC — wide band spanning all 3 nodes
@@ -783,12 +965,13 @@ function buildK8sDaemonsetDiagram(text) {
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
+      zIndex: 10,
       style: { width: 750, height: 70 },
     },
-    // CrowdStrike Cloud — outside cluster, pushed down for spacing
+    // CrowdStrike Cloud — centered below cluster
     {
       id: 'cs-cloud',
-      position: { x: 280, y: 700 },
+      position: { x: 345, y: 620 },
       data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
       type: 'custom',
       style: { width: 230, height: 60 },
@@ -796,10 +979,122 @@ function buildK8sDaemonsetDiagram(text) {
   ]
 
   const edges = [
-    // Sensors → CrowdStrike Cloud (dashed green lines converge naturally)
-    { id: 'e-s1-cloud', source: 'sensor1', target: 'cs-cloud', type: 'smoothstep', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
-    { id: 'e-s2-cloud', source: 'sensor2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
-    { id: 'e-s3-cloud', source: 'sensor3', target: 'cs-cloud', type: 'smoothstep', style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    // Sensors → CrowdStrike Cloud (smoothstep dashed red lines, behind IAR/KAC)
+    { id: 'e-s1-cloud', source: 'sensor1', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    { id: 'e-s2-cloud', source: 'sensor2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', zIndex: 0, animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-s3-cloud', source: 'sensor3', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+  ]
+
+  return { nodes, edges }
+}
+
+function buildGkeAutopilotDiagram(text) {
+  const nodes = [
+    // GKE Autopilot cluster container
+    {
+      id: 'cluster',
+      position: { x: 0, y: 0 },
+      data: { label: 'GKE Autopilot Cluster', isContainer: true },
+      type: 'custom',
+      style: { width: 860, height: 430 },
+    },
+    // Allowlist authorization flow (top row)
+    {
+      id: 'synchronizer',
+      position: { x: 25, y: 55 },
+      data: { label: 'AllowlistSynchronizer', sublabel: 'CRD you apply' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 240, height: 60 },
+    },
+    {
+      id: 'allowlists',
+      position: { x: 305, y: 55 },
+      data: { label: 'WorkloadAllowlists', sublabel: 'fetched from CrowdStrike' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 240, height: 60 },
+    },
+    {
+      id: 'warden',
+      position: { x: 585, y: 55 },
+      data: { label: 'GKE Warden', sublabel: 'admission enforcement', isApi: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 240, height: 60 },
+    },
+    // DaemonSet band
+    {
+      id: 'daemonset',
+      position: { x: 25, y: 155 },
+      data: { label: 'DaemonSet — falcon-sensor (1 privileged pod per node)', isContainer: true, isPhase: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 800, height: 120 },
+    },
+    {
+      id: 'sensor',
+      position: { x: 300, y: 45 },
+      data: { label: 'falcon-sensor', sublabel: 'bpf backend' },
+      type: 'custom',
+      parentId: 'daemonset',
+      extent: 'parent',
+      style: { width: 200, height: 55 },
+    },
+    // KAC + IAR bands
+    {
+      id: 'kac',
+      position: { x: 25, y: 300 },
+      data: { label: 'Falcon KAC', sublabel: 'Deployment — Admission Controller' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 10,
+      style: { width: 390, height: 70 },
+    },
+    {
+      id: 'iar',
+      position: { x: 435, y: 300 },
+      data: { label: 'Falcon Image Analyzer', sublabel: 'Deployment — Image Assessment' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 10,
+      style: { width: 390, height: 70 },
+    },
+    // External: CrowdStrike registry (image source)
+    {
+      id: 'cs-registry',
+      position: { x: 70, y: 500 },
+      data: { label: 'registry.crowdstrike.com', sublabel: 'Sensor (required) + KAC + IAR images', isCloud: true },
+      type: 'custom',
+      style: { width: 300, height: 60 },
+    },
+    // External: CrowdStrike cloud (telemetry)
+    {
+      id: 'cs-cloud',
+      position: { x: 520, y: 500 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 260, height: 60 },
+    },
+  ]
+
+  const edges = [
+    // Authorization flow
+    { id: 'e-sync-al', source: 'synchronizer', target: 'allowlists', label: 'fetches', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-al-warden', source: 'allowlists', target: 'warden', label: 'authorizes', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-warden-ds', source: 'warden', target: 'daemonset', label: 'admits privileged pods', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    // Image pulls
+    { id: 'e-reg-sensor', source: 'cs-registry', target: 'sensor', label: 'image pull (must be CS registry)', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-reg-kac', source: 'cs-registry', target: 'kac', type: 'smoothstep', style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-reg-iar', source: 'cs-registry', target: 'iar', type: 'smoothstep', style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    // Telemetry
+    { id: 'e-sensor-cloud', source: 'sensor', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
   ]
 
   return { nodes, edges }
@@ -807,6 +1102,12 @@ function buildK8sDaemonsetDiagram(text) {
 
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
+  if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) {
+    return buildGkeAutopilotDiagram(text)
+  }
+  if (text.includes('EKS HYBRID CLUSTER') && text.includes('LUMOS Sensor Image')) {
+    return buildEksHybridDiagram(text)
+  }
   if (text.includes('FALCON PLATFORM HELM DEPLOYMENT') && text.includes('DaemonSet: 1 pod per node')) {
     return buildK8sDaemonsetDiagram(text)
   }
@@ -1229,6 +1530,8 @@ function buildDockerPatchDiagram(text) {
 
 export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
+  if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
+  if (text.includes('EKS HYBRID CLUSTER') && text.includes('LUMOS Sensor Image')) return true
   if (text.includes('FALCON PLATFORM HELM DEPLOYMENT') && text.includes('DaemonSet: 1 pod per node')) return true
 
   const boxChars = /[┌┐└┘│├┤─┬┴┼]/

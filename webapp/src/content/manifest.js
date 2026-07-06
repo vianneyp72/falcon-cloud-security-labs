@@ -2,7 +2,6 @@
 import k8sStandard from '@content/kubernetes/helm-daemonset/k8s-standard/lab.md?raw'
 import k8sEksHybrid from '@content/kubernetes/helm-daemonset/eks-hybrid/lab.md?raw'
 import k8sGkeAutopilot from '@content/kubernetes/helm-daemonset/gke-autopilot/lab.md?raw'
-import k8sSidecarAny from '@content/kubernetes/helm-sidecar/any-cluster/lab.md?raw'
 import k8sSidecarFargate from '@content/kubernetes/helm-sidecar/eks-fargate/lab.md?raw'
 import k8sSidecarAks from '@content/kubernetes/helm-sidecar/aks-virtual-nodes/lab.md?raw'
 import k8sOpGeneric from '@content/kubernetes/operator/generic/lab.md?raw'
@@ -37,6 +36,8 @@ import cspmAwsTerraform from '@content/cspm/account-registration/aws/terraform/l
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
+import seYasi from '@content/_common/se-built/yet-another-sensor-installer.md?raw'
+import seEcsFargate from '@content/_common/se-built/ecs-fargate-sidecar-injector.md?raw'
 
 // Overview READMEs
 import overviewK8s from '@content/kubernetes/README.md?raw'
@@ -50,7 +51,6 @@ const labs = {
   'kubernetes/helm-daemonset/k8s-standard/lab.md': k8sStandard,
   'kubernetes/helm-daemonset/eks-hybrid/lab.md': k8sEksHybrid,
   'kubernetes/helm-daemonset/gke-autopilot/lab.md': k8sGkeAutopilot,
-  'kubernetes/helm-sidecar/any-cluster/lab.md': k8sSidecarAny,
   'kubernetes/helm-sidecar/eks-fargate/lab.md': k8sSidecarFargate,
   'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md': k8sSidecarAks,
   'kubernetes/operator/generic/lab.md': k8sOpGeneric,
@@ -85,6 +85,8 @@ const labs = {
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
+  '_common/se-built/yet-another-sensor-installer.md': seYasi,
+  '_common/se-built/ecs-fargate-sidecar-injector.md': seEcsFargate,
 }
 
 const overviews = {
@@ -161,7 +163,6 @@ export const manifest = [
       label: 'Helm Sidecar',
       route: 'helm-sidecar',
       children: [
-        lab('Any Cluster', 'any-cluster', 'kubernetes/helm-sidecar/any-cluster/lab.md'),
         lab('EKS Fargate', 'eks-fargate', 'kubernetes/helm-sidecar/eks-fargate/lab.md'),
         lab('AKS Virtual Nodes', 'aks-virtual-nodes', 'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md'),
       ],
@@ -243,6 +244,14 @@ export const manifest = [
     lab('API Credentials', 'api-credentials', '_common/api-credentials.md'),
     lab('Pull Sensor Images', 'pull-sensor-images', '_common/pull-sensor-images.md'),
     lab('Verification', 'verification', '_common/verification.md'),
+    {
+      label: 'SE-Built',
+      route: 'se-built',
+      children: [
+        lab('Yet Another Sensor Installer', 'yet-another-sensor-installer', '_common/se-built/yet-another-sensor-installer.md'),
+        lab('ECS Fargate Sidecar Injector', 'ecs-fargate-sidecar-injector', '_common/se-built/ecs-fargate-sidecar-injector.md'),
+      ],
+    },
   ]),
 ]
 

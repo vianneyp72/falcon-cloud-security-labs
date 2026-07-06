@@ -1,6 +1,6 @@
-# CrowdStrike Falcon Sensor Deployment Guides
+# CrowdStrike Falcon Cloud Security Labs
 
-This repository contains step-by-step lab guides for deploying the CrowdStrike Falcon sensor across cloud workloads. Each guide is a self-contained lab folder with instructions and (where applicable) Terraform files for reproducible environments.
+This repository contains step-by-step lab guides for CrowdStrike Falcon Cloud Security across cloud workloads — sensor deployments, cloud account registration, container protection, and more. Each guide is a self-contained lab folder with instructions and (where applicable) Terraform files for reproducible environments.
 
 ## Decision Matrix
 
@@ -35,7 +35,7 @@ Before starting any lab, review the shared setup steps in [`_common/`](_common/)
 ## Repository Structure
 
 ```
-falcon-sensor-installs/
+falcon-cloud-security-labs/
 ├── README.md
 ├── _common/                          # Shared prerequisites and utilities
 │   ├── api-credentials.md
@@ -50,7 +50,7 @@ falcon-sensor-installs/
 │   ├── helm-daemonset/               # Node-level sensor via Helm
 │   │   ├── k8s-standard/, eks-hybrid/, gke-autopilot/
 │   ├── helm-sidecar/                 # Container sensor via sidecar injection
-│   │   ├── eks-fargate/, aks-virtual-nodes/, any-cluster/
+│   │   ├── eks-fargate/, aks-virtual-nodes/
 │   └── operator/                     # Falcon Operator (CRD-based)
 │       ├── generic/, openshift/, tainted-nodes/
 ├── ecs/                              # AWS ECS

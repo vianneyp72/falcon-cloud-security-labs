@@ -1,6 +1,6 @@
-# falcon-sensor-installs
+# falcon-cloud-security-labs
 
-Documentation repository containing hands-on lab guides for deploying CrowdStrike Falcon sensors across cloud workloads. No application code, no tests, no builds — just markdown, shell scripts, and Terraform files.
+Documentation repository containing hands-on lab guides for CrowdStrike Falcon Cloud Security across cloud workloads — sensor deployments, FCS CLI, cloud account registration, container protection, and more. No application code, no tests, no builds — just markdown, shell scripts, and Terraform files.
 
 ## Taxonomy
 

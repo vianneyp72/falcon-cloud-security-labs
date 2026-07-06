@@ -659,7 +659,7 @@ You've built everything by hand — now let's make it repeatable. We'll import y
 - [ ] From the lab folder, run:
 
 ```bash
-cd ~/projects/falcon-sensor-installs/container-image-patching/github-actions
+cd ~/projects/falcon-cloud-security-labs/container-image-patching/github-actions
 terraform init
 ```
 

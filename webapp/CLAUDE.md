@@ -1,4 +1,4 @@
-# Webapp — Falcon Sensor Installs Lab Portal
+# Webapp — Falcon Cloud Security Labs Portal
 
 Interactive React webapp that renders the repo's `lab.md` files as a polished documentation site mirroring the CrowdStrike Developer Center design.
 

@@ -979,7 +979,7 @@ You've built everything by hand — now let's make it repeatable. We'll import y
 - [ ] From the lab folder, run:
 
 ```bash
-cd ~/projects/falcon-sensor-installs-workspace/serverless-containers/cloud-run
+cd ~/projects/falcon-cloud-security-labs-workspace/serverless-containers/cloud-run
 terraform init
 ```
 
