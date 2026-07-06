@@ -133,9 +133,10 @@ helm repo update
 ### 4. Deploy the chart
 
 ```bash
-helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0.0 \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
+  --set falcon-sensor.falcon.tags="daemonset-sensor" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -151,6 +152,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
+> `falcon-sensor.falcon.tags="daemonset-sensor"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
+
 > `createComponentNamespaces=true` places sensor in `falcon-system`, KAC in `falcon-kac`, and IAR in `falcon-image-analyzer`.
 
 > **GovCloud (us-gov-1 / us-gov-2):** Running the pull script with GovCloud API credentials makes `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry automatically, so your `*_REGISTRY` vars are already correct. Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Sensor and KAC derive their region from the CID; optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`.
@@ -165,6 +168,28 @@ kubectl get ds -n falcon-system
 ```
 
 All pods should be `Running`. The DaemonSet should show `DESIRED` = `CURRENT` = number of nodes.
+
+### 6. Test a detection (optional)
+
+Deploy the CrowdStrike vulnapp, trigger a simulated attack from its web UI, and confirm the detection lands in the Falcon console.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+Once the pod is running, port-forward to it (this blocks — leave it running):
+
+```bash
+kubectl port-forward svc/vulnerable-example-com 8060:80
+```
+
+Open [http://localhost:8060](http://localhost:8060) in your browser and click any attack simulation (e.g. **Access sensitive files**, **Kill process**) to generate activity the node sensor will detect.
+
+Check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud** — a new detection should appear within a few minutes. Then stop the port-forward (Ctrl+C) and remove the app:
+
+```bash
+kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
 
 </div>
 
@@ -386,9 +411,10 @@ helm search repo crowdstrike/falcon-platform
 - [ ] Run the Helm install with all component configurations:
 
 ```bash
-helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0.0 \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
+  --set falcon-sensor.falcon.tags="daemonset-sensor" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -403,6 +429,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
+
+> `falcon-sensor.falcon.tags="daemonset-sensor"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
 
 > **GovCloud (us-gov-1 / us-gov-2):** When you generate the pull token and image paths with GovCloud API credentials, `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry (`registry.laggar.gcw.crowdstrike.com` for gov-1, `registry.us-gov-2.crowdstrike.mil` for gov-2) automatically — the `*_REGISTRY` variables need no changes. Add one flag to the Helm install so Image Analyzer talks to the right region:
 >
@@ -482,7 +510,50 @@ kubectl delete pod test-pod
 
 ---
 
-## 7. Cleanup
+## 7. Test a Detection (Optional)
+
+> **~10 min | Beginner**
+
+> **What & Why:** Confirming the sensor reports hosts proves connectivity, but triggering a real detection proves the sensor is actively monitoring workloads. The CrowdStrike vulnapp is a purpose-built web app that generates safe, simulated attacks you can fire from a browser and watch land in the Falcon console.
+
+### Step 1: Deploy the vulnapp
+
+- [ ] Deploy the app:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+### Step 2: Port-forward and open the web UI
+
+- [ ] Once the pod is running, forward the service to your local machine (this blocks — leave it running):
+
+```bash
+kubectl port-forward svc/vulnerable-example-com 8060:80
+```
+
+- [ ] Open [http://localhost:8060](http://localhost:8060) in your browser.
+
+### Step 3: Trigger a simulated attack
+
+- [ ] Click any attack simulation in the UI (e.g. **Access sensitive files**, **Kill process**, or **Run a reverse shell**). Each button generates activity the node sensor observes.
+
+### Step 4: Confirm the detection
+
+- [ ] In the Falcon console, go to **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**
+- [ ] A new detection tied to your cluster host should appear within a few minutes. Open it to review the process tree and mapped tactic/technique.
+
+### Step 5: Clean up the vulnapp
+
+- [ ] Stop the port-forward (Ctrl+C), then remove the app:
+
+```bash
+kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+---
+
+## 8. Cleanup
 
 > **~5 min | Beginner**
 

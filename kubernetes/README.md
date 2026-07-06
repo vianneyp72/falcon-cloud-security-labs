@@ -49,4 +49,3 @@ There are three primary deployment methods:
 |-------|-------------|
 | [generic/](operator/generic/) | Standard Falcon Operator deployment |
 | [openshift/](operator/openshift/) | OpenShift-specific operator deployment |
-| [tainted-nodes/](operator/tainted-nodes/) | Operator with taint tolerations |

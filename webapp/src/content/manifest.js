@@ -6,7 +6,6 @@ import k8sSidecarFargate from '@content/kubernetes/helm-sidecar/eks-fargate/lab.
 import k8sSidecarAks from '@content/kubernetes/helm-sidecar/aks-virtual-nodes/lab.md?raw'
 import k8sOpGeneric from '@content/kubernetes/operator/generic/lab.md?raw'
 import k8sOpOpenshift from '@content/kubernetes/operator/openshift/lab.md?raw'
-import k8sOpTainted from '@content/kubernetes/operator/tainted-nodes/lab.md?raw'
 import ecsFargatePatch from '@content/ecs/fargate-task-patching/lab.md?raw'
 import ecsFargateUtility from '@content/ecs/fargate-falcon-utility/lab.md?raw'
 import ecsEc2Daemon from '@content/ecs/ec2-daemon-service/lab.md?raw'
@@ -55,7 +54,6 @@ const labs = {
   'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md': k8sSidecarAks,
   'kubernetes/operator/generic/lab.md': k8sOpGeneric,
   'kubernetes/operator/openshift/lab.md': k8sOpOpenshift,
-  'kubernetes/operator/tainted-nodes/lab.md': k8sOpTainted,
   'ecs/fargate-task-patching/lab.md': ecsFargatePatch,
   'ecs/fargate-falcon-utility/lab.md': ecsFargateUtility,
   'ecs/ec2-daemon-service/lab.md': ecsEc2Daemon,
@@ -173,7 +171,6 @@ export const manifest = [
       children: [
         lab('Generic', 'generic', 'kubernetes/operator/generic/lab.md'),
         lab('OpenShift', 'openshift', 'kubernetes/operator/openshift/lab.md'),
-        lab('Tainted Nodes', 'tainted-nodes', 'kubernetes/operator/tainted-nodes/lab.md'),
       ],
     },
   ], 'kubernetes/README.md'),

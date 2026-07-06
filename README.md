@@ -52,7 +52,7 @@ falcon-cloud-security-labs/
 │   ├── helm-sidecar/                 # Container sensor via sidecar injection
 │   │   ├── eks-fargate/, aks-virtual-nodes/
 │   └── operator/                     # Falcon Operator (CRD-based)
-│       ├── generic/, openshift/, tainted-nodes/
+│       ├── generic/, openshift/
 ├── ecs/                              # AWS ECS
 │   ├── fargate-task-patching/
 │   ├── fargate-falcon-utility/

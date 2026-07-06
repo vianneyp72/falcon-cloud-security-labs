@@ -2,7 +2,7 @@
 
 Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE **Autopilot** cluster using the DaemonSet approach, pulling images directly from CrowdStrike's registry. The one Autopilot-specific step is authorizing the privileged sensor pods via a `WorkloadAllowlist`.
 
-> **Autopilot note:** Autopilot blocks privileged containers by default. You must apply an `AllowlistSynchronizer` **before** deploying so GKE fetches CrowdStrike's `WorkloadAllowlists`, which authorize the sensor DaemonSet. Because of that allowlist, the **falcon-sensor node image must be pulled from `registry.crowdstrike.com`** — it cannot be hosted in your own registry.
+> **Autopilot note:** Autopilot's **Warden** admission controller blocks privileged containers by default (`denied by autogke-disallow-privilege`). You must apply an `AllowlistSynchronizer` **before** deploying so GKE fetches CrowdStrike's `WorkloadAllowlists`, which authorize the sensor DaemonSet. The allowlist regex only matches `registry.crowdstrike.com` image URLs, so the **falcon-sensor node image must be pulled from `registry.crowdstrike.com`** — it cannot be hosted in your own registry (KAC and IAR have no such restriction).
 
 > **Prerequisites:**
 >
@@ -40,10 +40,6 @@ The **falcon-platform** umbrella Helm chart deploys three components in a single
 
 By default all three pull from CrowdStrike's private registry (`registry.crowdstrike.com`) using a pull token generated from your API credentials — exactly like a standard Kubernetes deployment.
 
-### Why Autopilot is different
-
-GKE Autopilot's **Warden** admission controller rejects privileged pods with `denied by autogke-disallow-privilege`. CrowdStrike publishes `WorkloadAllowlists` that vouch for the sensor. You apply an `AllowlistSynchronizer` CRD, GKE fetches those allowlists, and Warden then admits the DaemonSet. The allowlist regex only matches `registry.crowdstrike.com` image URLs — so the **sensor image must stay on CrowdStrike's registry** (KAC and IAR have no such restriction).
-
 ```
 GKE AUTOPILOT — FALCON PLATFORM (ALLOWLIST-GATED DAEMONSET)
 AllowlistSynchronizer -> WorkloadAllowlists -> GKE Warden authorizes the privileged DaemonSet
@@ -51,18 +47,6 @@ falcon-sensor DaemonSet pulls from registry.crowdstrike.com (required)
 Falcon KAC + Falcon Image Analyzer Deployments pull from CrowdStrike by default
 CrowdStrike Cloud — Telemetry
 ```
-
-### GKE Autopilot vs Standard
-
-|                       | GKE Standard       | GKE Autopilot               |
-| --------------------- | ------------------ | --------------------------- |
-| AllowlistSynchronizer | Not needed         | **Required**                |
-| `node.backend`        | `kernel` (default) | Must be `bpf`               |
-| `node.gke.autopilot`  | `false`            | Must be `true`              |
-| Resource requests     | Optional           | Required (auto-set: 750m CPU / 1.5Gi) |
-| Sensor image source   | Any registry       | **`registry.crowdstrike.com` only** |
-| KAC / IAR image source| Any registry       | Any registry (CrowdStrike default) |
-| Privileged containers | Allowed by default | Only with WorkloadAllowlist |
 
 ---
 
@@ -162,9 +146,10 @@ helm repo update
 ### 4. Deploy the chart (Autopilot settings)
 
 ```bash
-helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0.0 \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
+  --set falcon-sensor.falcon.tags="gke-autopilot" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -184,6 +169,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
+> `falcon-sensor.falcon.tags="gke-autopilot"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
+
 > Set `deployAllowListVersion` / `cleanupAllowListVersion` to the highest versions from `kubectl get workloadallowlists`. If deploy fails with an args mismatch, step down one version.
 
 > **GovCloud (us-gov-1 / us-gov-2):** Running the pull script (step 1) with GovCloud API credentials makes `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry automatically, so your `*_REGISTRY` vars are already correct. Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Sensor and KAC derive their region from the CID; optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`.
@@ -198,6 +185,28 @@ kubectl get pods -n falcon-image-analyzer
 ```
 
 The DaemonSet `DESIRED` should equal `CURRENT` and match your node count; all pods `Running`.
+
+### 6. Test a detection (optional)
+
+Deploy the CrowdStrike vulnapp, trigger a simulated attack from its web UI, and confirm the detection lands in the Falcon console.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+Once the pod is running, port-forward to it (this blocks — leave it running):
+
+```bash
+kubectl port-forward svc/vulnerable-example-com 8060:80
+```
+
+Open [http://localhost:8060](http://localhost:8060) in your browser and click any attack simulation (e.g. **Access sensitive files**, **Kill process**) to generate activity the node sensor will detect.
+
+Check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud** — a new detection should appear within a few minutes. Then stop the port-forward (Ctrl+C) and remove the app:
+
+```bash
+kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
 
 </div>
 
@@ -380,7 +389,7 @@ export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
 
 > **Note:** `--get-image-path` returns the CrowdStrike registry location so Kubernetes pulls all three components directly from CrowdStrike at runtime — the recommended path on Autopilot.
 >
-> ⚠️ **Autopilot constraint:** The **falcon-sensor** image must stay on `registry.crowdstrike.com`. The WorkloadAllowlist regex only vouches for CrowdStrike's registry, so a relocated sensor image is rejected with `denied by autogke-disallow-privilege`.
+> **Autopilot constraint:** The **falcon-sensor** image must stay on `registry.crowdstrike.com`. The WorkloadAllowlist regex only vouches for CrowdStrike's registry, so a relocated sensor image is rejected with `denied by autogke-disallow-privilege`.
 
 ### Step 3: Parse and set all variables
 
@@ -450,9 +459,10 @@ helm search repo crowdstrike/falcon-platform
 - [ ] Run the Helm install:
 
 ```bash
-helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0.0 \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
+  --set falcon-sensor.falcon.tags="gke-autopilot" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -471,6 +481,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform --version 1.0
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
+
+> `falcon-sensor.falcon.tags="gke-autopilot"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
 
 #### Key Autopilot-specific settings
 
@@ -546,7 +558,50 @@ kubectl wait --for=condition=Ready pod/nginx -n test-workload --timeout=120s
 
 ---
 
-## 8. Troubleshooting
+## 8. Test a Detection (Optional)
+
+> **~10 min | Beginner**
+
+> **What & Why:** Confirming the sensor reports hosts proves connectivity, but triggering a real detection proves the sensor is actively monitoring workloads. The CrowdStrike vulnapp is a purpose-built web app that generates safe, simulated attacks you can fire from a browser and watch land in the Falcon console.
+
+### Step 1: Deploy the vulnapp
+
+- [ ] Deploy the app:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+### Step 2: Port-forward and open the web UI
+
+- [ ] Once the pod is running, forward the service to your local machine (this blocks — leave it running):
+
+```bash
+kubectl port-forward svc/vulnerable-example-com 8060:80
+```
+
+- [ ] Open [http://localhost:8060](http://localhost:8060) in your browser.
+
+### Step 3: Trigger a simulated attack
+
+- [ ] Click any attack simulation in the UI (e.g. **Access sensitive files**, **Kill process**, or **Run a reverse shell**). Each button generates activity the node sensor observes.
+
+### Step 4: Confirm the detection
+
+- [ ] In the Falcon console, go to **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**
+- [ ] A new detection tied to your cluster host should appear within a few minutes. Open it to review the process tree and mapped tactic/technique.
+
+### Step 5: Clean up the vulnapp
+
+- [ ] Stop the port-forward (Ctrl+C), then remove the app:
+
+```bash
+kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+---
+
+## 9. Troubleshooting
 
 > **~5 min | Intermediate**
 
@@ -572,7 +627,7 @@ kubectl rollout restart daemonset -n falcon-system
 
 ---
 
-## 9. Cleanup
+## 10. Cleanup
 
 > **~5 min | Beginner**
 
@@ -608,7 +663,7 @@ gcloud container clusters delete $CLUSTER_NAME \
 **Scenario:** Passing 18 `--set` flags is error-prone. Move all configuration into a `values.yaml` and deploy with `helm upgrade --install -f values.yaml`.
 
 <details>
-<summary>💡 Hint</summary>
+<summary>Hint</summary>
 
 Mirror the `--set` keys as nested YAML under `global:`, `falcon-sensor:`, `falcon-kac:`, and `falcon-image-analyzer:`.
 
@@ -619,7 +674,7 @@ Mirror the `--set` keys as nested YAML under `global:`, `falcon-sensor:`, `falco
 **Scenario:** Hardcoding `v1.0.5`/`v1.0.3` breaks when CrowdStrike ships new allowlists. Derive the versions from `kubectl get workloadallowlists` output before the Helm install.
 
 <details>
-<summary>💡 Hint</summary>
+<summary>Hint</summary>
 
 Parse the allowlist names with `kubectl get workloadallowlists -o name`, extract the `-vX.Y.Z` suffix for the `deploy` and `cleanup` allowlists, and feed them into the `--set` flags.
 
