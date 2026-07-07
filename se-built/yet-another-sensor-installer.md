@@ -4,9 +4,9 @@ A community/SE-built deployment simplifier that installs the full Falcon platfor
 
 > **Note:** Community/SE-built — **not** an official CrowdStrike tool. Test in non-production first. For official tooling, use the [CrowdStrike Falcon Helm charts](https://github.com/CrowdStrike/falcon-helm).
 
-| Source | Link |
-|--------|------|
-| Repository | https://github.com/mikedzikowski/yet-another-sensor-installer |
+| Source | Owner | Link |
+|--------|-------|------|
+| Repository | [@mikedzikowski](https://github.com/mikedzikowski) | https://github.com/mikedzikowski/yet-another-sensor-installer |
 
 ## What It Does
 

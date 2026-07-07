@@ -4,10 +4,10 @@ A community/SE-built PowerShell script that validates an Azure environment meets
 
 > **Note:** Community/SE-built — **not** an official CrowdStrike tool. The project has since **moved to an officially maintained repo:** [CrowdStrike/azure-readiness-check](https://github.com/CrowdStrike/azure-readiness-check). Prefer the official repo for current work; this entry documents the original SE-built tool.
 
-| Source | Link |
-|--------|------|
-| Original Repository | https://github.com/mikedzikowski/AzureFalconCloudSecurityPreReqs |
-| Official Successor | https://github.com/CrowdStrike/azure-readiness-check |
+| Source | Owner | Link |
+|--------|-------|------|
+| Original Repository | [@mikedzikowski](https://github.com/mikedzikowski) | https://github.com/mikedzikowski/AzureFalconCloudSecurityPreReqs |
+| Official Successor | [@CrowdStrike](https://github.com/CrowdStrike) | https://github.com/CrowdStrike/azure-readiness-check |
 
 ## What It Does
 

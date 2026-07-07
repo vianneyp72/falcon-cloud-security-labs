@@ -4,9 +4,9 @@ A community/SE-built set of Bash scripts that inject the latest Falcon Container
 
 > **Note:** Community/SE-built — **not** an official CrowdStrike tool. Purpose is quick deployment of CWP resources for testing. Test in non-production first. For production and advanced customization, use the [official CrowdStrike documentation](https://falcon.crowdstrike.com/documentation).
 
-| Source | Link |
-|--------|------|
-| Repository | https://github.com/igorschultz/container-sensor-ecs-fargate |
+| Source | Owner | Link |
+|--------|-------|------|
+| Repository | [@igorschultz](https://github.com/igorschultz) | https://github.com/igorschultz/container-sensor-ecs-fargate |
 
 ## What It Does
 

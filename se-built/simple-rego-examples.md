@@ -4,9 +4,9 @@ A community/SE-built collection of **61 Rego policy examples** for CrowdStrike F
 
 > **Note:** Community/SE-built — **not** an official CrowdStrike tool. Built for educational and reference purposes. For production-ready policies and official support, use the [official CrowdStrike documentation](https://falcon.crowdstrike.com/documentation).
 
-| Source | Link |
-|--------|------|
-| Repository | https://github.com/mikedzikowski/simple-rego-examples |
+| Source | Owner | Link |
+|--------|-------|------|
+| Repository | [@mikedzikowski](https://github.com/mikedzikowski) | https://github.com/mikedzikowski/simple-rego-examples |
 
 ## What It Does
 
