@@ -11,7 +11,6 @@
 > - CrowdStrike API client with **Falcon Images Download: Read** and **Sensor Download: Read** scopes
 > - CrowdStrike CID with checksum
 > - Cloud Run services must use **Second generation** execution environment (gen2) for patched images
-> - ~130 minutes
 
 ## Reference Docs
 
@@ -26,9 +25,7 @@
 
 ---
 
-## 1. Intro & Architecture
-
-> **~5 min | Beginner**
+## Core Concepts
 
 Cloud Run is a fully managed serverless container platform — no host access, no kernel modules, no DaemonSets. The **only** way to deploy the Falcon sensor here is to embed it directly into the container image at build time using `falconutil patch-image`.
 
@@ -87,12 +84,6 @@ This lab builds a complete CI/CD pipeline:
 ```
 
 **Tagging convention:** Unpatched images keep their original tag (`:1.0`). Patched images get a `-falcon` suffix (`:1.0-falcon`). Only `-falcon` tagged images are approved for Cloud Run deployment.
-
----
-
-## 2. Core Concepts
-
-> **~10 min | Intermediate**
 
 ### How `falconutil patch-image` Works
 
@@ -231,9 +222,7 @@ curl -s $SERVICE_URL
 
 <div data-mode="lab">
 
-## 3. Create GAR Repository & Push Sample Images
-
-> **~15 min | Intermediate**
+## 1. Create GAR Repository & Push Sample Images
 
 ### Step 1: Enable Required APIs
 
@@ -390,9 +379,7 @@ docker push ${GAR_BASE}/go-api:1.0
 
 ---
 
-## 4. Pull Falcon Sensor Image into GAR
-
-> **~10 min | Intermediate**
+## 2. Pull Falcon Sensor Image into GAR
 
 ### Step 1: Set CrowdStrike API Credentials
 
@@ -457,9 +444,7 @@ docker image inspect ${GAR_BASE}/falcon-container:latest | grep Architecture
 
 ---
 
-## 5. Patch an Image Manually (Local Docker)
-
-> **~10 min | Intermediate**
+## 3. Patch an Image Manually (Local Docker)
 
 ### Step 1: Run `falconutil patch-image` Locally
 
@@ -532,9 +517,7 @@ docker push ${GAR_BASE}/nginx:1.0-falcon
 
 ---
 
-## 6. Set Up Workload Identity Federation
-
-> **~15 min | Intermediate**
+## 4. Set Up Workload Identity Federation
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -708,9 +691,7 @@ echo $WIF_PROVIDER
 
 ---
 
-## 7. Create the GitHub Actions Workflow
-
-> **~15 min | Intermediate**
+## 5. Create the GitHub Actions Workflow
 
 ### Step 1: Configure GitHub Repository Secrets & Variables
 
@@ -822,9 +803,7 @@ jobs:
 
 ---
 
-## 8. Run & Verify the Pipeline
-
-> **~10 min | Intermediate**
+## 6. Run & Verify the Pipeline
 
 ### Step 1: Trigger the Workflow
 
@@ -890,9 +869,7 @@ done
 
 ---
 
-## 9. Deploy Patched Image to Cloud Run
-
-> **~10 min | Intermediate**
+## 7. Deploy Patched Image to Cloud Run
 
 ### Step 1: Deploy the Patched nginx Image
 
@@ -966,9 +943,7 @@ for i in {1..3}; do curl -s -o /dev/null -w "%{http_code}\n" $SERVICE_URL; done
 
 ---
 
-## 10. Connect Back to Terraform
-
-> **~15 min | Intermediate**
+## 8. Connect Back to Terraform
 
 You've built everything by hand — now let's make it repeatable. We'll import your existing resources into Terraform so you can tear down and recreate this entire lab with one command.
 
@@ -1051,12 +1026,12 @@ terraform apply
 
 ---
 
-## 11. Cleanup
+## 9. Cleanup
 
 When you're done with the lab:
 
 ```bash
-# Option 1: Terraform (if you completed Section 10)
+# Option 1: Terraform (if you completed Section 8)
 terraform destroy
 
 # Option 2: Manual
@@ -1090,9 +1065,7 @@ gcloud iam service-accounts delete \
 
 <div data-mode="lab">
 
-## 12. Challenges
-
-> **~15 min | Advanced**
+## 10. Challenges
 
 ### Challenge 1: Add FCS Vulnerability Scan Before Patching
 
@@ -1216,7 +1189,7 @@ jobs:
         run: docker push ${{ env.GAR_BASE }}/${{ matrix.image }}:${{ inputs.image_tag }}-falcon
 ```
 
-This patches all 3 images in parallel (~3 min total instead of ~9 min sequentially).
+This patches all 3 images in parallel instead of sequentially.
 
 </details>
 
@@ -1302,7 +1275,7 @@ This creates a fully automated pipeline: dev pushes image > GAR > Pub/Sub > Clou
 
 <div data-mode="lab">
 
-## 13. Quick Reference
+## 11. Quick Reference
 
 | Action                  | Console Path                                     | CLI Command                                                                                                                                                |
 | ----------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

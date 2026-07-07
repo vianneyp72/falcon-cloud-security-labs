@@ -9,7 +9,6 @@
 > - CrowdStrike API client with **Sensor Download: Read** scope
 > - PowerShell 5.1+ (included in all modern Windows)
 > - Outbound HTTPS (443) to your CrowdStrike cloud domain
-> - ~15 minutes
 
 ## Reference Docs
 
@@ -22,8 +21,6 @@
 ---
 
 ## 1. How the Sensor Works
-
-> **~5 min | Beginner**
 
 The Falcon sensor for Windows is a lightweight kernel-mode driver that monitors system activity — process creation, file operations, network connections, and registry changes. It streams telemetry to the CrowdStrike cloud over a persistent TLS connection.
 
@@ -48,8 +45,6 @@ The Falcon sensor for Windows is a lightweight kernel-mode driver that monitors 
 ---
 
 ## 2. Create API Credentials
-
-> **~5 min | Beginner**
 
 > **What this does:** Creates an OAuth2 API client in the Falcon console. The install script uses these credentials to authenticate, download the correct installer, and configure the sensor automatically.
 
@@ -102,8 +97,6 @@ Get-Service CSFalconService
 <div data-mode="lab">
 
 ## 3. Launch a Windows EC2 Instance
-
-> **~10 min | Beginner**
 
 > **What this does:** Provisions a Windows Server EC2 instance to use as your target host for sensor installation.
 
@@ -180,8 +173,6 @@ Use your RDP client to connect:
 
 ## 4. Install the Sensor
 
-> **~5 min | Beginner**
-
 > **What this does:** Downloads and runs the CrowdStrike PowerShell install script on the Windows instance.
 
 ### Open PowerShell as Administrator (on the Windows instance)
@@ -207,8 +198,6 @@ The script will:
 ---
 
 ## 5. Verify Registration
-
-> **~5 min | Beginner**
 
 ### Check service status
 
@@ -296,8 +285,6 @@ aws ec2 delete-security-group --group-id $SG_ID --region $AWS_REGION
 
 ## 5. Post-Install Configuration
 
-> **~5 min | Intermediate**
-
 > **What this does:** Additional falconctl options you can apply after installation for tags, proxy, or grouping.
 
 ### Add or change sensor grouping tags
@@ -324,8 +311,6 @@ Restart-Service CSFalconService
 
 ## 6. Uninstall
 
-> **~2 min | Beginner**
-
 > **What this does:** Removes the sensor using the official uninstall script.
 
 ```powershell
@@ -350,8 +335,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/CrowdStrike/falcon-scr
 ---
 
 ## 7. Troubleshooting
-
-> **~5 min | Beginner**
 
 ### Common issues
 

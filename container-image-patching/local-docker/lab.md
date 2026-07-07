@@ -6,7 +6,6 @@
 > - CrowdStrike Falcon API client credentials (Falcon Images Download: Read, Sensor Download: Read)
 > - Your CrowdStrike CID with checksum
 > - `curl` and `jq` installed
-> - ~60 minutes
 
 ## Reference Docs
 
@@ -22,8 +21,6 @@
 ---
 
 ## 1. Introduction & Architecture
-
-> **~5 min | Beginner**
 
 CrowdStrike Falcon Container Image Patching lets you embed the Falcon sensor directly into a container image at build time. The patched image runs the sensor alongside your application — no sidecar, no Kubernetes operator, no kernel module on the host.
 
@@ -93,8 +90,6 @@ export FALCON_CLOUD="<YOUR_FALCON_CLOUD>"
 
 <div data-mode="lab">
 
-> **~5 min | Beginner**
-
 ### Step 1: Verify Docker is Running
 
 > **What & Why:** All the patching work happens through Docker. The `falconutil` tool needs access to the Docker daemon to pull, modify, and push images.
@@ -145,8 +140,6 @@ Assumes you already have a container image built and tagged locally (e.g., `flas
 </div>
 
 <div data-mode="lab">
-
-> **~10 min | Beginner**
 
 ### Step 1: Create the Project Files
 
@@ -290,8 +283,6 @@ echo "FROM $LATESTSENSOR" | docker buildx build --platform linux/amd64 -t falcon
 
 <div data-mode="lab">
 
-> **~10 min | Beginner**
-
 ### Step 1: Download the Pull Script
 
 > **What & Why:** CrowdStrike provides a shell script that handles OAuth authentication and pulls the correct sensor image for your architecture. This saves you from manually constructing registry auth tokens.
@@ -365,8 +356,6 @@ docker run --platform linux/amd64 --user 0:0 \
 
 <div data-mode="lab">
 
-> **~10 min | Beginner**
-
 ### Step 1: Run falconutil patch-image
 
 > **What & Why:** This is the core step. `falconutil` takes your original Flask image, injects the Falcon sensor layers, rewires the entrypoint, and produces a new patched image — all in one command.
@@ -426,8 +415,6 @@ docker inspect flask-hello:patched --format '{{.Config.Entrypoint}}'
 </div>
 
 <div data-mode="lab">
-
-> **~10 min | Beginner**
 
 ### Step 1: Run the Patched Container
 
@@ -512,8 +499,6 @@ docker stop flask-patched && docker rm flask-patched
 
 ## 7. Verify in Falcon Console
 
-> **~5 min | Beginner**
-
 ### Step 1: Check the Host in the Console
 
 > **What & Why:** The ultimate verification — your container should appear as a managed host in the Falcon console, proving end-to-end connectivity.
@@ -529,8 +514,6 @@ docker stop flask-patched && docker rm flask-patched
 <div data-mode="lab">
 
 ## 8. Challenges
-
-> **~15 min | Mixed**
 
 ### Challenge 1: Add Sensor Grouping Tags
 

@@ -1,4 +1,4 @@
-# Falcon Platform Helm Deployment — DaemonSet (Standard Kubernetes)
+# Falcon Platform Helm Deployment — Standard Kubernetes (DaemonSet)
 
 Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, GKE Standard, AKS, on-prem) using the DaemonSet approach, pulling images directly from CrowdStrike's registry.
 
@@ -14,9 +14,6 @@ Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, 
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
-> - ~30 minutes (Quick Deploy) / ~60 minutes (Full Lab)
-
-> **Windows:** These commands are written for bash. Run them from **WSL** or **Git Bash** — CrowdStrike's `falcon-container-sensor-pull` script is bash-only, and tools like `grep`/`cut` aren't available in native PowerShell.
 
 ## Reference Docs
 
@@ -157,9 +154,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `createComponentNamespaces=true` places sensor in `falcon-system`, KAC in `falcon-kac`, and IAR in `falcon-image-analyzer`.
-
-> **GovCloud (us-gov-1 / us-gov-2):** Running the pull script with GovCloud API credentials makes `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry automatically, so your `*_REGISTRY` vars are already correct. Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Sensor and KAC derive their region from the CID; optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`.
+> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
 
 ### 5. Verify deployment
 
@@ -197,8 +192,6 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 <div data-mode="lab">
 
 ## 1. Provision a Test Cluster
-
-> **~10 min | Beginner**
 
 > **What & Why:** You need a running Kubernetes cluster to deploy the Falcon sensor. Any standard cluster works — the Helm chart is cloud-agnostic. Pick whichever provider you have access to.
 
@@ -258,8 +251,6 @@ You should see 2+ nodes in `Ready` state.
 
 ## 2. Configure API Credentials
 
-> **~5 min | Beginner**
-
 > **What & Why:** The Falcon container images live in CrowdStrike's private registry. You need API credentials to generate a pull token and discover the correct image paths for your CID.
 
 ### Step 1: Create an API client
@@ -290,8 +281,6 @@ export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
 ---
 
 ## 3. Get Pull Token and Image Paths
-
-> **~5 min | Beginner**
 
 > **What & Why:** The pull token authenticates Kubernetes to CrowdStrike's container registry. The image paths tell Helm exactly which sensor, KAC, and IAR images to pull for your CID's assigned cloud region.
 
@@ -382,8 +371,6 @@ Every line should read `SET`, and each image path must show a full `registry.cro
 
 ## 4. Add Helm Repository
 
-> **~2 min | Beginner**
-
 > **What & Why:** The CrowdStrike Helm charts are published to a public Helm repository. Adding it to your local Helm config lets you install charts by name rather than downloading them manually.
 
 - [ ] Add the CrowdStrike Helm repo and update:
@@ -402,8 +389,6 @@ helm search repo crowdstrike/falcon-platform
 ---
 
 ## 5. Deploy the Falcon Platform
-
-> **~5 min | Intermediate**
 
 > **What & Why:** The `falcon-platform` umbrella chart installs all three components (sensor, KAC, IAR) in a single Helm release. Using `--set createComponentNamespaces=true` gives each component its own namespace for isolation.
 
@@ -433,13 +418,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> **GovCloud (us-gov-1 / us-gov-2):** When you generate the pull token and image paths with GovCloud API credentials, `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry (`registry.laggar.gcw.crowdstrike.com` for gov-1, `registry.us-gov-2.crowdstrike.mil` for gov-2) automatically — the `*_REGISTRY` variables need no changes. Add one flag to the Helm install so Image Analyzer talks to the right region:
->
-> ```
-> --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1   # use gov2 for us-gov-2
-> ```
->
-> The sensor and KAC derive their region from the CID and registry, so they need no extra flag (optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`).
+> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
 
 ### Step 2: Watch deployment progress
 
@@ -452,8 +431,6 @@ kubectl get pods -A | grep falcon
 ---
 
 ## 6. Verify Deployment
-
-> **~5 min | Beginner**
 
 > **What & Why:** Verification confirms the sensor DaemonSet has a pod on every node, KAC's webhook is registered, and IAR is scanning. This ensures full protection is active before declaring the deployment complete.
 
@@ -511,8 +488,6 @@ kubectl delete pod test-pod
 
 ## 7. Test a Detection (Optional)
 
-> **~10 min | Beginner**
-
 > **What & Why:** Confirming the sensor reports hosts proves connectivity, but triggering a real detection proves the sensor is actively monitoring workloads. The CrowdStrike vulnapp is a purpose-built web app that generates safe, simulated attacks you can fire from a browser and watch land in the Falcon console.
 
 ### Step 1: Deploy the vulnapp
@@ -553,8 +528,6 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 ---
 
 ## 8. Cleanup
-
-> **~5 min | Beginner**
 
 > **What & Why:** Removes all Falcon components and the test cluster to avoid ongoing cloud costs.
 

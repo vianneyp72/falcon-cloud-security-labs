@@ -10,7 +10,6 @@ Deploy CrowdStrike Falcon Cloud Security to an AWS Organization using the offici
 > - CrowdStrike Falcon console access (Falcon Cloud Security subscription)
 > - CrowdStrike API client with **CSPM Registration: Read + Write** scope
 > - GitHub repository (for Section 8: CI/CD promotion)
-> - ~90 minutes
 
 ## Reference Docs
 
@@ -26,8 +25,6 @@ Deploy CrowdStrike Falcon Cloud Security to an AWS Organization using the offici
 ---
 
 ## 1. Architecture Overview
-
-> **~5 min | Intermediate**
 
 When you register an AWS Organization with Falcon Cloud Security, the Terraform module creates infrastructure in a **host account** first (your designated scanning/security account), then deploys to member accounts. The host account centralizes agentless scanning resources while each member account gets its own IAM reader role for asset inventory.
 
@@ -119,8 +116,6 @@ Navigate to **Falcon Console** > **Cloud security** > **Registration** and confi
 
 ## 2. Create Falcon API Credentials
 
-> **~10 min | Intermediate**
-
 > **What & Why:** The CrowdStrike Terraform provider authenticates via OAuth2 API credentials. These credentials allow Terraform to look up your account's registration details (external ID, intermediate role ARN) and configure the module automatically.
 
 - [ ] **Console:** Navigate to **Falcon Console** > **Support and resources** > **Resources and tools** > **API clients and keys**
@@ -144,8 +139,6 @@ export FALCON_CLIENT_SECRET="<your-client-secret>"
 ---
 
 ## 3. Register Organization in Falcon Console
-
-> **~10 min | Intermediate**
 
 > **What & Why:** Before Terraform can deploy infrastructure, you must initiate the registration in the Falcon console. This tells CrowdStrike about your AWS Organization and generates the configuration (external IDs, role names) that Terraform will reference.
 
@@ -176,8 +169,6 @@ export FALCON_CLIENT_SECRET="<your-client-secret>"
 ---
 
 ## 4. Local Deploy: Host Account (Security — 494873120176)
-
-> **~15 min | Intermediate**
 
 > **What & Why:** The host account must be deployed first because it creates the agentless scanning roles and infrastructure that member accounts reference. This is the foundation that centralizes scanning operations.
 
@@ -294,8 +285,6 @@ terraform output
 
 ## 5. Local Deploy: Member Accounts
 
-> **~10 min | Intermediate**
-
 > **What & Why:** Each member account needs its own IAM reader role so CrowdStrike can discover and assess resources. For organization-level registration, these roles are lighter — just asset inventory, no scanning infra.
 
 ### Step 1: Deploy to Development (934822761019)
@@ -345,8 +334,6 @@ terraform apply -var="account_id=019313283882" -var="is_host_account=false"
 
 ## 6. Verify in Falcon Console
 
-> **~5 min | Intermediate**
-
 > **What & Why:** After Terraform deploys the IAM roles, CrowdStrike begins discovering resources and running IOM assessments. Verification confirms the trust relationship is working correctly.
 
 - [ ] **Console:** Navigate to **Falcon Console** > **Cloud security** > **Registration**
@@ -391,8 +378,6 @@ aws iam list-attached-role-policies --role-name CrowdStrikeCSPMReader --profile 
 ---
 
 ## 7. Day-2: Add a New Account & Register
-
-> **~15 min | Intermediate**
 
 > **What & Why:** In a real organization, new accounts get created regularly. This section walks through adding a new account to your OU and extending CSPM coverage to it — the exact workflow you'll repeat for every new account.
 
@@ -460,8 +445,6 @@ terraform apply -var="account_id=${NEW_ACCOUNT_ID}" -var="is_host_account=false"
 ---
 
 ## 8. Promote to GitHub Actions
-
-> **~20 min | Intermediate**
 
 > **What & Why:** Local `terraform apply` doesn't scale — you need approval gates, audit trails, and automated drift detection. This section converts the local workflow into a GitHub Actions pipeline using OIDC (no long-lived AWS keys) and a matrix strategy for multi-account deployment.
 
@@ -740,8 +723,6 @@ The pipeline will automatically deploy to the new account on merge to `main`.
 ---
 
 ## 9. Cleanup
-
-> **~5 min | Intermediate**
 
 > **What & Why:** Destroy resources in reverse order — member accounts first, then host. This avoids dependency errors where member accounts reference host account role IDs.
 

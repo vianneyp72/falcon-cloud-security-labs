@@ -12,7 +12,6 @@ Official Docs: https://docs.crowdstrike.com/r/en-US/qg0ygdwl/mac3b7b7
 > - CrowdStrike Falcon Cloud Security subscription
 > - API client credentials with scopes: **Falcon Container CLI (R/W)**, **Falcon Container Image (R/W)**, **Cloud Security Tools Download (R)**
 > - Docker installed locally (for testing the build)
-> - ~45 minutes
 
 ## Reference Docs
 
@@ -90,8 +89,6 @@ Check results in **Actions** tab or in the Falcon console under **Cloud Security
 
 ### 1. Create the Demo Flask App
 
-> **~10 min | Beginner**
-
 > **What & Why:** We need a simple app with a Dockerfile to build. We'll intentionally pin an older version of a package so the scan has something to flag.
 
 Create a new directory for the project:
@@ -151,8 +148,6 @@ docker run --rm -p 5000:5000 fcs-scan-demo:local
 
 ### 2. Create the GitHub Repository
 
-> **~10 min | Beginner**
-
 > **What & Why:** The GitHub Actions workflow runs on push events in this repo. We also need to configure the CrowdStrike API credentials as repository secrets.
 
 #### Initialize and push
@@ -186,8 +181,6 @@ gh variable set FALCON_REGION --body "us-1"
 ---
 
 ### 3. Write the GitHub Actions Workflow
-
-> **~15 min | Intermediate**
 
 > **What & Why:** This is the core of the lab — a workflow that builds your image, scans it with CrowdStrike's fcs-action, and only pushes to ghcr.io if the image has no fixable HIGH/CRITICAL vulnerabilities.
 
@@ -310,8 +303,6 @@ git push
 
 ### 4. Test the Gate — Fail Case
 
-> **~10 min | Intermediate**
-
 > **What & Why:** The first run should FAIL because our `requirements.txt` pins vulnerable packages with known fixable CVEs. This proves the gate is working — vulnerable images never reach ghcr.io.
 
 #### Watch the workflow run
@@ -352,8 +343,6 @@ Navigate to **Cloud Security** > **Image Assessment** > **CI Images** in the Fal
 ---
 
 ### 5. Fix Vulnerabilities & Pass
-
-> **~10 min | Intermediate**
 
 > **What & Why:** Now we update the vulnerable packages so the image passes assessment. This demonstrates the developer feedback loop — fix locally, push, scan passes, image reaches registry.
 
@@ -427,8 +416,6 @@ rm -rf fcs-scan-demo
 ---
 
 ## Optional Enhancements
-
-> **~10 min | Advanced**
 
 > **What & Why:** Production pipelines typically add PR annotations, scan result comments, and badges so developers get feedback without leaving GitHub.
 

@@ -8,7 +8,6 @@ Deploy the CrowdStrike Falcon sensor to Windows EC2 instances using AWS Systems 
 > - CrowdStrike Falcon console access with **Sensor Download: Read** API scope
 > - CrowdStrike CID with checksum
 > - AWS CLI v2 configured (`aws sts get-caller-identity` works)
-> - ~60 minutes
 
 ## Reference Docs
 

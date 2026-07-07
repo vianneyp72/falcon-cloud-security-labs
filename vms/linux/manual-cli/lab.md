@@ -9,7 +9,6 @@
 > - CrowdStrike API client with **Sensor Download: Read** scope
 > - `curl` >= 7.55.0 installed on the host
 > - Outbound HTTPS (443) to your CrowdStrike cloud domain
-> - ~15 minutes
 
 ## Reference Docs
 
@@ -23,8 +22,6 @@
 ---
 
 ## 1. How the Sensor Works
-
-> **~5 min | Beginner**
 
 The Falcon sensor for Linux is a lightweight agent that attaches eBPF probes into the kernel from userspace. It observes system calls, process events, and file/network activity, then streams telemetry to the CrowdStrike cloud over a persistent TLS connection.
 
@@ -48,8 +45,6 @@ The Falcon sensor for Linux is a lightweight agent that attaches eBPF probes int
 ---
 
 ## 2. Create API Credentials
-
-> **~5 min | Beginner**
 
 > **What this does:** Creates an OAuth2 API client in the Falcon console. The install script uses these credentials to authenticate, download the correct package, and configure the sensor automatically.
 
@@ -101,8 +96,6 @@ sudo /opt/CrowdStrike/falconctl -g --aid
 <div data-mode="lab">
 
 ## 3. Launch a Linux EC2 Instance
-
-> **~10 min | Beginner**
 
 > **What this does:** Provisions a fresh EC2 instance to use as your target host for sensor installation. We use Amazon Linux 2023 as the target OS.
 
@@ -164,8 +157,6 @@ ssh -o StrictHostKeyChecking=no ec2-user@$PUBLIC_IP
 
 ## 4. Install the Sensor
 
-> **~5 min | Beginner**
-
 > **What this does:** Downloads and runs the official CrowdStrike install script on the EC2 instance.
 
 ### Set environment variables (on the EC2 instance)
@@ -196,8 +187,6 @@ That's it. The script will:
 ---
 
 ## 5. Verify Registration
-
-> **~5 min | Beginner**
 
 > **What this does:** Confirms the sensor is running, the kernel module is loaded, and the host registered with the Falcon cloud.
 
@@ -260,8 +249,6 @@ Check for the event in **Endpoint detections** > **Activity** within a few minut
 
 ## 6. Cleanup
 
-> **~2 min | Beginner**
-
 ### Uninstall the sensor (from the EC2 instance)
 
 ```bash
@@ -289,8 +276,6 @@ aws ec2 delete-security-group --group-id $SG_ID --region $AWS_REGION
 ---
 
 ## 5. Post-Install Configuration
-
-> **~5 min | Intermediate**
 
 > **What this does:** Additional falconctl options you can apply after installation for tags, proxy, or cloud pinning.
 
@@ -322,8 +307,6 @@ sudo /opt/CrowdStrike/falconctl -g --cid --aid --version --tags --cloud --aph --
 
 ## 6. Uninstall
 
-> **~2 min | Beginner**
-
 > **What this does:** Removes the sensor using the official uninstall script.
 
 ```bash
@@ -350,8 +333,6 @@ curl -L https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/main/bash/i
 ---
 
 ## 7. Troubleshooting
-
-> **~5 min | Beginner**
 
 ### Debug the install script
 

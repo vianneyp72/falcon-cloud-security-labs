@@ -1,4 +1,4 @@
-# Falcon Helm Deployment — EKS Hybrid (DaemonSet + Sidecar Injector)
+# Falcon Platform Helm Deployment — EKS Hybrid (DaemonSet + Sidecar Injector)
 
 Deploy CrowdStrike Falcon on an EKS cluster running both EC2 nodes and Fargate pods using a hybrid approach: DaemonSet sensor for EC2, sidecar injector for Fargate.
 
@@ -8,13 +8,14 @@ Deploy CrowdStrike Falcon on an EKS cluster running both EC2 nodes and Fargate p
 > - `kubectl` configured for the cluster (`kubectl get nodes` returns EC2 nodes)
 > - Helm 3 installed (`helm version` shows v3.x)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required API scopes: **Falcon Images Download** (Read), **Sensor Download** (Read), **Falcon Container Image** (Read/Write), **Falcon Container CLI** (Write)
+>   - Required API scopes:
+>     - **Falcon Images Download** (Read)
+>     - **Sensor Download** (Read)
+>     - **Falcon Container Image** (Read/Write)
+>     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
 > - Fargate profile covering `falcon-lumos-injector` namespace
 > - _Optional (only to host images in your own registry):_ Falcon images copied to ECR + the Fargate pod execution role granted ECR read (`AmazonEC2ContainerRegistryReadOnly`)
-> - ~30 minutes (Quick Deploy) / ~75 minutes (Full Lab)
-
-> **Windows:** These commands are written for bash. Run them from **WSL** or **Git Bash** — CrowdStrike's `falcon-container-sensor-pull` script is bash-only, and tools like `grep`/`cut`/`awk` aren't available in native PowerShell.
 
 ## Reference Docs
 
@@ -145,7 +146,7 @@ helm repo add crowdstrike https://crowdstrike.github.io/falcon-helm
 helm repo update
 ```
 
-### 4. deploy DaemonSet + KAC + IAR
+### 4. Deploy DaemonSet + KAC + IAR
 
 > Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
 
@@ -168,6 +169,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
+
+> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
 
 ### 5. Deploy sidecar injector (Fargate pods)
 
@@ -252,8 +255,6 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 ## 1. Provision EKS Hybrid Cluster
 
-> **~15 min | Intermediate**
-
 > **What & Why:** A hybrid EKS cluster uses both EC2 managed node groups (for DaemonSet workloads) and Fargate profiles (for serverless pods). This mirrors production environments where teams run a mix of compute types. The Falcon deployment must cover both.
 
 ### Step 1: Create the cluster configuration
@@ -291,7 +292,7 @@ EOF
 
 ### Step 2: Create the cluster
 
-- [ ] Deploy the cluster (takes ~15 minutes):
+- [ ] Deploy the cluster (takes a few minutes):
 
 ```bash
 eksctl create cluster -f eksctl-hybrid.yaml
@@ -316,8 +317,6 @@ You should see `falcon-injector` and `app-workloads` profiles.
 ---
 
 ## 2. Configure Credentials and Images
-
-> **~5 min | Beginner**
 
 > **What & Why:** The Falcon sensor images must be accessible to the cluster. By default this lab pulls all components directly from CrowdStrike's registry using a pull token. You also need API credentials for IAR's vulnerability reporting.
 
@@ -398,8 +397,6 @@ aws iam attach-role-policy --role-name $POD_EXEC_ROLE --policy-arn arn:aws:iam::
 
 ## 3. Add Helm Repository
 
-> **~2 min | Beginner**
-
 > **What & Why:** CrowdStrike publishes two Helm charts needed for hybrid deployments: `falcon-platform` (umbrella chart for DaemonSet + KAC + IAR) and `falcon-sensor` (standalone chart used here for the sidecar injector).
 
 - [ ] Add the CrowdStrike Helm repo:
@@ -419,8 +416,6 @@ helm search repo crowdstrike/falcon-sensor
 ---
 
 ## 4. Deploy DaemonSet Sensor with KAC and IAR
-
-> **~5 min | Intermediate**
 
 > **What & Why:** The `falcon-platform` umbrella chart installs the DaemonSet sensor (EC2 nodes), KAC (admission control), and IAR (image scanning) in one release. On a hybrid cluster, DaemonSet pods only schedule on EC2 nodes — Fargate ignores them automatically.
 
@@ -450,6 +445,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
+> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+
 ### Step 2: Verify EC2 sensor pods
 
 - [ ] Confirm the DaemonSet sensor is running on EC2 nodes only:
@@ -464,8 +461,6 @@ kubectl get ds -n falcon-system
 ---
 
 ## 5. Deploy Sidecar Injector (Fargate Coverage)
-
-> **~5 min | Intermediate**
 
 > **What & Why:** Fargate pods have no host to run a DaemonSet on. The sidecar injector is a mutating admission webhook — when a pod is created in a Fargate-profiled namespace, the webhook intercepts the request and injects the Falcon sensor as an additional container in the pod spec. By default the sidecar is pulled from CrowdStrike's registry and the pull token is propagated to the injected namespaces (`container.image.pullSecrets.*`).
 
@@ -537,8 +532,6 @@ kubectl get mutatingwebhookconfigurations | grep falcon
 ---
 
 ## 6. Verify Full Hybrid Coverage
-
-> **~10 min | Intermediate**
 
 > **What & Why:** True verification means proving both protection paths work: DaemonSet on EC2 and sidecar injection on Fargate. Deploy a test pod into a Fargate-profiled namespace and confirm the sensor container appears.
 
@@ -613,8 +606,6 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 ---
 
 ## 7. Cleanup
-
-> **~5 min | Beginner**
 
 > **What & Why:** Removes all Falcon components and the test cluster to avoid ongoing AWS costs.
 

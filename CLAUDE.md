@@ -29,7 +29,7 @@ The webapp's mode toggle switches between these views. Reference lab: `serverles
 **Above the mode split (shared by both views):**
 - Title and one-line description
 - Performance notes / callouts
-- Prerequisites blockquote (tools, APIs, scopes, time estimate)
+- Prerequisites blockquote (tools, APIs, scopes)
 - Reference Docs table (Source | Link)
 - Core concepts and architecture diagrams
 
@@ -45,7 +45,6 @@ One-line description.
 
 > **Prerequisites:**
 > - Required tools, APIs, scopes
-> - ~X min estimated
 
 | Source | Link |
 |--------|------|
@@ -73,8 +72,6 @@ Brief explanation of key ideas and architecture.
 
 ## N. Section Title
 
-> **~X min | Difficulty**
-
 ### Step 1: ...
 
 </div>
@@ -82,14 +79,14 @@ Brief explanation of key ideas and architecture.
 
 ### Quick Deploy mode rules
 
-- Max 5 H3 numbered steps
+- Use as few H3 numbered steps as the method allows — the goal is the simplest path to get a customer up and running fast. More than 5 steps is fine when the method genuinely needs them (don't artificially merge or omit steps).
 - Console-first: describe the UI navigation, then collapse CLI into `<details><summary>CLI equivalent</summary>`
 - No checkboxes, no time/difficulty markers, no `> **What & Why:**` blocks
 - Minimal prose — get to the point
 
 ### Full Lab mode rules
 
-- H2 numbered sections with `> **~X min | Difficulty**`
+- H2 numbered sections (restart at `## 1` after the shared `## Core Concepts`)
 - `> **What & Why:**` blockquotes before each step explaining purpose
 - `- [ ]` checkboxes for every hands-on action
 - Console-first with `<details><summary>CLI equivalent</summary>`

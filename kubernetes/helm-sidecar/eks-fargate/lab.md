@@ -2,7 +2,7 @@
 
 Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) using the sidecar injector for runtime protection, plus KAC for admission control and Image Analyzer for image scanning.
 
-> **Performance note:** Fargate provisions a dedicated micro-VM per pod, so first-pod scheduling is slower than EC2 (expect ~1 min). The injected sidecar adds to each pod's total CPU/memory request, which can push the pod up to the next Fargate size — size `container.sensorResources` deliberately.
+> **Performance note:** Fargate provisions a dedicated micro-VM per pod, so first-pod scheduling is slower than EC2. The injected sidecar adds to each pod's total CPU/memory request, which can push the pod up to the next Fargate size — size `container.sensorResources` deliberately.
 
 > **Prerequisites:**
 >
@@ -13,7 +13,6 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 >     - **Falcon Images Download** (Read)
 >     - **Sensor Download** (Read)
 > - CrowdStrike CID (with checksum)
-> - ~25 minutes (Quick Deploy) / ~70 minutes (Full Lab)
 
 > **Windows:** These commands are written for bash. Run them from **WSL** or **Git Bash** — CrowdStrike's `falcon-container-sensor-pull` script is bash-only, and tools like `grep`/`cut`/`awk` aren't available in native PowerShell.
 
@@ -184,8 +183,6 @@ Open [http://localhost:8060](http://localhost:8060), click any attack simulation
 
 ## 1. Provision an EKS Fargate-Only Cluster
 
-> **~15 min | Intermediate**
-
 > **What & Why:** A Fargate-only cluster has zero EC2 nodes — every pod, including CoreDNS, runs in its own micro-VM. This forces the serverless protection model (sidecar injection) and makes the "every namespace needs a Fargate profile" rule impossible to skip. It mirrors production teams who run fully serverless Kubernetes.
 
 ### Step 1: Create the cluster configuration
@@ -227,7 +224,7 @@ EOF
 
 ### Step 2: Create the cluster
 
-> **What & Why:** With no managed node groups defined, eksctl automatically reconfigures the CoreDNS deployment to run on Fargate (it removes the EC2 compute-type annotation). This takes ~15 minutes.
+> **What & Why:** With no managed node groups defined, eksctl automatically reconfigures the CoreDNS deployment to run on Fargate (it removes the EC2 compute-type annotation). This takes a few minutes.
 
 - [ ] Deploy the cluster:
 
@@ -262,8 +259,6 @@ The node names should be `fargate-ip-...` — proof CoreDNS itself moved to Farg
 ---
 
 ## 2. Configure Credentials and Images
-
-> **~5 min | Beginner**
 
 > **What & Why:** The sidecar and supporting components all pull from a private registry. By default this lab pulls directly from CrowdStrike's registry using a pull token; IAR additionally needs API credentials for vulnerability reporting.
 
@@ -335,8 +330,6 @@ Every line should read `SET`. A `MISSING` means that command didn't populate —
 
 ## 3. Add the Helm Repository
 
-> **~2 min | Beginner**
-
 > **What & Why:** CrowdStrike publishes a standalone chart per component. On a Fargate-only cluster we deploy three separate charts (`falcon-sensor` in injector mode, `falcon-kac`, `falcon-image-analyzer`) rather than the `falcon-platform` umbrella, because the umbrella's node-sensor subchart assumes DaemonSet mode.
 
 - [ ] Add and update the repo:
@@ -357,8 +350,6 @@ helm search repo crowdstrike/falcon-image-analyzer
 ---
 
 ## 4. Deploy the Sidecar Injector
-
-> **~5 min | Intermediate**
 
 > **What & Why:** Fargate pods have no host to run a DaemonSet on, so runtime protection comes from a mutating admission webhook. When a pod is created in an injectable namespace, the webhook patches the pod spec to add the Falcon Container Sensor as a sidecar. By default the sidecar is pulled from CrowdStrike's registry and the pull token is propagated to app namespaces.
 
@@ -430,8 +421,6 @@ kubectl create namespace detection-vulnapp 2>/dev/null; kubectl get secret -n de
 
 ## 5. Deploy the Kubernetes Admission Controller (KAC)
 
-> **~5 min | Intermediate**
-
 > **What & Why:** KAC gives you cluster-wide Kubernetes visibility and admission-time policy enforcement. It's a single non-privileged Deployment (three containers, all `readOnlyRootFilesystem`, `runAsNonRoot`), so it's fully Fargate-compatible — its namespace just needs a Fargate profile (already created in Section 1).
 
 ### Step 1: Install KAC
@@ -464,8 +453,6 @@ kubectl get pod -n falcon-kac -o jsonpath='{.items[0].spec.containers[*].name}'
 ---
 
 ## 6. Deploy Falcon Image Analyzer (IAR)
-
-> **~5 min | Intermediate**
 
 > **What & Why:** IAR scans images for vulnerabilities. It has two modes: Socket mode (a privileged DaemonSet that mounts the container runtime socket) and Watcher mode (a non-privileged Deployment that watches the K8s API and pulls images itself). **Only Watcher mode works on Fargate** — there's no node socket to mount and no privileged containers allowed.
 
@@ -503,8 +490,6 @@ kubectl get pods -n falcon-image-analyzer -o wide
 ---
 
 ## 7. Verify Fargate Coverage and Test a Detection
-
-> **~10 min | Intermediate**
 
 > **What & Why:** Verification means proving the injection path actually works end to end: a new pod in a Fargate-profiled namespace should come up with the Falcon sidecar attached and generate real detections. The CrowdStrike vulnapp doubles as both the injection target and a safe attack simulator.
 
@@ -570,8 +555,6 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 ---
 
 ## 8. Cleanup
-
-> **~5 min | Beginner**
 
 > **What & Why:** Removes all Falcon components and the cluster to avoid ongoing AWS costs.
 

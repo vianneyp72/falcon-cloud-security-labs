@@ -7,7 +7,6 @@
 > - Python 3.7+ on your workstation
 > - CrowdStrike Falcon console access (API client creation + Sensor Downloads)
 > - Terraform >= 1.0 installed
-> - ~70 minutes
 
 ## Reference Docs
 
@@ -22,8 +21,6 @@
 ---
 
 ## 1. Intro & Architecture
-
-> **~5 min | Beginner**
 
 The `crowdstrike.falcon` Ansible collection is CrowdStrike's official automation toolkit for sensor lifecycle management. Instead of manually SSHing into each host to copy and install packages, the collection talks directly to the Falcon API to download the correct sensor for each target OS, install it, configure the CID and tags, and start the service — all in one playbook run.
 
@@ -69,8 +66,6 @@ The `crowdstrike.falcon` Ansible collection is CrowdStrike's official automation
 ---
 
 ## 2. Prerequisites & Ansible Setup
-
-> **~10 min | Intermediate**
 
 ### Step 1: Install Ansible
 
@@ -202,8 +197,6 @@ A valid 32-character AID on each host confirms registration.
 <div data-mode="lab">
 
 ## 3. Create 2 GCE VMs
-
-> **~10 min | Intermediate**
 
 ### Step 1: Create the Debian 12 VM
 
@@ -339,8 +332,6 @@ gcloud compute ssh falcon-linux-deb-13 --zone=<YOUR_GCP_ZONE> --command="echo co
 
 ## 4. Write the Ansible Inventory & Playbook
 
-> **~15 min | Intermediate**
-
 ### Step 1: Create the project structure
 
 > **What & Why:** A clean Ansible project separates inventory (which hosts), playbook (what to do), and variables (secrets). This structure scales from 2 VMs to 2,000.
@@ -452,8 +443,6 @@ ansible -i inventory.ini falcon_hosts -m ping
 
 ## 5. Deploy the Sensor
 
-> **~10 min | Intermediate**
-
 ### Step 1: Run the playbook
 
 > **What & Why:** This single command deploys the Falcon sensor to both VMs. The collection authenticates to the Falcon API, downloads the correct package for each OS version, installs it, sets the CID (auto-fetched), applies your tags, and starts the service.
@@ -490,8 +479,6 @@ ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass
 ---
 
 ## 6. Verify in Falcon Console
-
-> **~5 min | Intermediate**
 
 ### Step 1: Confirm hosts registered
 
@@ -546,8 +533,6 @@ ansible -i inventory.ini falcon_hosts -m command -a "ss -tnp | grep falcon" --be
 ---
 
 ## 7. Connect Back to Terraform
-
-> **~15 min | Intermediate**
 
 You've built everything by hand — now let's make it repeatable. We'll import your existing GCE VMs into Terraform so you can tear down and recreate the infrastructure with one command.
 

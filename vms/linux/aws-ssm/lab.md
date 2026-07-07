@@ -9,7 +9,6 @@
 > - IAM instance profile with `AmazonSSMManagedInstanceCore` policy attached
 > - CrowdStrike API client with **Sensor Download: Read** scope
 > - CrowdStrike CID with checksum
-> - ~20 minutes
 
 ## Reference Docs
 
@@ -23,8 +22,6 @@
 ---
 
 ## 1. How SSM Distributor Works
-
-> **~5 min | Beginner**
 
 AWS Systems Manager Distributor is a package management feature that installs software on managed instances without SSH access. The SSM Agent on each instance communicates with the SSM service over HTTPS, receives commands, and executes them locally.
 
@@ -55,8 +52,6 @@ For Falcon sensor deployment:
 ---
 
 ## 2. Create API Credentials
-
-> **~5 min | Beginner**
 
 > **What this does:** Creates an OAuth2 API client in the Falcon console for the SSM package to authenticate and download the sensor.
 
@@ -118,8 +113,6 @@ A valid 32-character AID confirms registration.
 <div data-mode="lab">
 
 ## 3. Launch EC2 Instances with SSM Access
-
-> **~10 min | Intermediate**
 
 > **What this does:** Provisions EC2 instances with the required IAM role for SSM connectivity, then verifies they appear as managed instances.
 
@@ -186,8 +179,6 @@ aws ssm describe-instance-information \
 
 ## 4. Install via SSM Distributor
 
-> **~5 min | Beginner**
-
 ### Set environment variables
 
 ```bash
@@ -225,8 +216,6 @@ aws ssm list-command-invocations \
 ---
 
 ## 5. Verify Registration
-
-> **~5 min | Beginner**
 
 ### Check sensor status via SSM (no SSH needed)
 
@@ -301,8 +290,6 @@ aws iam delete-role --role-name FalconSSMLabRole
 ---
 
 ## 5. Uninstall via SSM
-
-> **~2 min | Beginner**
 
 ```bash
 aws ssm send-command \

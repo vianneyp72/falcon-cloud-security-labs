@@ -7,7 +7,6 @@
 > - AWS CLI v2 configured (`aws sts get-caller-identity` works)
 > - CrowdStrike API client with **Falcon Images Download: Read** and **Sensor Download: Read** scopes
 > - CrowdStrike CID with checksum
-> - ~105 minutes
 
 ## Reference Docs
 
@@ -23,8 +22,6 @@
 ---
 
 ## 1. Intro & Architecture
-
-> **~5 min | Beginner**
 
 Container image patching (also called "embedding") injects the CrowdStrike Falcon Container sensor directly into an application container image. At runtime, the sensor launches inside the container, monitors process activity, and sends telemetry to the CrowdStrike cloud — all without kernel access or privileged containers.
 
@@ -66,8 +63,6 @@ This is the go-to approach for serverless container platforms (ECS Fargate, Clou
 ---
 
 ## 2. Core Concepts
-
-> **~10 min | Intermediate**
 
 ### How `falconutil patch-image` Works
 
@@ -154,8 +149,6 @@ Trigger the workflow and confirm the patched image appears in your registry with
 <div data-mode="lab">
 
 ## 3. Create ECR Repos & Push Sample Images
-
-> **~15 min | Intermediate**
 
 ### Step 1: Create ECR Repositories
 
@@ -249,8 +242,6 @@ docker push ${ECR_BASE}/apps/node-express:1.0
 
 ## 4. Pull the Falcon Sensor Image
 
-> **~10 min | Intermediate**
-
 ### Step 1: Set CrowdStrike API Credentials
 
 > **What & Why:** The pull script authenticates to CrowdStrike's private registry using your API credentials to download the sensor image. This image contains both the `falconutil` binary and the sensor runtime.
@@ -294,8 +285,6 @@ docker push ${ECR_BASE}/falcon-sensor/falcon-container:latest
 ---
 
 ## 5. Patch Images Manually (Local Docker)
-
-> **~10 min | Intermediate**
 
 ### Step 1: Run `falconutil patch-image` Locally
 
@@ -363,8 +352,6 @@ docker push ${ECR_BASE}/apps/nginx:1.0-falcon
 ---
 
 ## 6. Create the GitHub Actions Workflow
-
-> **~15 min | Intermediate**
 
 ### Step 1: Set Up IAM OIDC for GitHub Actions
 
@@ -576,8 +563,6 @@ jobs:
 
 ## 7. Run & Verify
 
-> **~10 min | Intermediate**
-
 ### Step 1: Trigger the Workflow
 
 > **What & Why:** Manually dispatch the workflow to patch each image. This simulates what a security team would do — or what an automated trigger would invoke.
@@ -647,8 +632,6 @@ docker stop nginx-falcon
 ---
 
 ## 8. Connect Back to Terraform
-
-> **~15 min | Intermediate**
 
 You've built everything by hand — now let's make it repeatable. We'll import your existing resources into Terraform so you can tear down and recreate this entire lab with one command.
 
@@ -762,8 +745,6 @@ aws iam delete-role --role-name github-actions-falcon-patching
 <div data-mode="lab">
 
 ## 10. Challenges
-
-> **~15 min | Advanced**
 
 ### Challenge 1: Add FCS CLI Vulnerability Scan Before Patching
 
@@ -891,7 +872,7 @@ jobs:
         run: docker push ${{ env.ECR_BASE }}/${{ matrix.image }}:${{ inputs.image_tag }}-falcon
 ```
 
-This patches all 3 images in parallel (~3 min total instead of ~9 min sequentially).
+This patches all 3 images in parallel instead of sequentially.
 
 </details>
 
