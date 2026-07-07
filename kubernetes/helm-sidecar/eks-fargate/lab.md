@@ -195,11 +195,21 @@ helm upgrade --install falcon-image-analyzer crowdstrike/falcon-image-analyzer \
 
 ### 5. Verify injection and trigger a detection
 
-Create the app namespace (covered by the `app-workloads` Fargate profile), deploy the CrowdStrike vulnapp, and confirm the sidecar was injected:
+Create the app namespace (covered by the `app-workloads` Fargate profile):
 
 ```bash
 kubectl create namespace detection-vulnapp
+```
+
+Deploy the CrowdStrike vulnapp:
+
+```bash
 kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
+
+Confirm the Falcon sidecar was injected:
+
+```bash
 kubectl get pod -l run=vulnerable.example.com -n detection-vulnapp -o jsonpath='{.items[0].spec.containers[*].name}'
 # Should show: crowdstrike-falcon-container vulnapp
 ```
