@@ -871,6 +871,168 @@ function buildEksHybridDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEksFargateDiagram(text) {
+  const nodes = [
+    // EKS Fargate cluster container
+    {
+      id: 'cluster',
+      position: { x: 0, y: 0 },
+      data: { label: 'EKS Fargate Cluster', sublabel: 'serverless — no EC2 nodes', isContainer: true },
+      type: 'custom',
+      style: { width: 920, height: 580 },
+    },
+    // Falcon injector — top center, mutating webhook that patches every new pod
+    {
+      id: 'injector',
+      position: { x: 335, y: 60 },
+      data: { label: 'Falcon Injector', sublabel: 'mutating webhook — injects sidecar', isApi: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 20,
+      style: { width: 250, height: 58 },
+    },
+    // 3 Fargate node columns — each pod is its own micro-VM ("node")
+    {
+      id: 'node1',
+      position: { x: 25, y: 150 },
+      data: { label: 'Fargate Node 1', sublabel: 'micro-VM (one pod)', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 400 },
+    },
+    {
+      id: 'node2',
+      position: { x: 335, y: 150 },
+      data: { label: 'Fargate Node 2', sublabel: 'micro-VM (one pod)', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 400 },
+    },
+    {
+      id: 'node3',
+      position: { x: 645, y: 150 },
+      data: { label: 'Fargate Node 3', sublabel: 'micro-VM (one pod)', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 250, height: 400 },
+    },
+    // App container + injected Falcon sidecar inside each Fargate node
+    {
+      id: 'app1',
+      position: { x: 25, y: 45 },
+      data: { label: 'app container', sublabel: 'your workload' },
+      type: 'custom',
+      parentId: 'node1',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    {
+      id: 'sidecar1',
+      position: { x: 25, y: 100 },
+      data: { label: 'falcon-sensor', sublabel: 'sidecar (user space)' },
+      type: 'custom',
+      parentId: 'node1',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    {
+      id: 'app2',
+      position: { x: 25, y: 45 },
+      data: { label: 'app container', sublabel: 'your workload' },
+      type: 'custom',
+      parentId: 'node2',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    {
+      id: 'sidecar2',
+      position: { x: 25, y: 100 },
+      data: { label: 'falcon-sensor', sublabel: 'sidecar (user space)' },
+      type: 'custom',
+      parentId: 'node2',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    {
+      id: 'app3',
+      position: { x: 25, y: 45 },
+      data: { label: 'app container', sublabel: 'your workload' },
+      type: 'custom',
+      parentId: 'node3',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    {
+      id: 'sidecar3',
+      position: { x: 25, y: 100 },
+      data: { label: 'falcon-sensor', sublabel: 'sidecar (user space)' },
+      type: 'custom',
+      parentId: 'node3',
+      extent: 'parent',
+      style: { width: 200, height: 48 },
+    },
+    // Falcon IAR — wide band spanning all 3 nodes
+    {
+      id: 'iar',
+      position: { x: 35, y: 355 },
+      data: { label: 'Falcon Image Analyzer', sublabel: 'Deployment (Watcher) — spans all nodes' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 10,
+      style: { width: 850, height: 65 },
+    },
+    // Falcon KAC — wide band spanning all 3 nodes
+    {
+      id: 'kac',
+      position: { x: 35, y: 445 },
+      data: { label: 'Falcon KAC', sublabel: 'Deployment — Admission Controller, spans all nodes' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 10,
+      style: { width: 850, height: 65 },
+    },
+    // External: image registry — top-left so its sensor-image line stays above the node columns
+    {
+      id: 'cs-registry',
+      position: { x: -470, y: 55 },
+      data: { label: 'Image Registry', sublabel: 'CrowdStrike or ECR — sensor, KAC & IAR images', isCloud: true },
+      type: 'custom',
+      style: { width: 300, height: 70 },
+    },
+    // External: CrowdStrike cloud — dropped below so telemetry (TLS 443) lines are visible
+    {
+      id: 'cs-cloud',
+      position: { x: 345, y: 640 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+  ]
+
+  const edges = [
+    // Injector patches each new pod → adds the Falcon sidecar (top-down)
+    { id: 'e-inj-s1', source: 'injector', target: 'sidecar1', label: 'injects', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-inj-s2', source: 'injector', target: 'sidecar2', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-inj-s3', source: 'injector', target: 'sidecar3', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    // Image pulls — registry feeds the injector (sensor image) plus KAC & IAR from the left
+    { id: 'e-reg-inj', source: 'cs-registry', sourceHandle: 'right-source', target: 'injector', targetHandle: 'left-target', label: 'sensor image', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-reg-iar', source: 'cs-registry', sourceHandle: 'right-source', target: 'iar', targetHandle: 'left-target', type: 'smoothstep', zIndex: 5, style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-reg-kac', source: 'cs-registry', sourceHandle: 'right-source', target: 'kac', targetHandle: 'left-target', type: 'smoothstep', zIndex: 5, style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    // Telemetry — each sidecar drops down to the cloud (dashed red, behind the bands)
+    { id: 'e-s1-cloud', source: 'sidecar1', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    { id: 'e-s2-cloud', source: 'sidecar2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-s3-cloud', source: 'sidecar3', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildK8sDaemonsetDiagram(text) {
   const nodes = [
     // Kubernetes Cluster container
@@ -1159,6 +1321,9 @@ function buildDiagramFromContent(text) {
   }
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('LUMOS Sensor Image')) {
     return buildEksHybridDiagram(text)
+  }
+  if (text.includes('EKS FARGATE CLUSTER (serverless') && text.includes('Falcon-Injector-Pod')) {
+    return buildEksFargateDiagram(text)
   }
   if (text.includes('FALCON PLATFORM HELM DEPLOYMENT') && text.includes('DaemonSet: 1 pod per node')) {
     return buildK8sDaemonsetDiagram(text)
@@ -1584,6 +1749,7 @@ export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('LUMOS Sensor Image')) return true
+  if (text.includes('EKS FARGATE CLUSTER (serverless') && text.includes('Falcon-Injector-Pod')) return true
   if (text.includes('FALCON PLATFORM HELM DEPLOYMENT') && text.includes('DaemonSet: 1 pod per node')) return true
 
   const boxChars = /[┌┐└┘│├┤─┬┴┼]/
