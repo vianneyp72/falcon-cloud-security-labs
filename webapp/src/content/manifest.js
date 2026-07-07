@@ -35,8 +35,10 @@ import cspmAwsTerraform from '@content/cspm/account-registration/aws/terraform/l
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
-import seYasi from '@content/_common/se-built/yet-another-sensor-installer.md?raw'
-import seEcsFargate from '@content/_common/se-built/ecs-fargate-sidecar-injector.md?raw'
+import seYasi from '@content/se-built/yet-another-sensor-installer.md?raw'
+import seEcsFargate from '@content/se-built/ecs-fargate-sidecar-injector.md?raw'
+import seRegoExamples from '@content/se-built/simple-rego-examples.md?raw'
+import seAzurePreReqs from '@content/se-built/azure-fcs-prereqs-checker.md?raw'
 
 // Overview READMEs
 import overviewK8s from '@content/kubernetes/README.md?raw'
@@ -83,8 +85,10 @@ const labs = {
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
-  '_common/se-built/yet-another-sensor-installer.md': seYasi,
-  '_common/se-built/ecs-fargate-sidecar-injector.md': seEcsFargate,
+  'se-built/yet-another-sensor-installer.md': seYasi,
+  'se-built/ecs-fargate-sidecar-injector.md': seEcsFargate,
+  'se-built/simple-rego-examples.md': seRegoExamples,
+  'se-built/azure-fcs-prereqs-checker.md': seAzurePreReqs,
 }
 
 const overviews = {
@@ -241,14 +245,13 @@ export const manifest = [
     lab('API Credentials', 'api-credentials', '_common/api-credentials.md'),
     lab('Pull Sensor Images', 'pull-sensor-images', '_common/pull-sensor-images.md'),
     lab('Verification', 'verification', '_common/verification.md'),
-    {
-      label: 'SE-Built',
-      route: 'se-built',
-      children: [
-        lab('Yet Another Sensor Installer', 'yet-another-sensor-installer', '_common/se-built/yet-another-sensor-installer.md'),
-        lab('ECS Fargate Sidecar Injector', 'ecs-fargate-sidecar-injector', '_common/se-built/ecs-fargate-sidecar-injector.md'),
-      ],
-    },
+  ]),
+
+  section('SE-Built', 'se-built', [
+    lab('Yet Another Sensor Installer', 'yet-another-sensor-installer', 'se-built/yet-another-sensor-installer.md'),
+    lab('ECS Fargate Sidecar Injector', 'ecs-fargate-sidecar-injector', 'se-built/ecs-fargate-sidecar-injector.md'),
+    lab('Simple Rego Examples', 'simple-rego-examples', 'se-built/simple-rego-examples.md'),
+    lab('Azure FCS Pre-Reqs Checker', 'azure-fcs-prereqs-checker', 'se-built/azure-fcs-prereqs-checker.md'),
   ]),
 ]
 
