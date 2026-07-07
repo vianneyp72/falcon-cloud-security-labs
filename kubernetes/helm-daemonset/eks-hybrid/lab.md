@@ -51,12 +51,15 @@ This lab deploys four components:
 
 ```
 EKS HYBRID CLUSTER (EC2 + Fargate)
-Image Registry (CRWD or Customer): LUMOS Sensor Image, DaemonSet Sensor Image
-Fargate-Node-1: App-Pod-1 (LUMOS sidecar), App-Pod-2 (LUMOS sidecar), sensor injector
-EC2-Node-1: App-Pod-3, App-Pod-4, Falcon DaemonSet Sensor
-EC2-Node-2: App-Pod-5, App-Pod-6, Falcon DaemonSet Sensor
-DaemonSet: deploys sensor pod to each EC2 node
-Notes: 2 Helm charts, 2 sensor images, Fargate profiles needed, pod execution role ECR access only for the ECR option
+Falcon Injector: mutating webhook injects the sidecar into Fargate pods
+DaemonSet: deploys one sensor pod onto each EC2 node
+Fargate Node: app container + falcon-sensor sidecar (user space)
+EC2 Node 1: app container + falcon-sensor DaemonSet pod (eBPF)
+EC2 Node 2: app container + falcon-sensor DaemonSet pod (eBPF)
+Falcon Image Analyzer: Deployment spanning all nodes, lands on EC2
+Falcon KAC: Deployment (Admission Controller) spanning all nodes, lands on EC2
+Image Registry (CrowdStrike or ECR): LUMOS Sensor Image, DaemonSet Sensor Image
+CrowdStrike Cloud: sidecar + DaemonSet telemetry over TLS 443
 ```
 
 ---
@@ -144,6 +147,8 @@ helm repo update
 
 ### 4. deploy DaemonSet + KAC + IAR
 
+> Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
+
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
@@ -164,11 +169,11 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="eks-ec2-node"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
-
 ### 5. Deploy sidecar injector (Fargate pods)
 
 Pulls the LUMOS sidecar from CrowdStrike's registry and propagates the pull token to all app namespaces, so any Fargate pod gets injected without tracking namespace names:
+
+> Change `falcon.tags` to any custom value to group the Fargate sidecars in the Falcon console.
 
 ```bash
 helm upgrade --install falcon-lumos-injector crowdstrike/falcon-sensor \
@@ -421,6 +426,8 @@ helm search repo crowdstrike/falcon-sensor
 
 ### Step 1: Install the platform chart
 
+> Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
+
 - [ ] Deploy with all component configurations:
 
 ```bash
@@ -443,8 +450,6 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="eks-ec2-node"` tags the EC2 node sensor in the Falcon console (the injector separately tags Fargate sidecars `eks-fargate`) — change either to any comma-separated tags you want.
-
 ### Step 2: Verify EC2 sensor pods
 
 - [ ] Confirm the DaemonSet sensor is running on EC2 nodes only:
@@ -465,6 +470,8 @@ kubectl get ds -n falcon-system
 > **What & Why:** Fargate pods have no host to run a DaemonSet on. The sidecar injector is a mutating admission webhook — when a pod is created in a Fargate-profiled namespace, the webhook intercepts the request and injects the Falcon sensor as an additional container in the pod spec. By default the sidecar is pulled from CrowdStrike's registry and the pull token is propagated to the injected namespaces (`container.image.pullSecrets.*`).
 
 ### Step 1: Deploy the injector
+
+> Change `falcon.tags` to any custom value to group the Fargate sidecars in the Falcon console.
 
 - [ ] Install the `falcon-sensor` chart in injector mode (pulls the sidecar from CrowdStrike):
 

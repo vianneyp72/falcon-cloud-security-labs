@@ -132,7 +132,7 @@ spec:
 EOF
 ```
 
-Wait for the WorkloadAllowlists to appear (1-2 minutes) and note their versions:
+Wait for the WorkloadAllowlists to appear (1-2 minutes) — you only need them present, not their version numbers:
 
 ```bash
 kubectl get workloadallowlists
@@ -147,6 +147,8 @@ helm repo update
 
 ### 4. Deploy the chart (Autopilot settings)
 
+> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
@@ -159,8 +161,6 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_IMAGE_TAG \
   --set falcon-sensor.node.backend=bpf \
   --set falcon-sensor.node.gke.autopilot=true \
-  --set falcon-sensor.node.gke.deployAllowListVersion=v1.0.5 \
-  --set falcon-sensor.node.gke.cleanupAllowListVersion=v1.0.3 \
   --set falcon-kac.image.repository=$KAC_REGISTRY \
   --set falcon-kac.image.tag=$KAC_IMAGE_TAG \
   --set falcon-image-analyzer.deployment.enabled=true \
@@ -171,22 +171,16 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="gke-autopilot"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
-
-> Set `deployAllowListVersion` / `cleanupAllowListVersion` to the highest versions from `kubectl get workloadallowlists`. If deploy fails with an args mismatch, step down one version.
-
 > **GovCloud (us-gov-1 / us-gov-2):** Running the pull script (step 1) with GovCloud API credentials makes `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry automatically, so your `*_REGISTRY` vars are already correct. Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Sensor and KAC derive their region from the CID; optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`.
 
 ### 5. Verify
 
 ```bash
 kubectl get ds -n falcon-system
-kubectl get pods -n falcon-system
-kubectl get pods -n falcon-kac
-kubectl get pods -n falcon-image-analyzer
+kubectl get pods -A | grep falcon
 ```
 
-The DaemonSet `DESIRED` should equal `CURRENT` and match your node count; all pods `Running`.
+The DaemonSet `DESIRED` should equal `CURRENT` and match your node count; all Falcon pods `Running`.
 
 ### 6. Test a detection (optional)
 
@@ -335,7 +329,7 @@ crowdstrike-falconsensor-deploy-allowlist-v1.0.0      1m
 crowdstrike-falconsensor-falconctl-allowlist-v1.0.0   1m
 ```
 
-> **Important:** Do NOT proceed until WorkloadAllowlists appear. Note the highest `deploy` and `cleanup` version numbers — you'll pass them to Helm in section 6.
+> **Important:** Do NOT proceed until WorkloadAllowlists appear. You don't need to note the version numbers — GKE evaluates the sensor pods against all installed allowlists automatically (see section 6).
 
 ---
 
@@ -454,9 +448,11 @@ helm search repo crowdstrike/falcon-platform
 
 > **~10 min | Intermediate**
 
-> **What & Why:** The `falcon-platform` umbrella chart installs all three components in one release. The extra `--set` flags below (`backend=bpf`, `gke.autopilot=true`, and the allowlist versions) are what make the privileged sensor schedulable on Autopilot.
+> **What & Why:** The `falcon-platform` umbrella chart installs all three components in one release. The extra `--set` flags below (`backend=bpf` and `gke.autopilot=true`) are what make the privileged sensor schedulable on Autopilot. No allowlist version needs to be specified — the AllowlistSynchronizer you applied in section 3 lets GKE Warden match the pods automatically.
 
 ### Step 1: Install the chart
+
+> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
 
 - [ ] Run the Helm install:
 
@@ -472,8 +468,6 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_IMAGE_TAG \
   --set falcon-sensor.node.backend=bpf \
   --set falcon-sensor.node.gke.autopilot=true \
-  --set falcon-sensor.node.gke.deployAllowListVersion=v1.0.5 \
-  --set falcon-sensor.node.gke.cleanupAllowListVersion=v1.0.3 \
   --set falcon-kac.image.repository=$KAC_REGISTRY \
   --set falcon-kac.image.tag=$KAC_IMAGE_TAG \
   --set falcon-image-analyzer.deployment.enabled=true \
@@ -484,20 +478,30 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="gke-autopilot"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
-
 #### Key Autopilot-specific settings
 
 | Setting                                | Why                                                          |
 | -------------------------------------- | ------------------------------------------------------------ |
 | `falcon-sensor.node.backend=bpf`       | Required — Autopilot doesn't allow kernel module loading     |
 | `falcon-sensor.node.gke.autopilot=true`| Configures the DaemonSet for Autopilot constraints           |
-| `node.gke.deployAllowListVersion`      | Must match a WorkloadAllowlist version (`kubectl get workloadallowlists`) |
-| `node.gke.cleanupAllowListVersion`     | Must match a cleanup WorkloadAllowlist version               |
 | `falcon-sensor.node.image.repository`  | Must resolve to `registry.crowdstrike.com/...` (allowlist regex validates this) |
 | `global.containerRegistry.configJSON`  | Pull token auth for CrowdStrike's registry                   |
 
-> **Finding the correct allowlist versions:** Use the highest `deploy` and `cleanup` versions from `kubectl get workloadallowlists`. If deploy fails with an args mismatch, step down one version (e.g. `v1.0.6` → `v1.0.5`).
+> **No allowlist version flags:** With the AllowlistSynchronizer applied (section 3), GKE Warden evaluates the privileged sensor pods against every installed WorkloadAllowlist and admits them if any matches. Omitting `deployAllowListVersion` / `cleanupAllowListVersion` means the deploy keeps working when CrowdStrike ships new allowlist versions — no manual bumping.
+
+<details>
+<summary>Debugging a rejection: pin a version to get verbose mismatch output</summary>
+
+The `cloud.google.com/matching-allowlist` pod label (set via `deployAllowListVersion`) is a **diagnostic** aid, not a requirement. If the sensor is rejected and you want GKE to report exactly which fields didn't match a specific allowlist, pin the version so Warden compares against just that one and returns detailed field-level errors:
+
+```bash
+--set falcon-sensor.node.gke.deployAllowListVersion=v1.0.5 \
+--set falcon-sensor.node.gke.cleanupAllowListVersion=v1.0.3
+```
+
+Use the versions from `kubectl get workloadallowlists`. Remove the flags once you've resolved the mismatch.
+
+</details>
 
 > **GovCloud (us-gov-1 / us-gov-2):** When you generate the pull token and image paths (section 4) with GovCloud API credentials, `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry (`registry.laggar.gcw.crowdstrike.com` for gov-1, `registry.us-gov-2.crowdstrike.mil` for gov-2) automatically — the `*_REGISTRY` variables need no changes. Add one flag to the Helm install so Image Analyzer talks to the right region:
 >
@@ -512,9 +516,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 - [ ] Wait for all pods to reach Running state:
 
 ```bash
-kubectl get pods -n falcon-system -w
-kubectl get pods -n falcon-kac
-kubectl get pods -n falcon-image-analyzer
+kubectl get pods -A | grep falcon
 ```
 
 ---
@@ -671,14 +673,14 @@ Mirror the `--set` keys as nested YAML under `global:`, `falcon-sensor:`, `falco
 
 </details>
 
-### Challenge 2: Match allowlist versions dynamically
+### Challenge 2: Debug an allowlist rejection
 
-**Scenario:** Hardcoding `v1.0.5`/`v1.0.3` breaks when CrowdStrike ships new allowlists. Derive the versions from `kubectl get workloadallowlists` output before the Helm install.
+**Scenario:** A teammate reports their sensor pods are stuck being rejected with `denied by autogke-disallow-privilege`, even though `kubectl get workloadallowlists` shows entries. The generic error doesn't say *what* mismatched. Get GKE to report the exact field-level mismatch.
 
 <details>
 <summary>Hint</summary>
 
-Parse the allowlist names with `kubectl get workloadallowlists -o name`, extract the `-vX.Y.Z` suffix for the `deploy` and `cleanup` allowlists, and feed them into the `--set` flags.
+The `cloud.google.com/matching-allowlist` label pins a pod to one specific WorkloadAllowlist and makes Warden return verbose mismatch details for it. Set it via `--set falcon-sensor.node.gke.deployAllowListVersion=vX.Y.Z` (matching a real version from `kubectl get workloadallowlists`), re-deploy, then read the admission error — it now names the offending field (often a relocated sensor image digest that isn't on `registry.crowdstrike.com`).
 
 </details>
 
@@ -699,8 +701,6 @@ Parse the allowlist names with `kubectl get workloadallowlists -o name`, extract
 | `KAC_IMAGE_TAG` | KAC version tag | Helm KAC image tag |
 | `IAR_REGISTRY` | CrowdStrike registry | Helm IAR image repo |
 | `IAR_IMAGE_TAG` | IAR version tag | Helm IAR image tag |
-| `deployAllowListVersion` | Highest `deploy` version from `kubectl get workloadallowlists` | Helm sensor Autopilot flag |
-| `cleanupAllowListVersion` | Highest `cleanup` version | Helm sensor Autopilot flag |
 
 </div>
 

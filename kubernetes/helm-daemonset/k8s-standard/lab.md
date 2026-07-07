@@ -45,6 +45,7 @@ DaemonSet: 1 pod per node | Deployment: 1 pod per cluster
 Node 1: falcon-sensor | Node 2: falcon-sensor | Node 3: falcon-sensor
 Falcon KAC (Deployment) — Admission Controller
 Falcon Image Analyzer (Deployment) — Image Assessment
+Image Registry (CrowdStrike) — sensor, KAC and IAR images
 CrowdStrike Cloud — Telemetry
 ```
 
@@ -134,6 +135,8 @@ helm repo update
 
 ### 4. Deploy the chart
 
+> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
@@ -154,8 +157,6 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="daemonset-sensor"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
-
 > `createComponentNamespaces=true` places sensor in `falcon-system`, KAC in `falcon-kac`, and IAR in `falcon-image-analyzer`.
 
 > **GovCloud (us-gov-1 / us-gov-2):** Running the pull script with GovCloud API credentials makes `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry automatically, so your `*_REGISTRY` vars are already correct. Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Sensor and KAC derive their region from the CID; optionally pin the sensor with `--set falcon-sensor.falcon.cloud=us-gov-1`.
@@ -163,13 +164,11 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 ### 5. Verify deployment
 
 ```bash
-kubectl get pods -n falcon-system
-kubectl get pods -n falcon-kac
-kubectl get pods -n falcon-image-analyzer
+kubectl get pods -A | grep falcon
 kubectl get ds -n falcon-system
 ```
 
-All pods should be `Running`. The DaemonSet should show `DESIRED` = `CURRENT` = number of nodes.
+All Falcon pods (`falcon-system`, `falcon-kac`, `falcon-image-analyzer`) should be `Running`. The DaemonSet should show `DESIRED` = `CURRENT` = number of nodes.
 
 ### 6. Test a detection (optional)
 
@@ -410,6 +409,8 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
+> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+
 - [ ] Run the Helm install with all component configurations:
 
 ```bash
@@ -432,8 +433,6 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `falcon-sensor.falcon.tags="daemonset-sensor"` applies Falcon console grouping tags to the node sensor — change it to any comma-separated tags you want (e.g. `prod,team-a`).
-
 > **GovCloud (us-gov-1 / us-gov-2):** When you generate the pull token and image paths with GovCloud API credentials, `--get-pull-token` / `--get-image-path` resolve to the GovCloud registry (`registry.laggar.gcw.crowdstrike.com` for gov-1, `registry.us-gov-2.crowdstrike.mil` for gov-2) automatically — the `*_REGISTRY` variables need no changes. Add one flag to the Helm install so Image Analyzer talks to the right region:
 >
 > ```
@@ -447,9 +446,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 - [ ] Wait for all pods to reach Running state:
 
 ```bash
-kubectl get pods -n falcon-system -w
-kubectl get pods -n falcon-kac
-kubectl get pods -n falcon-image-analyzer
+kubectl get pods -A | grep falcon
 ```
 
 ---
