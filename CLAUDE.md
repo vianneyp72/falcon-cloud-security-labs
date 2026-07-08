@@ -94,6 +94,7 @@ Brief explanation of key ideas and architecture.
 
 ### General rules
 
+- Keep explanations simple and concise — these guides are meant to be quick, to the point, and easy to deploy. Explain only what a customer needs to act; cut background, exhaustive lists, and repetition.
 - Platform-agnostic where possible (one guide covers EKS + GKE + AKS)
 - Keep steps as copy-paste-able commands
 - Use environment variables for user-specific values

@@ -121,8 +121,6 @@ echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($K
 echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo SET || echo MISSING) ($IAR_REGISTRY:$IAR_IMAGE_TAG)"
 ```
 
-Every line should read `SET`. Any line printing `MISSING` means that variable didn't get set — re-check your API scopes, pull token, and the values you exported.
-
 ### 3. Add Helm repo
 
 ```bash
@@ -364,8 +362,6 @@ echo "Sensor         : $([ -n "$DAEMONSET_SENSOR_REGISTRY" ] && echo SET || echo
 echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($KAC_REGISTRY:$KAC_IMAGE_TAG)"
 echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo SET || echo MISSING) ($IAR_REGISTRY:$IAR_IMAGE_TAG)"
 ```
-
-Every line should read `SET`, and each image path must show a full `registry.crowdstrike.com/...:<tag>` value. A line printing `MISSING` means that variable is empty — re-check the matching `--get-image-path` command, your API scopes, the values you exported, and the pull token from Step 1.
 
 ---
 

@@ -111,8 +111,6 @@ echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($K
 echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo SET || echo MISSING) ($IAR_REGISTRY:$IAR_IMAGE_TAG)"
 ```
 
-> Every line should read `SET`. The sensor path must show `registry.crowdstrike.com/...`. Any `MISSING` means that variable didn't populate — re-check the matching command and your API scopes.
-
 ### 2. Apply the AllowlistSynchronizer
 
 > Do this **before** deploying the sensor — Warden rejects the DaemonSet until the WorkloadAllowlists exist.
@@ -407,8 +405,6 @@ echo "Sensor         : $([ -n "$DAEMONSET_SENSOR_REGISTRY" ] && echo SET || echo
 echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($KAC_REGISTRY:$KAC_IMAGE_TAG)"
 echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo SET || echo MISSING) ($IAR_REGISTRY:$IAR_IMAGE_TAG)"
 ```
-
-Every line should read `SET`, and each image path must show a full value — the sensor path must resolve to `registry.crowdstrike.com/...`. A line printing `MISSING` means that variable is empty — re-check the matching command, your API scopes, and the values you exported.
 
 ---
 

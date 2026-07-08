@@ -49,7 +49,7 @@ Authenticate to image repository
   --type falcon-container \
   --copy $AWS_ECR_URI \
   --copy-omit-image-name \
-  --copy-custom-tag "falcon-lumos-sensor-latest"
+  --copy-custom-tag "falcon-container-sensor-latest"
 ```
 
 ### 2. Pull Falcon Kubernetes Admission Controller (KAC) Image Into ECR
