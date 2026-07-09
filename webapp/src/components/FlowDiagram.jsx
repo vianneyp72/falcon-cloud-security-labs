@@ -1531,134 +1531,76 @@ function buildGkeAutopilotDiagram(text) {
   return { nodes, edges }
 }
 
-function buildAksVirtualNodesDiagram(text) {
+function buildAciEmbeddedDiagram(text) {
   const nodes = [
-    // AKS cluster container
+    // Local Docker (patch) container
     {
-      id: 'cluster',
+      id: 'local-docker',
       position: { x: 0, y: 0 },
-      data: { label: 'AKS Virtual Nodes Cluster', sublabel: 'system node pool + ACI virtual node', isContainer: true },
+      data: { label: 'Local Docker (patch)', isContainer: true },
       type: 'custom',
-      style: { width: 1000, height: 720 },
-    },
-    // System node pool (real VMs) — hosts Falcon infra, pulls via kubelet identity
-    {
-      id: 'syspool',
-      position: { x: 25, y: 70 },
-      data: { label: 'System Node Pool', sublabel: 'real VMs — pull via kubelet identity', isContainer: true },
-      type: 'custom',
-      parentId: 'cluster',
-      extent: 'parent',
-      style: { width: 300, height: 470 },
+      style: { width: 620, height: 280 },
     },
     {
-      id: 'injector',
-      position: { x: 20, y: 55 },
-      data: { label: 'Falcon Injector', sublabel: 'mutating webhook — injects sidecar', isApi: true },
+      id: 'sensor-image',
+      position: { x: 190, y: 40 },
+      data: { label: 'Falcon Container Image', sublabel: 'falconutil + sensor runtime' },
       type: 'custom',
-      parentId: 'syspool',
-      extent: 'parent',
-      zIndex: 20,
-      style: { width: 260, height: 62 },
-    },
-    {
-      id: 'kac',
-      position: { x: 20, y: 145 },
-      data: { label: 'Falcon KAC', sublabel: 'admission control', isApi: true },
-      type: 'custom',
-      parentId: 'syspool',
-      extent: 'parent',
-      zIndex: 20,
-      style: { width: 260, height: 62 },
-    },
-    {
-      id: 'iar',
-      position: { x: 20, y: 235 },
-      data: { label: 'Falcon Image Analyzer (IAR)', sublabel: 'image scanning', isApi: true },
-      type: 'custom',
-      parentId: 'syspool',
-      extent: 'parent',
-      zIndex: 20,
-      style: { width: 260, height: 62 },
-    },
-    // Virtual node (ACI via Virtual Kubelet) — app pods with injected sidecar
-    {
-      id: 'vnode',
-      position: { x: 360, y: 70 },
-      data: { label: 'Virtual Node (ACI)', sublabel: 'Virtual Kubelet — virtual-node-aci-linux', isContainer: true },
-      type: 'custom',
-      parentId: 'cluster',
-      extent: 'parent',
-      style: { width: 615, height: 470 },
-    },
-    // ACI pod 1 — sidecar + app share a pod
-    {
-      id: 'pod-1',
-      position: { x: 30, y: 60 },
-      data: { label: 'ACI Pod', sublabel: '2 containers', isContainer: true },
-      type: 'custom',
-      parentId: 'vnode',
-      extent: 'parent',
-      style: { width: 260, height: 200 },
-    },
-    {
-      id: 'sidecar-1',
-      position: { x: 15, y: 55 },
-      data: { label: 'falcon-container', sublabel: 'sidecar (injected)' },
-      type: 'custom',
-      parentId: 'pod-1',
+      parentId: 'local-docker',
       extent: 'parent',
       style: { width: 230, height: 55 },
     },
     {
-      id: 'app-1',
-      position: { x: 15, y: 125 },
-      data: { label: 'app container', sublabel: 'your workload' },
+      id: 'docker-pull',
+      position: { x: 20, y: 160 },
+      data: { label: 'docker pull', sublabel: 'app:1.0 (source)' },
       type: 'custom',
-      parentId: 'pod-1',
+      parentId: 'local-docker',
       extent: 'parent',
-      style: { width: 230, height: 55 },
-    },
-    // ACI pod 2
-    {
-      id: 'pod-2',
-      position: { x: 320, y: 60 },
-      data: { label: 'ACI Pod', sublabel: '2 containers', isContainer: true },
-      type: 'custom',
-      parentId: 'vnode',
-      extent: 'parent',
-      style: { width: 260, height: 200 },
+      style: { width: 130, height: 55 },
     },
     {
-      id: 'sidecar-2',
-      position: { x: 15, y: 55 },
-      data: { label: 'falcon-container', sublabel: 'sidecar (injected)' },
+      id: 'falconutil',
+      position: { x: 200, y: 160 },
+      data: { label: 'falconutil patch-image', sublabel: 'app:1.0 → app:1.0-falcon (ACI)' },
       type: 'custom',
-      parentId: 'pod-2',
+      parentId: 'local-docker',
       extent: 'parent',
       style: { width: 230, height: 55 },
     },
     {
-      id: 'app-2',
-      position: { x: 15, y: 125 },
-      data: { label: 'app container', sublabel: 'your workload' },
+      id: 'docker-push',
+      position: { x: 470, y: 160 },
+      data: { label: 'docker push', sublabel: 'app:1.0-falcon → ACR' },
       type: 'custom',
-      parentId: 'pod-2',
+      parentId: 'local-docker',
       extent: 'parent',
-      style: { width: 230, height: 55 },
+      style: { width: 135, height: 55 },
     },
-    // External: Azure Container Registry — left, holds all 3 Falcon images
+    // ACR
     {
       id: 'acr',
-      position: { x: -500, y: 150 },
-      data: { label: 'Azure Container Registry (ACR)', sublabel: 'falcon-container, falcon-kac, falcon-imageanalyzer', isCloud: true },
+      position: { x: 50, y: 380 },
+      data: {
+        label: 'Azure Container Registry (ACR)',
+        sublabel: 'app:1.0 | app:1.0-falcon | falcon-container:latest',
+        isContainer: true,
+      },
       type: 'custom',
-      style: { width: 330, height: 84 },
+      style: { width: 520, height: 70 },
     },
-    // External: CrowdStrike cloud — below, receives sidecar telemetry
+    // ACI
+    {
+      id: 'aci',
+      position: { x: 180, y: 510 },
+      data: { label: 'Azure Container Instances (ACI)', sublabel: 'falcon-sensor + your app', isCloud: true },
+      type: 'custom',
+      style: { width: 260, height: 55 },
+    },
+    // CrowdStrike cloud
     {
       id: 'cs-cloud',
-      position: { x: 385, y: 780 },
+      position: { x: 195, y: 630 },
       data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
       type: 'custom',
       style: { width: 230, height: 60 },
@@ -1666,18 +1608,17 @@ function buildAksVirtualNodesDiagram(text) {
   ]
 
   const edges = [
-    // Injector patches each virtual-node pod → adds the Falcon Container sidecar
-    { id: 'e-inj-1', source: 'injector', sourceHandle: 'right-source', target: 'sidecar-1', label: 'injects', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
-    { id: 'e-inj-2', source: 'injector', sourceHandle: 'right-source', target: 'sidecar-2', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
-    // ACR pulls — infra pods use kubelet identity
-    { id: 'e-acr-inj', source: 'acr', sourceHandle: 'right-source', target: 'injector', targetHandle: 'left-target', label: 'kubelet pull', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    { id: 'e-acr-kac', source: 'acr', sourceHandle: 'right-source', target: 'kac', targetHandle: 'left-target', type: 'smoothstep', zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    { id: 'e-acr-iar', source: 'acr', sourceHandle: 'right-source', target: 'iar', targetHandle: 'left-target', type: 'smoothstep', zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    // ACR pull — ACI sidecar has NO node identity → uses replicated imagePullSecret
-    { id: 'e-acr-sc1', source: 'acr', sourceHandle: 'right-source', target: 'sidecar-1', targetHandle: 'top-target', label: 'imagePullSecret', type: 'smoothstep', zIndex: 5, style: { stroke: '#d29922', strokeWidth: 1.5, strokeDasharray: '4 3' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    // Telemetry — sidecars report to the CrowdStrike Cloud
-    { id: 'e-sc1-cloud', source: 'sidecar-1', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
-    { id: 'e-sc2-cloud', source: 'sidecar-2', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    // docker pull → falconutil → docker push (horizontal pipeline)
+    { id: 'e-pull-patch', source: 'docker-pull', sourceHandle: 'right-source', target: 'falconutil', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-patch-push', source: 'falconutil', sourceHandle: 'right-source', target: 'docker-push', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    // Sensor image feeds into falconutil
+    { id: 'e-sensor-patch', source: 'sensor-image', target: 'falconutil', label: 'sensor layers', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    // Push sends patched image down to ACR
+    { id: 'e-push-acr', source: 'docker-push', target: 'acr', label: 'push :1.0-falcon', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    // ACR deploys to ACI
+    { id: 'e-acr-aci', source: 'acr', target: 'aci', label: 'Deploy :*-falcon only', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    // Telemetry — ACI sensor reports to the CrowdStrike Cloud
+    { id: 'e-aci-cloud', source: 'aci', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
   ]
 
   return { nodes, edges }
@@ -1685,8 +1626,8 @@ function buildAksVirtualNodesDiagram(text) {
 
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
-  if (text.includes('AKS VIRTUAL NODES') && text.includes('Virtual Kubelet')) {
-    return buildAksVirtualNodesDiagram(text)
+  if (text.includes('Azure Container Instances') && text.includes('falconutil')) {
+    return buildAciEmbeddedDiagram(text)
   }
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) {
     return buildGkeAutopilotDiagram(text)
@@ -2119,7 +2060,7 @@ function buildDockerPatchDiagram(text) {
 
 export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
-  if (text.includes('AKS VIRTUAL NODES') && text.includes('Virtual Kubelet')) return true
+  if (text.includes('Azure Container Instances') && text.includes('falconutil')) return true
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('Container Sensor Image')) return true
   if (text.includes('EKS FARGATE CLUSTER (serverless') && text.includes('Falcon-Injector-Pod')) return true

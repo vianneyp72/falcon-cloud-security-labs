@@ -96,6 +96,7 @@ Brief explanation of key ideas and architecture.
 
 - Keep explanations simple and concise — these guides are meant to be quick, to the point, and easy to deploy. Explain only what a customer needs to act; cut background, exhaustive lists, and repetition.
 - Platform-agnostic where possible (one guide covers EKS + GKE + AKS)
+- Don't assume the reader's local OS. Write happy-path explanations that hold for any host (Linux/macOS/Windows). Keep OS-specific quirks (e.g. Docker Desktop `credsStore` on macOS/Windows, Apple Silicon `--platform` auto-detection) out of the main prose — if one genuinely matters, call it out as a short scoped gotcha at its point of use ("On Apple Silicon…"), not as the default framing. Don't add a big multi-OS notes block unless the user asks for it.
 - Keep steps as copy-paste-able commands
 - Use environment variables for user-specific values
 - No emojis in content

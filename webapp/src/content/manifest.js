@@ -3,7 +3,6 @@ import k8sStandard from '@content/kubernetes/helm-daemonset/k8s-standard/lab.md?
 import k8sEksHybrid from '@content/kubernetes/helm-daemonset/eks-hybrid/lab.md?raw'
 import k8sGkeAutopilot from '@content/kubernetes/helm-daemonset/gke-autopilot/lab.md?raw'
 import k8sSidecarFargate from '@content/kubernetes/helm-sidecar/eks-fargate/lab.md?raw'
-import k8sSidecarAks from '@content/kubernetes/helm-sidecar/aks-virtual-nodes/lab.md?raw'
 import k8sOpGeneric from '@content/kubernetes/operator/generic/lab.md?raw'
 import k8sOpOpenshift from '@content/kubernetes/operator/openshift/lab.md?raw'
 import ecsFargatePatch from '@content/ecs/fargate-task-patching/lab.md?raw'
@@ -53,7 +52,6 @@ const labs = {
   'kubernetes/helm-daemonset/eks-hybrid/lab.md': k8sEksHybrid,
   'kubernetes/helm-daemonset/gke-autopilot/lab.md': k8sGkeAutopilot,
   'kubernetes/helm-sidecar/eks-fargate/lab.md': k8sSidecarFargate,
-  'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md': k8sSidecarAks,
   'kubernetes/operator/generic/lab.md': k8sOpGeneric,
   'kubernetes/operator/openshift/lab.md': k8sOpOpenshift,
   'ecs/fargate-task-patching/lab.md': ecsFargatePatch,
@@ -166,7 +164,6 @@ export const manifest = [
       route: 'helm-sidecar',
       children: [
         lab('EKS Fargate', 'eks-fargate', 'kubernetes/helm-sidecar/eks-fargate/lab.md'),
-        lab('AKS Virtual Nodes', 'aks-virtual-nodes', 'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md'),
       ],
     },
     {

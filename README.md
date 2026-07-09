@@ -50,7 +50,7 @@ falcon-cloud-security-labs/
 │   ├── helm-daemonset/               # Node-level sensor via Helm
 │   │   ├── k8s-standard/, eks-hybrid/, gke-autopilot/
 │   ├── helm-sidecar/                 # Container sensor via sidecar injection
-│   │   ├── eks-fargate/, aks-virtual-nodes/
+│   │   ├── eks-fargate/
 │   └── operator/                     # Falcon Operator (CRD-based)
 │       ├── generic/, openshift/
 ├── ecs/                              # AWS ECS
