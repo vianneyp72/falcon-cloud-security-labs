@@ -14,14 +14,14 @@ Embed the CrowdStrike Falcon Container Sensor into your application image with `
 
 ## Reference Docs
 
-| Source | Link |
-|--------|------|
-| Deploy Falcon Container Sensor on Azure Container Instances | https://docs.crowdstrike.com/r/en-US/iopiipqy/ndf35434 |
-| Deploy Falcon Container Sensor Embedded in Image | https://docs.crowdstrike.com/r/en-US/iopiipqy/k58f1a5e |
-| Falcon Container Sensor for Linux Architecture | https://docs.crowdstrike.com/r/en-US/iopiipqy/ff6d35ef |
-| Azure Container Instances docs | https://learn.microsoft.com/en-us/azure/container-instances/ |
-| Deploy to ACI from ACR | https://learn.microsoft.com/en-us/azure/container-instances/container-instances-using-azure-container-registry |
-| Terraform azurerm_container_group | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/container_group |
+| Source                                                      | Link                                                                                                           |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Deploy Falcon Container Sensor on Azure Container Instances | https://docs.crowdstrike.com/r/en-US/iopiipqy/ndf35434                                                         |
+| Deploy Falcon Container Sensor Embedded in Image            | https://docs.crowdstrike.com/r/en-US/iopiipqy/k58f1a5e                                                         |
+| Falcon Container Sensor for Linux Architecture              | https://docs.crowdstrike.com/r/en-US/iopiipqy/ff6d35ef                                                         |
+| Azure Container Instances docs                              | https://learn.microsoft.com/en-us/azure/container-instances/                                                   |
+| Deploy to ACI from ACR                                      | https://learn.microsoft.com/en-us/azure/container-instances/container-instances-using-azure-container-registry |
+| Terraform azurerm_container_group                           | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/container_group                |
 
 ---
 
@@ -61,14 +61,15 @@ At runtime the sensor runs in user space alongside your application — no kerne
 
 ### Key Parameters
 
-| Flag | Purpose |
-|------|---------|
-| `--source-image-uri` | The unpatched application image to read |
-| `--target-image-uri` | Where to write the patched image (`-falcon` suffix) |
-| `--falcon-image-uri` | The Falcon sensor image (contains `falconutil` + sensor binaries) |
-| `--cid` | Your CrowdStrike CID with checksum |
-| `--cloud-service` | Set to `ACI` so the sensor collects Azure Container Instances metadata |
-| `--image-pull-policy` | `Always` or `IfNotPresent` |
+| Flag                  | Purpose                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| `--source-image-uri`  | The unpatched application image to read                                                           |
+| `--target-image-uri`  | Where to write the patched image (`-falcon` suffix)                                               |
+| `--falcon-image-uri`  | The Falcon sensor image (contains `falconutil` + sensor binaries)                                 |
+| `--cid`               | Your CrowdStrike CID with checksum                                                                |
+| `--cloud-service`     | Set to `ACI` so the sensor collects Azure Container Instances metadata                            |
+| `--image-pull-policy` | `Always` or `IfNotPresent`                                                                        |
+| `--falconctl-opts`    | Passes `falconctl` options into the sensor, e.g. `"--tags=..."` for Host Management grouping tags |
 
 ### The `-falcon` Suffix Convention
 
@@ -93,6 +94,9 @@ export ACR_NAME=<YOUR_ACR_NAME>
 export RESOURCE_GROUP=<YOUR_RESOURCE_GROUP>
 export SUBSCRIPTION=$(az account show --query id -o tsv)
 export ACR_LOGIN_SERVER=${ACR_NAME}.azurecr.io
+
+export APP_IMAGE=<YOUR_IMAGE>
+export APP_TAG=<TAG>
 ```
 
 ### 2. Log Docker in to ACR
@@ -105,7 +109,7 @@ az acr login --name $ACR_NAME
 
 ### 3. Copy the Falcon Container Sensor into ACR (single-arch)
 
-Copy the sensor straight from CrowdStrike into your ACR as a **single-arch amd64** image. `--platform x86_64 --copy` flattens the multi-arch image to the one platform ACI runs — `falconutil` needs a concrete single-arch image to reference, because a multi-arch manifest list forces it to re-resolve the child layer and fail auth. Then read the pushed tag back from ACR.
+Copy the sensor straight from CrowdStrike into your ACR as a **single-arch amd64** image. `--platform x86_64 --copy` flattens the multi-arch image to the one platform ACI runs, so a later pull by tag gives you a concrete amd64 image. Then read the pushed tag back from ACR.
 
 ```bash
 bash <(curl -Ls https://github.com/CrowdStrike/falcon-scripts/releases/latest/download/falcon-container-sensor-pull.sh) \
@@ -117,38 +121,46 @@ export CONTAINER_TAG=$(az acr repository show-tags -n $ACR_NAME \
   --repository falcon-container --orderby time_desc --query '[0]' -o tsv)
 ```
 
-### 4. Pull your application image locally
+### 4. Pull the sensor and your application image locally as amd64
+
+The `--copy` step leaves a multi-arch index aliased locally. Replace it with a concrete amd64 image so `falconutil` can patch straight from your local Docker cache — `IfNotPresent` only matches a single-arch local image; a manifest list forces it to re-resolve against the private registry and fail on auth.
 
 ```bash
-docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/<YOUR_IMAGE>:<TAG>
+docker rmi ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG 2>/dev/null
+docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG
+```
+
+Pull your application image the same way.
+
+```bash
+docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG}
 ```
 
 ### 5. Patch your application image
 
-`falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). With both the sensor and source images available locally and `--image-pull-policy IfNotPresent`, it patches without pulling from a registry.
+`falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). Both the sensor and source images are present locally as single-arch amd64, so `--image-pull-policy IfNotPresent` patches straight from your local cache without pulling from a registry. `--falconctl-opts "--tags=..."` bakes in sensor grouping tags so you can group and filter this host in Host Management.
 
 ```bash
 docker run --user 0:0 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --rm ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG \
   falconutil patch-image \
-  --source-image-uri ${ACR_LOGIN_SERVER}/<YOUR_IMAGE>:<TAG> \
-  --target-image-uri ${ACR_LOGIN_SERVER}/<YOUR_IMAGE>:<TAG>-falcon \
+  --source-image-uri ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG} \
+  --target-image-uri ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG}-falcon \
   --falcon-image-uri ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG \
   --cid $FALCON_CID \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
+  --falconctl-opts "--tags=ACI-Container" \
   --cloud-service ACI
 ```
-
-> `--platform linux/amd64` is required — ACI runs amd64, and without it `falconutil` fails auto-detecting the platform on Apple Silicon (`invalid OS component of "/"`).
 
 ### 6. Push the patched image to ACR
 
 Your host Docker CLI (already logged in at step 2) handles the push.
 
 ```bash
-docker push ${ACR_LOGIN_SERVER}/<YOUR_IMAGE>:<TAG>-falcon
+docker push ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG}-falcon
 ```
 
 ### 7. Get ACR pull credentials
@@ -172,7 +184,7 @@ Navigate to **Container instances** > **Create** > point the image at your `-fal
 az container create \
   --resource-group $RESOURCE_GROUP \
   --name falcon-aci-demo \
-  --image ${ACR_LOGIN_SERVER}/<YOUR_IMAGE>:<TAG>-falcon \
+  --image ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG}-falcon \
   --registry-login-server $ACR_LOGIN_SERVER \
   --registry-username $ACR_USER \
   --registry-password $ACR_PASS \
@@ -183,7 +195,7 @@ az container create \
     CS_AZURE_RESOURCE_GROUP=$RESOURCE_GROUP \
     CS_AZURE_CONTAINER_GROUP=falcon-aci-demo \
     CS_AZURE_SUBSCRIPTION=$SUBSCRIPTION \
-    CS_CONTAINER=<YOUR_IMAGE>
+    CS_CONTAINER=${APP_IMAGE}
 ```
 
 </details>
@@ -293,7 +305,7 @@ export FALCON_CID=<your_cid_with_checksum>
 
 ### Step 2: Copy the Sensor into ACR (single-arch)
 
-> **What & Why:** Copy the sensor straight from CrowdStrike into your ACR as a **single-arch amd64** image. `--platform x86_64 --copy` flattens the multi-arch image to the one platform ACI runs. `falconutil` needs a concrete single-arch image to reference — a multi-arch manifest list forces it to re-resolve the child layer and fail auth. Copying directly registry-to-registry also avoids a wasteful round-trip through your local Docker.
+> **What & Why:** Copy the sensor straight from CrowdStrike into your ACR as a **single-arch amd64** image. `--platform x86_64 --copy` flattens the multi-arch image to the one platform ACI runs, so a later pull by tag gives you a concrete amd64 image. Copying directly registry-to-registry also avoids a wasteful round-trip through your local Docker.
 
 - [ ] Copy the sensor into ACR (Docker is already logged in to ACR from Section 1):
 
@@ -319,13 +331,24 @@ echo "Sensor tag in ACR: $CONTAINER_TAG"
 
 ### Step 1: Run `falconutil patch-image`
 
-> **What & Why:** Patching injects the sensor into your image and rewrites the entrypoint. `--cloud-service ACI` tells the sensor to collect Azure Container Instances metadata. `falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). With both the sensor and source images available locally and `--image-pull-policy IfNotPresent`, it patches without pulling from a registry.
+> **What & Why:** Patching injects the sensor into your image and rewrites the entrypoint. `--cloud-service ACI` tells the sensor to collect Azure Container Instances metadata. `falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). Both the sensor and source images are present locally as single-arch amd64, so `--image-pull-policy IfNotPresent` patches straight from your local cache without pulling from a registry.
 
-- [ ] Ensure the source image is present locally, then patch:
+- [ ] Refresh the local sensor image as concrete amd64. The `--copy` step in Section 2 leaves a multi-arch index aliased locally; `IfNotPresent` only matches a single-arch local image, so replace it with a pull by tag (ACR now holds single-arch):
+
+```bash
+docker rmi ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG 2>/dev/null
+docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG
+```
+
+- [ ] Pull the source image locally as amd64:
 
 ```bash
 docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/aci-web:1.0
+```
 
+- [ ] Patch the image:
+
+```bash
 docker run --user 0:0 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --rm ${ACR_LOGIN_SERVER}/falcon-container:$CONTAINER_TAG \
@@ -336,12 +359,13 @@ docker run --user 0:0 \
   --cid $FALCON_CID \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
+  --falconctl-opts "--tags=Environment/Lab,Team/CloudSecurity" \
   --cloud-service ACI
 ```
 
 > **What to look for:** Output ends with `Successfully patched image and saved to ...:1.0-falcon`.
 
-> `--platform linux/amd64` is required — ACI runs amd64, and without it `falconutil` fails auto-detecting the platform on Apple Silicon (`invalid OS component of "/"`).
+> **Sensor grouping tags:** `--falconctl-opts "--tags=..."` bakes in comma-separated grouping tags (letters, numbers, `-`, `_`, `/` only — no spaces, commas, or `=`; 256 chars max) so you can group and filter this host in Host Management. Omit the flag if you don't need tags.
 
 > **Sensor < 7.22:** Older sensors use a subcommand instead of the flag: `falconutil patch-image aci --source-image-uri ... --target-image-uri ... --cid ...`. Prefer 7.22+ with `--cloud-service ACI`.
 
@@ -630,8 +654,9 @@ name: Patch ACI Image with Falcon Sensor
 on:
   workflow_dispatch:
     inputs:
-      image_name: { description: "Image name in ACR", required: true, default: "aci-web" }
-      image_tag:  { description: "Tag to patch",       required: true, default: "1.0" }
+      image_name:
+        { description: "Image name in ACR", required: true, default: "aci-web" }
+      image_tag: { description: "Tag to patch", required: true, default: "1.0" }
 
 permissions:
   id-token: write
@@ -679,19 +704,20 @@ jobs:
 
 ## 9. Quick Reference
 
-| Action | Console Path | CLI Command |
-|--------|-------------|-------------|
-| Create ACR | Container registries > Create | `az acr create -g <rg> -n <name> --sku Standard` |
-| Docker login to ACR | — | `az acr login --name <acr>` |
-| Copy CrowdStrike sensor into ACR | — | `bash <(curl -Ls .../falcon-container-sensor-pull.sh) -t falcon-container --platform x86_64 --copy <acr-login-server>` |
-| Patch image | — | `docker run ... falconutil patch-image --source-image-uri <src> --target-image-uri <tgt> --falcon-image-uri <sensor> --cid <cid> --cloud-service ACI` |
-| Get ACR admin creds | Container registries > Access keys | `az acr credential show -n <acr>` |
-| Deploy to ACI | Container instances > Create | `az container create -g <rg> -n <name> --image <uri> --registry-username <u> --registry-password <p>` |
-| Exec into container | Container instances > Containers > Connect | `az container exec -g <rg> -n <name> --exec-command "/bin/sh"` (interactive TTY only) |
-| Check state | Container instances > Overview | `az container show -g <rg> -n <name> --query instanceView.state` |
-| Delete container group | Container instances > Delete | `az container delete -g <rg> -n <name> --yes` |
+| Action                           | Console Path                               | CLI Command                                                                                                                                           |
+| -------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create ACR                       | Container registries > Create              | `az acr create -g <rg> -n <name> --sku Standard`                                                                                                      |
+| Docker login to ACR              | —                                          | `az acr login --name <acr>`                                                                                                                           |
+| Copy CrowdStrike sensor into ACR | —                                          | `bash <(curl -Ls .../falcon-container-sensor-pull.sh) -t falcon-container --platform x86_64 --copy <acr-login-server>`                                |
+| Patch image                      | —                                          | `docker run ... falconutil patch-image --source-image-uri <src> --target-image-uri <tgt> --falcon-image-uri <sensor> --cid <cid> --cloud-service ACI` |
+| Get ACR admin creds              | Container registries > Access keys         | `az acr credential show -n <acr>`                                                                                                                     |
+| Deploy to ACI                    | Container instances > Create               | `az container create -g <rg> -n <name> --image <uri> --registry-username <u> --registry-password <p>`                                                 |
+| Exec into container              | Container instances > Containers > Connect | `az container exec -g <rg> -n <name> --exec-command "/bin/sh"` (interactive TTY only)                                                                 |
+| Check state                      | Container instances > Overview             | `az container show -g <rg> -n <name> --query instanceView.state`                                                                                      |
+| Delete container group           | Container instances > Delete               | `az container delete -g <rg> -n <name> --yes`                                                                                                         |
 
 </div>
 
 ---
-*Created: 2026-07-08 | Topics: cloud-security, falcon-sensor, azure-container-instances, aci, acr, image-patching, falconutil, serverless*
+
+_Created: 2026-07-08 | Topics: cloud-security, falcon-sensor, azure-container-instances, aci, acr, image-patching, falconutil, serverless_
