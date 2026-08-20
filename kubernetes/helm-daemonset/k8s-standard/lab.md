@@ -197,6 +197,8 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 - [ ] Choose one provider and run the commands below:
 
+<div data-lab-variables></div>
+
 <div data-cloud="gke">
 
 **GKE:**

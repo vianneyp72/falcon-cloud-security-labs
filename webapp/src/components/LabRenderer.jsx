@@ -103,6 +103,17 @@ export default function LabRenderer({ labKey }) {
     div({ node, children, ...props }) {
       const dataMode = node?.properties?.dataMode
       const dataCloud = node?.properties?.dataCloud
+      const dataLabVariables = node?.properties?.dataLabVariables !== undefined
+      if (dataLabVariables) {
+        return showVariablesPanel ? (
+          <LabVariables
+            config={meta.variables}
+            values={varValues}
+            setValue={setVarValue}
+            resetToDefaults={resetVars}
+          />
+        ) : null
+      }
       if (dataMode && dataMode !== activeMode) {
         return <div className="mode-content--hidden" />
       }
@@ -171,14 +182,6 @@ export default function LabRenderer({ labKey }) {
           <>
             <ModeToggle activeMode={activeMode} setActiveMode={setActiveMode} />
             <h2 id={id} {...props}>{children}</h2>
-            {showVariablesPanel && (
-              <LabVariables
-                config={meta.variables}
-                values={varValues}
-                setValue={setVarValue}
-                resetToDefaults={resetVars}
-              />
-            )}
           </>
         )
       }
