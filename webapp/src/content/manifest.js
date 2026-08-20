@@ -165,7 +165,7 @@ export const manifest = [
                 type: 'select',
                 default: 'gke',
                 options: [
-                  { value: 'gke', label: 'GKE',  regionLabel: 'Region',   regionDefault: 'us-central1' },
+                  { value: 'gke', label: 'GKE',  regionLabel: 'Zone',     regionDefault: 'us-central1-a' },
                   { value: 'eks', label: 'EKS',  regionLabel: 'Region',   regionDefault: 'us-east-1'   },
                   { value: 'aks', label: 'AKS',  regionLabel: 'Location', regionDefault: 'eastus'      },
                 ],
