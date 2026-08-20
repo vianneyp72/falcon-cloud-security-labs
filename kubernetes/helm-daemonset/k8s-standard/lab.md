@@ -79,18 +79,21 @@ export SENSOR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStri
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-sensor \
   --get-image-path)
+echo "SENSOR_IMAGE_PATH: $SENSOR_IMAGE_PATH"
 
 export KAC_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
   --client-id $FALCON_CLIENT_ID \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-kac \
   --get-image-path)
+echo "KAC_IMAGE_PATH: $KAC_IMAGE_PATH"
 
 export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
   --client-id $FALCON_CLIENT_ID \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-imageanalyzer \
   --get-image-path)
+echo "IAR_IMAGE_PATH: $IAR_IMAGE_PATH"
 ```
 
 > **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` (e.g. `--copy myregistry.com/mynamespace`) — this copies the sensor image from CrowdStrike into a customer-owned registry rather than pulling from CrowdStrike. Add `--copy-custom-tag <tag>` to override the version tag, then point the `*_REGISTRY` variables at your registry.
@@ -310,6 +313,7 @@ export SENSOR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStri
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-sensor \
   --get-image-path)
+echo "SENSOR_IMAGE_PATH: $SENSOR_IMAGE_PATH"
 ```
 
 - [ ] Get the KAC image path:
@@ -320,6 +324,7 @@ export KAC_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-kac \
   --get-image-path)
+echo "KAC_IMAGE_PATH: $KAC_IMAGE_PATH"
 ```
 
 - [ ] Get the Image Analyzer image path:
@@ -330,6 +335,7 @@ export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-imageanalyzer \
   --get-image-path)
+echo "IAR_IMAGE_PATH: $IAR_IMAGE_PATH"
 ```
 
 > **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` (e.g. `--copy myregistry.com/mynamespace`) — this copies the sensor image from CrowdStrike into a customer-owned registry rather than pulling from CrowdStrike. Add `--copy-custom-tag <tag>` to override the version tag, then point the `*_REGISTRY` variables at your registry.
