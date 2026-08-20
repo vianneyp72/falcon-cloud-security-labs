@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRef, useMemo, useContext } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
@@ -13,9 +13,15 @@ import StatusBadge from './StatusBadge'
 import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
+import { LabVarsContext } from './labVarsContext'
 
 // Noop config passed to the hook when a lab has no variables — keeps hook order stable.
 const NO_VARIABLES = { fields: [] }
+
+// Stable module-level plugin arrays so react-markdown doesn't re-parse on every
+// parent render.
+const REMARK_PLUGINS = [remarkGfm]
+const REHYPE_PLUGINS = [rehypeRaw]
 
 function substituteTokens(content, values) {
   if (!content) return content
@@ -25,6 +31,31 @@ function substituteTokens(content, values) {
     out = out.split(`{{${key}}}`).join(String(val))
   }
   return out
+}
+
+// Wrapper that subscribes to LabVarsContext and substitutes {{TOKEN}} in the
+// code content on every values change. Kept as a separate component so the
+// components map passed to <Markdown> stays stable across keystrokes and
+// react-markdown doesn't rebuild its tree.
+function TokenSubstitutingCodeBlock({ language, children }) {
+  const ctx = useContext(LabVarsContext)
+  const substituted = ctx?.values
+    ? substituteTokens(children, ctx.values)
+    : children
+  return <CodeBlock language={language}>{substituted}</CodeBlock>
+}
+
+// Wrapper for `<div data-cloud="...">` blocks. Reads the selected cloud from
+// context so it updates on CLOUD change without needing to be in the outer
+// `components` deps (which would remount LabVariables and lose scroll-anchor
+// state).
+function CloudBlockGate({ cloud, children, ...props }) {
+  const ctx = useContext(LabVarsContext)
+  const selectedCloud = ctx?.values?.CLOUD
+  if (selectedCloud && cloud !== selectedCloud) {
+    return <div className="mode-content--hidden" />
+  }
+  return <div {...props}>{children}</div>
 }
 
 export default function LabRenderer({ labKey }) {
@@ -39,59 +70,53 @@ export default function LabRenderer({ labKey }) {
   const hasVariables = !!meta?.variables
   const showVariablesPanel = hasVariables &&
     (!meta.variables.modes || meta.variables.modes.includes(activeMode))
-  const content = hasVariables ? substituteTokens(rawContent, varValues) : rawContent
+  const content = rawContent
   const headings = useHeadings(contentRef, content, activeMode)
   const checkboxIndex = useRef(0)
   const hasMode = contentHasMode(content)
-  const selectedCloud = varValues.CLOUD
 
   // Reset checkbox index on each render
   checkboxIndex.current = 0
 
   const pageProgress = getPageProgress(labKey, activeMode, hasMode)
 
-  if (!content || content.trim().length === 0) {
-    return (
-      <>
-        <main className="content-area" ref={contentRef}>
-          <h1>{meta?.label || 'Lab'}</h1>
-          <StatusBadge status="empty" />
-          <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>
-            This lab has not been written yet.
-          </p>
-        </main>
-        <aside className="toc-aside" />
-      </>
-    )
-  }
+  // Live values + setters flow to LabVariables and TokenSubstitutingCodeBlock
+  // via context so they can update on keystroke without changing the
+  // `components` reference passed to <Markdown> (which would remount the
+  // text input and lose focus).
+  const labVarsContextValue = useMemo(() => (
+    hasVariables
+      ? {
+          config: meta?.variables,
+          values: varValues,
+          setValue: setVarValue,
+          resetToDefaults: resetVars,
+        }
+      : null
+  ), [hasVariables, meta?.variables, varValues, setVarValue, resetVars])
 
-  if (meta?.status === 'stub') {
-    return (
-      <>
-        <main className="content-area" ref={contentRef}>
-          <StatusBadge status="stub" />
-          <LabDisclaimer />
-          <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-            {content}
-          </Markdown>
-        </main>
-        <aside className="toc-aside" />
-      </>
-    )
-  }
-
-  const components = {
+  // Memoize components with only STRUCTURAL deps — NOT varValues. Live values
+  // are consumed inside child components via LabVarsContext. This keeps every
+  // renderer function reference stable across keystrokes so react-markdown's
+  // element types stay identical → no remount → input keeps focus.
+  const components = useMemo(() => ({
     code({ node, inline, className, children, ...props }) {
       const match = /language-(\w+)/.exec(className || '')
-      const content = String(children).replace(/\n$/, '')
-      if (!inline && (match || content.includes('\n'))) {
-        // Check if this is an ASCII diagram
-        if (isAsciiDiagram(content)) {
-          return <FlowDiagram content={content} />
+      const codeContent = String(children).replace(/\n$/, '')
+      if (!inline && (match || codeContent.includes('\n'))) {
+        if (isAsciiDiagram(codeContent)) {
+          return <FlowDiagram content={codeContent} />
+        }
+        if (hasVariables) {
+          return (
+            <TokenSubstitutingCodeBlock language={match ? match[1] : ''}>
+              {codeContent}
+            </TokenSubstitutingCodeBlock>
+          )
         }
         return (
           <CodeBlock language={match ? match[1] : ''}>
-            {content}
+            {codeContent}
           </CodeBlock>
         )
       }
@@ -105,23 +130,13 @@ export default function LabRenderer({ labKey }) {
       const dataCloud = node?.properties?.dataCloud
       const dataLabVariables = node?.properties?.dataLabVariables !== undefined
       if (dataLabVariables) {
-        return showVariablesPanel ? (
-          <LabVariables
-            config={meta.variables}
-            values={varValues}
-            setValue={setVarValue}
-            resetToDefaults={resetVars}
-          />
-        ) : null
+        return showVariablesPanel ? <LabVariables /> : null
       }
       if (dataMode && dataMode !== activeMode) {
         return <div className="mode-content--hidden" />
       }
-      if (dataCloud && selectedCloud && dataCloud !== selectedCloud) {
-        return <div className="mode-content--hidden" />
-      }
-      if (dataMode || dataCloud) {
-        return <div {...props}>{children}</div>
+      if (dataCloud) {
+        return <CloudBlockGate cloud={dataCloud} {...props}>{children}</CloudBlockGate>
       }
       return <div {...props}>{children}</div>
     },
@@ -191,6 +206,45 @@ export default function LabRenderer({ labKey }) {
       const id = slugify(children)
       return <h3 id={id} {...props}>{children}</h3>
     },
+  }), [
+    activeMode,
+    hasMode,
+    hasVariables,
+    showVariablesPanel,
+    labKey,
+    isChecked,
+    toggleCheckbox,
+    setActiveMode,
+  ])
+
+  if (!content || content.trim().length === 0) {
+    return (
+      <>
+        <main className="content-area" ref={contentRef}>
+          <h1>{meta?.label || 'Lab'}</h1>
+          <StatusBadge status="empty" />
+          <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>
+            This lab has not been written yet.
+          </p>
+        </main>
+        <aside className="toc-aside" />
+      </>
+    )
+  }
+
+  if (meta?.status === 'stub') {
+    return (
+      <>
+        <main className="content-area" ref={contentRef}>
+          <StatusBadge status="stub" />
+          <LabDisclaimer />
+          <Markdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+            {content}
+          </Markdown>
+        </main>
+        <aside className="toc-aside" />
+      </>
+    )
   }
 
   return (
@@ -208,13 +262,15 @@ export default function LabRenderer({ labKey }) {
           </div>
         )}
         <LabDisclaimer />
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw]}
-          components={components}
-        >
-          {content}
-        </Markdown>
+        <LabVarsContext.Provider value={labVarsContextValue}>
+          <Markdown
+            remarkPlugins={REMARK_PLUGINS}
+            rehypePlugins={REHYPE_PLUGINS}
+            components={components}
+          >
+            {content}
+          </Markdown>
+        </LabVarsContext.Provider>
       </main>
       <TableOfContents headings={headings} />
     </>

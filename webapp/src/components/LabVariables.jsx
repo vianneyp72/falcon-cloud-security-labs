@@ -1,9 +1,12 @@
-import { useRef, useLayoutEffect } from 'react'
+import { useRef, useLayoutEffect, useContext } from 'react'
+import { LabVarsContext } from './labVarsContext'
 
 /**
- * Interactive lab-variables panel. Renders fields from a lab's `variables` config
- * (see manifest.js). Values live-substitute into `{{TOKEN}}` placeholders in the
- * lab markdown via LabRenderer.
+ * Interactive lab-variables panel. Reads live values / setters from
+ * LabVarsContext so it can update on every keystroke WITHOUT causing the
+ * enclosing react-markdown tree to remount — the components object passed to
+ * <Markdown> is memoized in LabRenderer with only structural deps, and this
+ * component subscribes to value changes via context instead.
  *
  * Field types supported: 'select' (dropdown), 'text' (input).
  * Special behavior: the CLOUD field's selected option can carry a `regionLabel`
@@ -15,12 +18,12 @@ import { useRef, useLayoutEffect } from 'react'
  * dropdown's viewport-top before the state update and compensate with
  * window.scrollBy after layout so nothing appears to jump.
  */
-export default function LabVariables({ config, values, setValue, resetToDefaults }) {
-  const cloudField = config.fields.find(f => f.key === 'CLOUD')
-  const selectedCloud = cloudField?.options.find(o => o.value === values.CLOUD)
-
+export default function LabVariables() {
+  const ctx = useContext(LabVarsContext)
   const cloudSelectRef = useRef(null)
   const anchorTopBeforeChange = useRef(null)
+
+  const cloudValue = ctx?.values?.CLOUD
 
   useLayoutEffect(() => {
     if (anchorTopBeforeChange.current !== null && cloudSelectRef.current) {
@@ -29,7 +32,13 @@ export default function LabVariables({ config, values, setValue, resetToDefaults
       if (delta !== 0) window.scrollBy(0, delta)
       anchorTopBeforeChange.current = null
     }
-  }, [values.CLOUD])
+  }, [cloudValue])
+
+  if (!ctx?.config) return null
+
+  const { config, values, setValue, resetToDefaults } = ctx
+  const cloudField = config.fields.find(f => f.key === 'CLOUD')
+  const selectedCloud = cloudField?.options.find(o => o.value === values.CLOUD)
 
   const handleCloudChange = (newValue) => {
     if (cloudSelectRef.current) {
