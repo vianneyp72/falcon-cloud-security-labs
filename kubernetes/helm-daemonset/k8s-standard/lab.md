@@ -205,11 +205,9 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 ```bash
 export PROJECT_ID=$(gcloud config get-value project)
-export CLUSTER_NAME="{{CLUSTER_NAME}}"
-export REGION="{{REGION}}"
 
-gcloud container clusters create $CLUSTER_NAME \
-  --region $REGION \
+gcloud container clusters create {{CLUSTER_NAME}} \
+  --region {{REGION}} \
   --num-nodes 2 \
   --machine-type e2-standard-2
 ```
@@ -221,12 +219,9 @@ gcloud container clusters create $CLUSTER_NAME \
 **EKS:**
 
 ```bash
-export CLUSTER_NAME="{{CLUSTER_NAME}}"
-export REGION="{{REGION}}"
-
 eksctl create cluster \
-  --name $CLUSTER_NAME \
-  --region $REGION \
+  --name {{CLUSTER_NAME}} \
+  --region {{REGION}} \
   --nodes 2 \
   --node-type t3.medium
 ```
@@ -238,14 +233,10 @@ eksctl create cluster \
 **AKS:**
 
 ```bash
-export CLUSTER_NAME="{{CLUSTER_NAME}}"
-export RESOURCE_GROUP="falcon-lab-rg"
-export LOCATION="{{REGION}}"
-
-az group create --name $RESOURCE_GROUP --location $LOCATION
-az aks create --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME \
+az group create --name falcon-lab-rg --location {{REGION}}
+az aks create --resource-group falcon-lab-rg --name {{CLUSTER_NAME}} \
   --node-count 2 --node-vm-size Standard_B2s --generate-ssh-keys
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME
+az aks get-credentials --resource-group falcon-lab-rg --name {{CLUSTER_NAME}}
 ```
 
 </div>
@@ -360,8 +351,6 @@ export IAR_REGISTRY=$(echo $IAR_IMAGE_PATH | cut -d: -f1)
 export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 ```
 
-> `CLUSTER_NAME` should already be exported from Section 1 — don't re-export it here or you'll clobber the value you chose when provisioning.
-
 ### Step 4: Validate the saved variables
 
 > **What & Why:** Each command above can fail silently — an expired token or a missing API scope returns an empty string, and the `cut` parsing happily produces empty registry/tag values. Echoing every variable the Helm install consumes confirms they're all saved before you build a 14-flag command on top of them. Secrets are reported as `SET`/`MISSING` rather than printed.
@@ -370,7 +359,6 @@ export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 
 ```bash
 echo "CID            : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster        : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
 echo "Client ID      : $([ -n "$FALCON_CLIENT_ID" ] && echo SET || echo MISSING) ($FALCON_CLIENT_ID)"
 echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING) ($FALCON_CLIENT_SECRET)"
 echo "Pull Token     : $([ -n "$FALCON_PULL_TOKEN" ] && echo SET || echo MISSING) ($FALCON_PULL_TOKEN)"
@@ -425,7 +413,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.deployment.enabled=true \
   --set falcon-image-analyzer.image.repository=$IAR_REGISTRY \
   --set falcon-image-analyzer.image.tag=$IAR_IMAGE_TAG \
-  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=$CLUSTER_NAME \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
@@ -531,7 +519,7 @@ kubectl delete ns falcon-platform falcon-system falcon-kac falcon-image-analyzer
 **GKE:**
 
 ```bash
-gcloud container clusters delete $CLUSTER_NAME --region $REGION --quiet
+gcloud container clusters delete {{CLUSTER_NAME}} --region {{REGION}} --quiet
 ```
 
 </div>
@@ -541,7 +529,7 @@ gcloud container clusters delete $CLUSTER_NAME --region $REGION --quiet
 **EKS:**
 
 ```bash
-eksctl delete cluster --name $CLUSTER_NAME --region $REGION
+eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 ```
 
 </div>
@@ -551,8 +539,8 @@ eksctl delete cluster --name $CLUSTER_NAME --region $REGION
 **AKS:**
 
 ```bash
-az aks delete --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME --yes
-az group delete --name $RESOURCE_GROUP --yes
+az aks delete --resource-group falcon-lab-rg --name {{CLUSTER_NAME}} --yes
+az group delete --name falcon-lab-rg --yes
 ```
 
 </div>
