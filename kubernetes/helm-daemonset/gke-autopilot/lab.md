@@ -6,17 +6,16 @@ Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE 
 
 > **Prerequisites:**
 >
-> - GKE **Autopilot** cluster (or permission to create one)
-> - `kubectl` configured for the cluster (`kubectl get nodes` returns nodes)
-> - `gcloud` CLI authenticated
 > - Helm 3 installed (`helm version` shows v3.x)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required API scopes:
->     - **Falcon Images Download** (Read)
+>   - Required scopes:
 >     - **Sensor Download** (Read)
+>     - **Falcon Images Download** (Read)
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
+> - **Quick Deploy path:** an existing GKE Autopilot cluster with `kubectl` configured (`kubectl get nodes` works)
+> - **Full Lab path:** `gcloud` CLI — Section 1 Step 1 covers install and auth
 
 ## Reference Docs
 

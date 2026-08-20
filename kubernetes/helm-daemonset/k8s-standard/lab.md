@@ -218,8 +218,9 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 ```bash
 gcloud auth login
+gcloud projects list                                  # find your project ID
 gcloud config set project <YOUR_GCP_PROJECT_ID>
-gcloud services enable container.googleapis.com
+gcloud services enable container.googleapis.com       # can take ~1-2 min
 ```
 
 </div>
@@ -243,6 +244,7 @@ Your IAM principal needs the [eksctl minimum policies](https://eksctl.io/usage/m
 
 ```bash
 az login
+az account list --output table                        # find your subscription ID
 az account set --subscription <YOUR_AZURE_SUBSCRIPTION_ID>
 ```
 
@@ -257,8 +259,6 @@ az account set --subscription <YOUR_AZURE_SUBSCRIPTION_ID>
 **GKE:** *(expect ~3-5 min)*
 
 ```bash
-export PROJECT_ID=$(gcloud config get-value project)
-
 gcloud container clusters create {{CLUSTER_NAME}} \
   --zone {{REGION}} \
   --num-nodes 2 \
@@ -635,11 +635,10 @@ eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 
 <div data-cloud="aks">
 
-**AKS:**
+**AKS:** Deleting the resource group cascades to the cluster and any related resources. `--no-wait` returns immediately (delete runs async).
 
 ```bash
-az aks delete --resource-group falcon-lab-rg --name {{CLUSTER_NAME}} --yes
-az group delete --name falcon-lab-rg --yes
+az group delete --name falcon-lab-rg --yes --no-wait
 ```
 
 </div>
