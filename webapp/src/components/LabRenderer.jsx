@@ -10,6 +10,7 @@ import CodeBlock from './CodeBlock'
 import FlowDiagram, { isAsciiDiagram } from './FlowDiagram'
 import StatusBadge from './StatusBadge'
 import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
+import LabDisclaimer from './LabDisclaimer'
 
 export default function LabRenderer({ labKey }) {
   const content = getLabContent(labKey)
@@ -46,6 +47,7 @@ export default function LabRenderer({ labKey }) {
       <>
         <main className="content-area" ref={contentRef}>
           <StatusBadge status="stub" />
+          <LabDisclaimer />
           <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
             {content}
           </Markdown>
@@ -167,6 +169,7 @@ export default function LabRenderer({ labKey }) {
             </div>
           </div>
         )}
+        <LabDisclaimer />
         <Markdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}

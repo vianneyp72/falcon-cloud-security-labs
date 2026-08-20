@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import StatusBadge from "./StatusBadge";
+import LabDisclaimer from "./LabDisclaimer";
 
 export default function OverviewPage({ section }) {
   // If it's the root manifest (array), show a homepage
@@ -16,13 +17,7 @@ export default function OverviewPage({ section }) {
             across cloud workloads — sensors, FCS CLI, container protection, and
             more. Choose a category to get started.
           </p>
-          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            Maintained by{" "}
-            <a href="mailto:minh.pham@crowdstrike.com">minh.pham@crowdstrike.com</a>.
-            Content may drift from official recommendations over time. Each lab
-            links to official CrowdStrike and cloud provider docs for additional
-            reference — those should be your source of truth when in doubt.
-          </p>
+          <LabDisclaimer />
           <div className="overview-grid">
             {section.map((s) => (
               <Link key={s.route} to={`/${s.route}`} className="overview-card">
@@ -60,6 +55,7 @@ export default function OverviewPage({ section }) {
     <>
       <main className="content-area">
         <h1>{section.label}</h1>
+        <LabDisclaimer />
         {section.overview && (
           <div style={{ marginBottom: "1.5rem" }}>
             <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>

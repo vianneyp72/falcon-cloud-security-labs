@@ -33,7 +33,8 @@ src/
 │   ├── ReadingProgress.jsx ← Scroll progress bar under header
 │   ├── OverviewPage.jsx  ← Category landing pages with card grid
 │   ├── ProgressBar.jsx   ← Global completion bar
-│   └── StatusBadge.jsx   ← Complete/Stub/Empty indicators
+│   ├── StatusBadge.jsx   ← Complete/Stub/Empty indicators
+│   └── LabDisclaimer.jsx ← Maintainer disclaimer auto-rendered on every lab
 ├── hooks/
 │   ├── useProgress.js    ← localStorage checkbox persistence
 │   └── useHeadings.js    ← Extract h2/h3 from DOM for TOC
@@ -62,6 +63,8 @@ The `@content` alias resolves to the repo root (`..`). Vite's `server.fs.allow` 
    - Add to `labs` map: `'category/method': newLab`
    - Add to the tree in `manifest`: `lab('method', 'Friendly Name', 'category/method')`
 3. The status (complete/stub/empty) is auto-detected from content
+
+Do NOT paste the maintainer disclaimer into `lab.md` — `LabRenderer` auto-injects `<LabDisclaimer />` at the top of the content area (above the H1 title, and below the status badge on stubs). Edit `LabDisclaimer.jsx` to change the wording.
 
 ## Adding a New Diagram
 

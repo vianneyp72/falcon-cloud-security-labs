@@ -563,3 +563,33 @@
     padding-right: 3rem;
   }
 }
+
+/* Lab disclaimer — auto-injected by LabRenderer at the top of every lab */
+.lab-disclaimer {
+  margin: 0.75rem 0 1.75rem;
+  padding: 0.65rem 0.9rem;
+  border-left: 2px solid var(--border);
+  border-radius: 3px;
+  background: rgba(139, 139, 139, 0.04);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.lab-disclaimer p {
+  margin: 0;
+}
+
+.lab-disclaimer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.lab-disclaimer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.lab-disclaimer a:hover {
+  text-decoration: underline;
+}

@@ -36,6 +36,9 @@ The webapp's mode toggle switches between these views. Reference lab: `serverles
 **Below the split (inside mode divs):**
 - All hands-on deployment steps
 
+**Auto-injected — do NOT add to `lab.md`:**
+A maintainer disclaimer ("Maintained by minh.pham@crowdstrike.com...") is rendered automatically by the webapp at the top of every lab (directly above the H1 title, and directly below the status badge on stubs). Source: `webapp/src/components/LabDisclaimer.jsx`. To change the wording, edit that component — never duplicate it into individual `lab.md` files.
+
 ### Skeleton
 
 ```markdown
