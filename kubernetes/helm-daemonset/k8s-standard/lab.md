@@ -197,12 +197,14 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 - [ ] Choose one provider and run the commands below:
 
+<div data-cloud="gke">
+
 **GKE:**
 
 ```bash
 export PROJECT_ID=$(gcloud config get-value project)
-export CLUSTER_NAME="falcon-helm-lab"
-export REGION="us-central1"
+export CLUSTER_NAME="{{CLUSTER_NAME}}"
+export REGION="{{REGION}}"
 
 gcloud container clusters create $CLUSTER_NAME \
   --region $REGION \
@@ -210,11 +212,15 @@ gcloud container clusters create $CLUSTER_NAME \
   --machine-type e2-standard-2
 ```
 
+</div>
+
+<div data-cloud="eks">
+
 **EKS:**
 
 ```bash
-export CLUSTER_NAME="falcon-helm-lab"
-export REGION="us-east-1"
+export CLUSTER_NAME="{{CLUSTER_NAME}}"
+export REGION="{{REGION}}"
 
 eksctl create cluster \
   --name $CLUSTER_NAME \
@@ -223,17 +229,24 @@ eksctl create cluster \
   --node-type t3.medium
 ```
 
+</div>
+
+<div data-cloud="aks">
+
 **AKS:**
 
 ```bash
-export CLUSTER_NAME="falcon-helm-lab"
+export CLUSTER_NAME="{{CLUSTER_NAME}}"
 export RESOURCE_GROUP="falcon-lab-rg"
+export LOCATION="{{REGION}}"
 
-az group create --name $RESOURCE_GROUP --location eastus
+az group create --name $RESOURCE_GROUP --location $LOCATION
 az aks create --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME \
   --node-count 2 --node-vm-size Standard_B2s --generate-ssh-keys
 az aks get-credentials --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME
 ```
+
+</div>
 
 ### Step 2: Verify connectivity
 
@@ -334,7 +347,6 @@ export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
 
 ```bash
 export FALCON_CID="<YOUR_CID_WITH_CHECKSUM>"
-export CLUSTER_NAME="falcon-helm-lab"
 
 export DAEMONSET_SENSOR_REGISTRY=$(echo $SENSOR_IMAGE_PATH | cut -d: -f1)
 export DAEMONSET_SENSOR_IMAGE_TAG=$(echo $SENSOR_IMAGE_PATH | cut -d: -f2)
@@ -345,6 +357,8 @@ export KAC_IMAGE_TAG=$(echo $KAC_IMAGE_PATH | cut -d: -f2)
 export IAR_REGISTRY=$(echo $IAR_IMAGE_PATH | cut -d: -f1)
 export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 ```
+
+> `CLUSTER_NAME` should already be exported from Section 1 — don't re-export it here or you'll clobber the value you chose when provisioning.
 
 ### Step 4: Validate the saved variables
 
@@ -428,57 +442,27 @@ kubectl get pods -A | grep falcon
 
 ## 6. Verify Deployment
 
-> **What & Why:** Verification confirms the sensor DaemonSet has a pod on every node, KAC's webhook is registered, and IAR is scanning. This ensures full protection is active before declaring the deployment complete.
+> **What & Why:** Confirm every Falcon pod is running in-cluster, then confirm the sensors have registered with CrowdStrike by finding them under the tag you set at deploy time.
 
-### Step 1: Check DaemonSet coverage
+### Step 1: Confirm all Falcon pods are Running
 
-- [ ] Verify the sensor DaemonSet matches node count:
-
-```bash
-kubectl get ds -n falcon-system
-```
-
-`DESIRED` should equal `CURRENT` and match your node count.
-
-### Step 2: Check sensor connectivity
-
-- [ ] Verify sensors are communicating with the CrowdStrike cloud:
+- [ ] List every Falcon pod across all namespaces:
 
 ```bash
-kubectl logs -n falcon-system -l app.kubernetes.io/name=falcon-sensor --tail=20
+kubectl get pods -A | grep -i "falcon"
 ```
 
-Look for successful registration messages (no `ERROR` lines).
+You should see pods in `Running` state across three namespaces:
 
-### Step 3: Verify KAC webhook
+- `falcon-system` — one `falcon-sensor-*` pod per node (DaemonSet)
+- `falcon-kac` — one `falcon-kac-*` pod (Deployment)
+- `falcon-image-analyzer` — one `falcon-image-analyzer-*` pod (Deployment)
 
-- [ ] Confirm the admission webhook is registered:
+### Step 2: Verify in Falcon console
 
-```bash
-kubectl get validatingwebhookconfigurations | grep falcon
-```
-
-### Step 4: Test KAC enforcement
-
-- [ ] Deploy a test pod and verify KAC intercepts it:
-
-```bash
-kubectl run test-pod --image=nginx --restart=Never
-kubectl describe pod test-pod | grep -A5 "Events"
-```
-
-You should see the admission controller annotating the pod creation event.
-
-- [ ] Clean up the test pod:
-
-```bash
-kubectl delete pod test-pod
-```
-
-### Step 5: Verify in Falcon console
-
-- [ ] Navigate to **Falcon Console** > **Host management** > **Hosts**
-- [ ] Filter by your cluster name — sensor hosts should appear within 5 minutes of deployment
+- [ ] Navigate to **Falcon Console** > **Host setup and management** > **Host management**
+- [ ] In the filter bar, search by the tag you set in Section 5: `daemonset-sensor`
+- [ ] Your sensor hosts (one per node) should appear within a few minutes of deployment
 
 ---
 
@@ -540,17 +524,27 @@ kubectl delete ns falcon-platform falcon-system falcon-kac falcon-image-analyzer
 
 - [ ] Remove the cluster (pick your provider):
 
+<div data-cloud="gke">
+
 **GKE:**
 
 ```bash
 gcloud container clusters delete $CLUSTER_NAME --region $REGION --quiet
 ```
 
+</div>
+
+<div data-cloud="eks">
+
 **EKS:**
 
 ```bash
 eksctl delete cluster --name $CLUSTER_NAME --region $REGION
 ```
+
+</div>
+
+<div data-cloud="aks">
 
 **AKS:**
 
@@ -559,38 +553,6 @@ az aks delete --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME --yes
 az group delete --name $RESOURCE_GROUP --yes
 ```
 
----
-
-## Challenges
-
-### Challenge 1: Values file deployment
-
-Instead of passing `--set` flags inline, create a `values.yaml` file with all configuration and deploy using `helm upgrade --install -f values.yaml`. This is more maintainable for production use.
-
-### Challenge 2: Selective component deployment
-
-Deploy only the Falcon Sensor (no KAC, no IAR) by disabling the other sub-charts. Then add KAC separately. Hint: check the chart's `values.yaml` for enable/disable flags.
-
-### Challenge 3: Node selector targeting
-
-Configure the DaemonSet to only run on nodes with a specific label (e.g., `falcon-sensor=enabled`). Deploy to a subset of nodes, then expand coverage by labeling additional nodes.
-
----
-
-## Quick Reference
-
-| Variable                     | Value                                               | Where Used                                 |
-| ---------------------------- | --------------------------------------------------- | ------------------------------------------ |
-| `FALCON_CLIENT_ID`           | Your API client ID                                  | Pull token, IAR config                     |
-| `FALCON_CLIENT_SECRET`       | Your API client secret                              | Pull token, IAR config                     |
-| `FALCON_CID`                 | CID with checksum (e.g., `ABCD1234-AB`)             | Helm `global.falcon.cid`                   |
-| `FALCON_PULL_TOKEN`          | Base64 registry auth                                | Helm `global.containerRegistry.configJSON` |
-| `CLUSTER_NAME`               | Your cluster name                                   | IAR cluster identification                 |
-| `DAEMONSET_SENSOR_REGISTRY`  | `registry.crowdstrike.com/falcon-sensor/...`        | Helm sensor image repo                     |
-| `DAEMONSET_SENSOR_IMAGE_TAG` | Sensor version tag                                  | Helm sensor image tag                      |
-| `KAC_REGISTRY`               | `registry.crowdstrike.com/falcon-kac/...`           | Helm KAC image repo                        |
-| `KAC_IMAGE_TAG`              | KAC version tag                                     | Helm KAC image tag                         |
-| `IAR_REGISTRY`               | `registry.crowdstrike.com/falcon-imageanalyzer/...` | Helm IAR image repo                        |
-| `IAR_IMAGE_TAG`              | IAR version tag                                     | Helm IAR image tag                         |
+</div>
 
 </div>

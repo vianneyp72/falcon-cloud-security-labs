@@ -5,22 +5,45 @@ import rehypeRaw from 'rehype-raw'
 import { getLabContent, getLabMeta } from '../content/manifest'
 import { useProgress } from '../hooks/useProgress'
 import { useHeadings } from '../hooks/useHeadings'
+import { useLabVariables } from '../hooks/useLabVariables'
 import TableOfContents from './TableOfContents'
 import CodeBlock from './CodeBlock'
 import FlowDiagram, { isAsciiDiagram } from './FlowDiagram'
 import StatusBadge from './StatusBadge'
 import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
 import LabDisclaimer from './LabDisclaimer'
+import LabVariables from './LabVariables'
+
+// Noop config passed to the hook when a lab has no variables — keeps hook order stable.
+const NO_VARIABLES = { fields: [] }
+
+function substituteTokens(content, values) {
+  if (!content) return content
+  let out = content
+  for (const [key, val] of Object.entries(values)) {
+    if (val === undefined || val === null) continue
+    out = out.split(`{{${key}}}`).join(String(val))
+  }
+  return out
+}
 
 export default function LabRenderer({ labKey }) {
-  const content = getLabContent(labKey)
+  const rawContent = getLabContent(labKey)
   const meta = getLabMeta(labKey)
   const contentRef = useRef(null)
   const { isChecked, toggleCheckbox, getPageProgress } = useProgress()
   const [activeMode, setActiveMode] = useModeToggle()
+  const varsConfig = meta?.variables || NO_VARIABLES
+  const { values: varValues, setValue: setVarValue, resetToDefaults: resetVars } =
+    useLabVariables(labKey, varsConfig)
+  const hasVariables = !!meta?.variables
+  const showVariablesPanel = hasVariables &&
+    (!meta.variables.modes || meta.variables.modes.includes(activeMode))
+  const content = hasVariables ? substituteTokens(rawContent, varValues) : rawContent
   const headings = useHeadings(contentRef, content, activeMode)
   const checkboxIndex = useRef(0)
   const hasMode = contentHasMode(content)
+  const selectedCloud = varValues.CLOUD
 
   // Reset checkbox index on each render
   checkboxIndex.current = 0
@@ -79,10 +102,14 @@ export default function LabRenderer({ labKey }) {
     },
     div({ node, children, ...props }) {
       const dataMode = node?.properties?.dataMode
-      if (dataMode) {
-        if (dataMode !== activeMode) {
-          return <div className="mode-content--hidden" />
-        }
+      const dataCloud = node?.properties?.dataCloud
+      if (dataMode && dataMode !== activeMode) {
+        return <div className="mode-content--hidden" />
+      }
+      if (dataCloud && selectedCloud && dataCloud !== selectedCloud) {
+        return <div className="mode-content--hidden" />
+      }
+      if (dataMode || dataCloud) {
         return <div {...props}>{children}</div>
       }
       return <div {...props}>{children}</div>
@@ -144,6 +171,14 @@ export default function LabRenderer({ labKey }) {
           <>
             <ModeToggle activeMode={activeMode} setActiveMode={setActiveMode} />
             <h2 id={id} {...props}>{children}</h2>
+            {showVariablesPanel && (
+              <LabVariables
+                config={meta.variables}
+                values={varValues}
+                setValue={setVarValue}
+                resetToDefaults={resetVars}
+              />
+            )}
           </>
         )
       }

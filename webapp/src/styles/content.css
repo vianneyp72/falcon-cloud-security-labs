@@ -593,3 +593,90 @@
 .lab-disclaimer a:hover {
   text-decoration: underline;
 }
+
+/* Lab Variables panel */
+.lab-variables {
+  margin: 1.25rem 0 2rem;
+  padding: 1rem 1.25rem;
+  background: var(--nav-bg, #0d1117);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.lab-variables__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.lab-variables__title {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.lab-variables__hint {
+  color: var(--text-muted, #7f8792);
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.lab-variables__reset {
+  background: transparent;
+  color: var(--text-muted, #7f8792);
+  border: 1px solid var(--border, #212929);
+  padding: 0.25rem 0.7rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.lab-variables__reset:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.lab-variables__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.lab-variables__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lab-variables__label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #7f8792);
+  font-weight: 500;
+}
+
+.lab-variables input[type="text"],
+.lab-variables select {
+  background: var(--bg, #17181c);
+  color: var(--text);
+  border: 1px solid var(--border, #212929);
+  border-radius: 4px;
+  padding: 0.45rem 0.6rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.lab-variables input[type="text"]:focus,
+.lab-variables select:focus {
+  border-color: var(--accent);
+}
+
+.lab-variables select {
+  cursor: pointer;
+}

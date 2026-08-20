@@ -115,7 +115,7 @@ function desc(content) {
   return ''
 }
 
-function lab(label, route, mdPath) {
+function lab(label, route, mdPath, extra = {}) {
   const content = labs[mdPath] || ''
   return {
     label,
@@ -124,6 +124,7 @@ function lab(label, route, mdPath) {
     mdPath,
     status: getStatus(content),
     description: desc(content),
+    ...extra,
   }
 }
 
@@ -154,7 +155,26 @@ export const manifest = [
       label: 'Helm DaemonSet',
       route: 'helm-daemonset',
       children: [
-        lab('Standard (EKS/GKE/AKS)', 'k8s-standard', 'kubernetes/helm-daemonset/k8s-standard/lab.md'),
+        lab('Standard (EKS/GKE/AKS)', 'k8s-standard', 'kubernetes/helm-daemonset/k8s-standard/lab.md', {
+          variables: {
+            modes: ['lab'],
+            fields: [
+              {
+                key: 'CLOUD',
+                label: 'Cloud',
+                type: 'select',
+                default: 'gke',
+                options: [
+                  { value: 'gke', label: 'GKE',  regionLabel: 'Region',   regionDefault: 'us-central1' },
+                  { value: 'eks', label: 'EKS',  regionLabel: 'Region',   regionDefault: 'us-east-1'   },
+                  { value: 'aks', label: 'AKS',  regionLabel: 'Location', regionDefault: 'eastus'      },
+                ],
+              },
+              { key: 'CLUSTER_NAME', label: 'Cluster name', type: 'text', default: 'falcon-helm-lab' },
+              { key: 'REGION',       label: 'Region',       type: 'text' },
+            ],
+          },
+        }),
         lab('EKS Hybrid Nodes', 'eks-hybrid', 'kubernetes/helm-daemonset/eks-hybrid/lab.md'),
         lab('GKE Autopilot', 'gke-autopilot', 'kubernetes/helm-daemonset/gke-autopilot/lab.md'),
       ],
