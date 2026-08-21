@@ -141,7 +141,7 @@ helm repo update
 
 ### 4. Deploy the chart (Autopilot settings)
 
-> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -165,9 +165,19 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip this if your CID is in a commercial cloud.
 
 ### 5. Verify
+
+Wait for every Falcon component to reach Ready:
+
+```bash
+for ns in falcon-system falcon-kac falcon-image-analyzer; do
+  kubectl wait --for=condition=Ready pods --all -n $ns --timeout=5m
+done
+```
+
+Then confirm the DaemonSet and pod inventory:
 
 ```bash
 kubectl get ds -n falcon-system
@@ -202,6 +212,8 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 <div data-mode="lab">
 
+<div data-lab-variables></div>
+
 ## 1. Create a GKE Autopilot Cluster
 
 > **What & Why:** Autopilot manages nodes for you and enforces stricter pod security than Standard GKE. You need a running Autopilot cluster before deploying — the allowlist and `bpf` requirements below only apply here.
@@ -215,12 +227,10 @@ kubectl delete -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vul
 
 ```bash
 export GCP_PROJECT_ID=$(gcloud config get-value project)
-export GCP_REGION="us-central1"
-export CLUSTER_NAME="falcon-autopilot-lab"
 
-gcloud container clusters create-auto $CLUSTER_NAME \
+gcloud container clusters create-auto {{CLUSTER_NAME}} \
   --project=$GCP_PROJECT_ID \
-  --region=$GCP_REGION \
+  --region={{REGION}} \
   --release-channel=regular
 ```
 
@@ -231,8 +241,8 @@ gcloud container clusters create-auto $CLUSTER_NAME \
 - [ ] Fetch kubeconfig credentials and confirm connectivity:
 
 ```bash
-gcloud container clusters get-credentials $CLUSTER_NAME \
-  --project=$GCP_PROJECT_ID --region=$GCP_REGION
+gcloud container clusters get-credentials {{CLUSTER_NAME}} \
+  --project=$GCP_PROJECT_ID --region={{REGION}}
 
 kubectl get nodes
 ```
@@ -263,13 +273,12 @@ There is no CLI for creating API clients — this must be done in the console.
 
 ### Step 2: Export credentials
 
-- [ ] Set your credentials and cluster identity as environment variables:
+- [ ] Set your credentials as environment variables:
 
 ```bash
 export FALCON_CLIENT_ID="<YOUR_FALCON_CLIENT_ID>"
 export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
 export FALCON_CID="<YOUR_CID_WITH_CHECKSUM>"
-export CLUSTER_NAME="falcon-autopilot-lab"
 ```
 
 ---
@@ -317,7 +326,7 @@ crowdstrike-falconsensor-deploy-allowlist-v1.0.0      1m
 crowdstrike-falconsensor-falconctl-allowlist-v1.0.0   1m
 ```
 
-> **Important:** Do NOT proceed until WorkloadAllowlists appear. You don't need to note the version numbers — GKE evaluates the sensor pods against all installed allowlists automatically (see section 6).
+> **Warning:** Wait for the WorkloadAllowlists to appear before proceeding — the sensor helm install will be rejected by Warden if they haven't loaded yet. You don't need to note the version numbers; GKE evaluates the sensor pods against all installed allowlists automatically (see section 6).
 
 ---
 
@@ -396,7 +405,7 @@ export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 
 ```bash
 echo "CID            : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster        : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
+echo "Cluster        : SET ({{CLUSTER_NAME}})"
 echo "Client ID      : $([ -n "$FALCON_CLIENT_ID" ] && echo SET || echo MISSING) ($FALCON_CLIENT_ID)"
 echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING) ($FALCON_CLIENT_SECRET)"
 echo "Pull Token     : $([ -n "$FALCON_PULL_TOKEN" ] && echo SET || echo MISSING) ($FALCON_PULL_TOKEN)"
@@ -432,7 +441,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
 
 - [ ] Run the Helm install:
 
@@ -453,7 +462,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.deployment.enabled=true \
   --set falcon-image-analyzer.image.repository=$IAR_REGISTRY \
   --set falcon-image-analyzer.image.tag=$IAR_IMAGE_TAG \
-  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=$CLUSTER_NAME \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
@@ -483,11 +492,19 @@ Use the versions from `kubectl get workloadallowlists`. Remove the flags once yo
 
 </details>
 
-> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip this if your CID is in a commercial cloud.
 
 ### Step 2: Watch deployment progress
 
-- [ ] Wait for all pods to reach Running state:
+- [ ] Wait for every Falcon component to reach Ready across all three namespaces:
+
+```bash
+for ns in falcon-system falcon-kac falcon-image-analyzer; do
+  kubectl wait --for=condition=Ready pods --all -n $ns --timeout=5m
+done
+```
+
+- [ ] Confirm all pods are running:
 
 ```bash
 kubectl get pods -A | grep falcon
@@ -620,8 +637,8 @@ kubectl delete namespace test-workload
 - [ ] Delete the Autopilot cluster:
 
 ```bash
-gcloud container clusters delete $CLUSTER_NAME \
-  --project=$GCP_PROJECT_ID --region=$GCP_REGION --quiet
+gcloud container clusters delete {{CLUSTER_NAME}} \
+  --project=$GCP_PROJECT_ID --region={{REGION}} --quiet
 ```
 
 ---

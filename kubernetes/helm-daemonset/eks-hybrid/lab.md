@@ -200,11 +200,19 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
-> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). The `--copy` step already resolves the correct GovCloud source registry when run with GovCloud API credentials.
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). The `--copy` step already resolves the correct GovCloud source registry when run with GovCloud API credentials. Skip this if your CID is in a commercial cloud.
 
 ### 6. Verify and trigger a detection
 
-Confirm all Falcon components are running:
+Wait for every Falcon component to reach Ready:
+
+```bash
+for ns in falcon-system falcon-kac falcon-image-analyzer falcon-container-injector; do
+  kubectl wait --for=condition=Ready pods --all -n $ns --timeout=5m
+done
+```
+
+Then list everything:
 
 ```bash
 kubectl get pods -A | grep falcon
@@ -255,6 +263,8 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 <div data-mode="lab">
 
+<div data-lab-variables></div>
+
 ## 1. Provision EKS Hybrid Cluster
 
 > **What & Why:** A hybrid EKS cluster uses both EC2 managed node groups (for DaemonSet workloads) and Fargate profiles (for serverless pods). This mirrors production environments where teams run a mix of compute types. The Falcon deployment must cover both — and because we host the images in ECR, both the node instance role and the Fargate pod execution role need ECR read (both get it by default from eksctl).
@@ -264,9 +274,6 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 - [ ] Create an `eksctl` cluster config with both EC2 nodes and Fargate profiles:
 
 ```bash
-export CLUSTER_NAME=falcon-hybrid-lab
-export AWS_REGION=us-east-1
-
 cat <<'EOF' > eksctl-hybrid.yaml
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -313,7 +320,7 @@ kubectl get nodes
 - [ ] Confirm Fargate profiles exist:
 
 ```bash
-eksctl get fargateprofile --cluster $CLUSTER_NAME
+eksctl get fargateprofile --cluster {{CLUSTER_NAME}}
 ```
 
 You should see `falcon-injector` and `app-workloads` profiles.
@@ -326,16 +333,14 @@ You should see `falcon-injector` and `app-workloads` profiles.
 
 ### Step 1: Set API credentials and context
 
-- [ ] Export your Falcon API credentials, CID, cluster name, and the ECR registry for your account:
+- [ ] Export your Falcon API credentials, CID, and derive the ECR registry for your account:
 
 ```bash
 export FALCON_CID=<YOUR_FALCON_CID>
 export FALCON_CLIENT_ID=<YOUR_CLIENT_ID>
 export FALCON_CLIENT_SECRET=<YOUR_CLIENT_SECRET>
-export CLUSTER_NAME=falcon-hybrid-lab
-export AWS_REGION=us-east-1
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.{{REGION}}.amazonaws.com
 ```
 
 ### Step 2: Create the ECR repositories
@@ -346,8 +351,8 @@ export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
 ```bash
 for repo in falcon-sensor falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr describe-repositories --repository-names $repo --region $AWS_REGION >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region $AWS_REGION
+  aws ecr describe-repositories --repository-names $repo --region {{REGION}} >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --region {{REGION}}
 done
 ```
 
@@ -358,7 +363,7 @@ done
 - [ ] Authenticate to your ECR registry:
 
 ```bash
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+aws ecr get-login-password --region {{REGION}} | docker login --username AWS --password-stdin $ECR_REGISTRY
 ```
 
 ### Step 4: Copy the images into ECR
@@ -379,13 +384,13 @@ done
 - [ ] Capture each tag from ECR and validate everything populated:
 
 ```bash
-export DAEMONSET_SENSOR_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export DAEMONSET_SENSOR_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
 
 echo "CID              : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING)"
-echo "Cluster          : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
+echo "Cluster          : SET ({{CLUSTER_NAME}})"
 echo "ECR Registry     : $([ -n "$ECR_REGISTRY" ] && echo SET || echo MISSING) ($ECR_REGISTRY)"
 echo "DaemonSet Sensor : $([ -n "$DAEMONSET_SENSOR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-sensor:$DAEMONSET_SENSOR_TAG)"
 echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-container:$CONTAINER_TAG)"
@@ -421,7 +426,7 @@ helm search repo crowdstrike/falcon-sensor
 
 ### Step 1: Install the platform chart
 
-> Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
+> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
 
 - [ ] Deploy with all component images pointed at ECR:
 
@@ -439,12 +444,12 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.deployment.enabled=true \
   --set falcon-image-analyzer.image.repository=$ECR_REGISTRY/falcon-imageanalyzer \
   --set falcon-image-analyzer.image.tag=$IAR_TAG \
-  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=$CLUSTER_NAME \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> No image pull secret is needed — the DaemonSet, KAC, and IAR pods land on EC2 and pull from ECR using the node instance role (`AmazonEC2ContainerRegistryReadOnly`). **GovCloud (us-gov-1 / us-gov-2):** add `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+> **Note:** No image pull secret is needed — the DaemonSet, KAC, and IAR pods land on EC2 and pull from ECR using the node instance role (`AmazonEC2ContainerRegistryReadOnly`). If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip the GovCloud flag if your CID is in a commercial cloud.
 
 ### Step 2: Verify EC2 sensor pods
 
@@ -465,7 +470,7 @@ kubectl get ds -n falcon-system
 
 ### Step 1: Deploy the injector
 
-> Change `falcon.tags` to any custom value to group the Fargate sidecars in the Falcon console.
+> **Note:** Change `falcon.tags` to any custom value to group the Fargate sidecars in the Falcon console.
 
 - [ ] Install the `falcon-sensor` chart in injector mode, pointing at your ECR image:
 
@@ -504,6 +509,14 @@ kubectl get mutatingwebhookconfigurations | grep falcon
 > **What & Why:** True verification means proving both protection paths work: DaemonSet on EC2 and sidecar injection on Fargate. Deploy a test pod into a Fargate-profiled namespace and confirm the sensor container appears.
 
 ### Step 1: Check all Falcon pods across namespaces
+
+- [ ] Wait for every Falcon component to reach Ready across all four namespaces:
+
+```bash
+for ns in falcon-system falcon-kac falcon-image-analyzer falcon-container-injector; do
+  kubectl wait --for=condition=Ready pods --all -n $ns --timeout=5m
+done
+```
 
 - [ ] Get a full picture of all Falcon components:
 
@@ -603,7 +616,7 @@ kubectl delete namespace falcon-platform falcon-system falcon-kac falcon-image-a
 
 ```bash
 for repo in falcon-sensor falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr delete-repository --repository-name $repo --force --region $AWS_REGION
+  aws ecr delete-repository --repository-name $repo --force --region {{REGION}}
 done
 ```
 
@@ -612,7 +625,7 @@ done
 - [ ] Remove the cluster:
 
 ```bash
-eksctl delete cluster --name $CLUSTER_NAME --region $AWS_REGION
+eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 ```
 
 ---

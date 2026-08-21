@@ -175,8 +175,24 @@ export const manifest = [
             ],
           },
         }),
-        lab('EKS Hybrid Nodes', 'eks-hybrid', 'kubernetes/helm-daemonset/eks-hybrid/lab.md'),
-        lab('GKE Autopilot', 'gke-autopilot', 'kubernetes/helm-daemonset/gke-autopilot/lab.md'),
+        lab('EKS Hybrid Nodes', 'eks-hybrid', 'kubernetes/helm-daemonset/eks-hybrid/lab.md', {
+          variables: {
+            modes: ['lab'],
+            fields: [
+              { key: 'CLUSTER_NAME', label: 'Cluster name', type: 'text', default: 'falcon-hybrid-lab' },
+              { key: 'REGION',       label: 'Region',       type: 'text', default: 'us-east-1' },
+            ],
+          },
+        }),
+        lab('GKE Autopilot', 'gke-autopilot', 'kubernetes/helm-daemonset/gke-autopilot/lab.md', {
+          variables: {
+            modes: ['lab'],
+            fields: [
+              { key: 'CLUSTER_NAME', label: 'Cluster name', type: 'text', default: 'falcon-autopilot-lab' },
+              { key: 'REGION',       label: 'Region',       type: 'text', default: 'us-central1' },
+            ],
+          },
+        }),
       ],
     },
     {
