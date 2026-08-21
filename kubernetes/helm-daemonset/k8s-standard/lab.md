@@ -96,7 +96,57 @@ export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
 echo "IAR_IMAGE_PATH: $IAR_IMAGE_PATH"
 ```
 
-> **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` (e.g. `--copy myregistry.com/mynamespace`) — this copies the sensor image from CrowdStrike into a customer-owned registry rather than pulling from CrowdStrike. Add `--copy-custom-tag <tag>` to override the version tag, then point the `*_REGISTRY` variables at your registry.
+> **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` — see the examples below.
+
+<details>
+<summary><strong>Examples — copy the sensor image to your own registry</strong></summary>
+
+`--copy` pulls from CrowdStrike to your local Docker daemon, then pushes into your registry. **Prereq:** the destination repo must exist and Docker must already be authenticated to it (`aws ecr get-login-password ... | docker login` / `az acr login` / `gcloud auth configure-docker`). The repo name must **exactly match** the image name (`falcon-sensor`) — `--copy` doesn't rename.
+
+> **Why this matters:** Hosting images in-cloud removes runtime dependency on CrowdStrike's registry, gives you image scanning + retention control, and lets you pre-warm images before rolling clusters. On EKS/GKE/AKS, node roles/service accounts can pull from same-cloud registries natively — meaning in Step 4 you can drop `--set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN` from the Helm install.
+
+<details>
+<summary><strong>AWS Elastic Container Registry (ECR)</strong></summary>
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
+```
+
+</details>
+
+<details>
+<summary><strong>Azure Container Registry (ACR)</strong></summary>
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <ACR_NAME>.azurecr.io
+```
+
+</details>
+
+<details>
+<summary><strong>GCP Google Artifact Registry (GAR)</strong></summary>
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <GAR_REGION>-docker.pkg.dev/<PROJECT_ID>/<REPO_NAME>
+```
+
+</details>
+
+Repeat the same command with `--type falcon-kac` and `--type falcon-imageanalyzer` for the other components, then point `DAEMONSET_SENSOR_REGISTRY` / `KAC_REGISTRY` / `IAR_REGISTRY` at your registry before the Helm install.
+
+</details>
 
 Parse into registry + tag:
 
@@ -133,7 +183,7 @@ helm repo update
 
 ### 4. Deploy the chart
 
-> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -155,7 +205,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip this if your CID is in a commercial cloud.
 
 ### 5. Verify deployment
 
@@ -400,7 +450,60 @@ export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
 echo "IAR_IMAGE_PATH: $IAR_IMAGE_PATH"
 ```
 
-> **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` (e.g. `--copy myregistry.com/mynamespace`) — this copies the sensor image from CrowdStrike into a customer-owned registry rather than pulling from CrowdStrike. Add `--copy-custom-tag <tag>` to override the version tag, then point the `*_REGISTRY` variables at your registry.
+> **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls directly from CrowdStrike at runtime. To host the images in your own registry instead, swap `--get-image-path` for `--copy <your-registry>` — see the example below.
+
+<details>
+<summary><strong>Example — copy the sensor image to your own registry</strong></summary>
+
+`--copy` pulls from CrowdStrike to your local Docker daemon, then pushes into your registry. **Prereq:** the destination repo must exist and Docker must already be authenticated to it (`aws ecr get-login-password ... | docker login` / `az acr login` / `gcloud auth configure-docker`). The repo name must **exactly match** the image name (`falcon-sensor`) — `--copy` doesn't rename.
+
+> **Why this matters:** Hosting images in-cloud removes runtime dependency on CrowdStrike's registry, gives you image scanning + retention control, and lets you pre-warm images before rolling clusters. On EKS/GKE/AKS, node roles/service accounts can pull from same-cloud registries natively — meaning in Section 5 you can drop `--set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN` from the Helm install.
+
+<div data-cloud="eks">
+
+**AWS Elastic Container Registry (ECR)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
+```
+
+</div>
+
+<div data-cloud="aks">
+
+**Azure Container Registry (ACR)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <ACR_NAME>.azurecr.io
+```
+
+</div>
+
+<div data-cloud="gke">
+
+**GCP Google Artifact Registry (GAR)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <GAR_REGION>-docker.pkg.dev/<PROJECT_ID>/<REPO_NAME>
+```
+
+</div>
+
+Repeat the same command with `--type falcon-kac` and `--type falcon-imageanalyzer` for the other components, then point `DAEMONSET_SENSOR_REGISTRY` / `KAC_REGISTRY` / `IAR_REGISTRY` at your registry before the Helm install.
+
+</details>
 
 ### Step 3: Parse and set all variables
 
@@ -462,7 +565,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
 
 - [ ] Run the Helm install with all component configurations:
 
@@ -486,7 +589,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> **GovCloud (us-gov-1 / us-gov-2):** Add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2).
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip this if your CID is in a commercial cloud.
 
 ### Step 2: Wait for pods to be Ready
 

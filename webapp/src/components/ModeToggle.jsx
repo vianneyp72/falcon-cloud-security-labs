@@ -1,6 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 const STORAGE_KEY = 'falcon-lab-mode'
+
+// Shared mode state so every useModeToggle() call site stays in sync
+// (Layout header + LabRenderer both need to react to the same mode).
+let currentMode = (() => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) || 'guide'
+  } catch {
+    return 'guide'
+  }
+})()
+const modeSubscribers = new Set()
+
+function setModeState(next) {
+  currentMode = next
+  try {
+    localStorage.setItem(STORAGE_KEY, next)
+  } catch {}
+  modeSubscribers.forEach(cb => cb())
+}
+
+function subscribeMode(cb) {
+  modeSubscribers.add(cb)
+  return () => modeSubscribers.delete(cb)
+}
+
+function getModeSnapshot() {
+  return currentMode
+}
 
 export default function ModeToggle({ activeMode, setActiveMode }) {
   return (
@@ -9,19 +37,13 @@ export default function ModeToggle({ activeMode, setActiveMode }) {
       <div className="mode-toggle">
         <button
           className={`mode-toggle__tab ${activeMode === 'guide' ? 'mode-toggle__tab--active' : ''}`}
-          onClick={() => {
-            setActiveMode('guide')
-            localStorage.setItem(STORAGE_KEY, 'guide')
-          }}
+          onClick={() => setActiveMode('guide')}
         >
           Quick Deploy
         </button>
         <button
           className={`mode-toggle__tab ${activeMode === 'lab' ? 'mode-toggle__tab--active' : ''}`}
-          onClick={() => {
-            setActiveMode('lab')
-            localStorage.setItem(STORAGE_KEY, 'lab')
-          }}
+          onClick={() => setActiveMode('lab')}
         >
           Full Lab
         </button>
@@ -31,13 +53,8 @@ export default function ModeToggle({ activeMode, setActiveMode }) {
 }
 
 export function useModeToggle() {
-  const [activeMode, setActiveMode] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) || 'guide'
-    } catch {
-      return 'guide'
-    }
-  })
+  const activeMode = useSyncExternalStore(subscribeMode, getModeSnapshot, getModeSnapshot)
+  const setActiveMode = useCallback((next) => setModeState(next), [])
   return [activeMode, setActiveMode]
 }
 

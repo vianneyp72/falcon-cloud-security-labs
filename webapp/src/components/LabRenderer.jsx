@@ -62,7 +62,7 @@ export default function LabRenderer({ labKey }) {
   const rawContent = getLabContent(labKey)
   const meta = getLabMeta(labKey)
   const contentRef = useRef(null)
-  const { isChecked, toggleCheckbox, getPageProgress } = useProgress()
+  const { isChecked, toggleCheckbox } = useProgress()
   const [activeMode, setActiveMode] = useModeToggle()
   const varsConfig = meta?.variables || NO_VARIABLES
   const { values: varValues, setValue: setVarValue, resetToDefaults: resetVars } =
@@ -77,8 +77,6 @@ export default function LabRenderer({ labKey }) {
 
   // Reset checkbox index on each render
   checkboxIndex.current = 0
-
-  const pageProgress = getPageProgress(labKey, activeMode, hasMode)
 
   // Live values + setters flow to LabVariables and TokenSubstitutingCodeBlock
   // via context so they can update on keystroke without changing the
@@ -253,17 +251,6 @@ export default function LabRenderer({ labKey }) {
   return (
     <>
       <main className="content-area" ref={contentRef}>
-        {pageProgress.total > 0 && (
-          <div className="progress-bar" style={{ marginBottom: '1.5rem' }}>
-            <span>{pageProgress.checked}/{pageProgress.total} steps</span>
-            <div className="progress-bar__track">
-              <div
-                className="progress-bar__fill"
-                style={{ width: `${(pageProgress.checked / pageProgress.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
         <LabDisclaimer />
         <LabVarsContext.Provider value={labVarsContextValue}>
           <Markdown

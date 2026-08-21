@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
-import { getAllLabs, getLabContent } from '../content/manifest'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { getLabContent } from '../content/manifest'
 
 const STORAGE_KEY = 'falcon-lab-progress'
 
@@ -15,6 +15,31 @@ function saveProgress(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
 
+// Module-level shared state + subscribers so every useProgress() instance
+// stays in sync. Otherwise Layout's copy stays frozen while LabRenderer's
+// updates locally, and the header progress bar goes stale.
+let currentProgress = loadProgress()
+const subscribers = new Set()
+
+function notify() {
+  subscribers.forEach(cb => cb())
+}
+
+function setProgressState(next) {
+  currentProgress = next
+  saveProgress(next)
+  notify()
+}
+
+function subscribe(cb) {
+  subscribers.add(cb)
+  return () => subscribers.delete(cb)
+}
+
+function getSnapshot() {
+  return currentProgress
+}
+
 // Count checkboxes in markdown content
 function countCheckboxes(content) {
   if (!content) return 0
@@ -23,19 +48,16 @@ function countCheckboxes(content) {
 }
 
 export function useProgress() {
-  const [progress, setProgress] = useState(loadProgress)
+  const progress = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
   const isChecked = useCallback((key) => {
     return !!progress[key]
   }, [progress])
 
   const toggleCheckbox = useCallback((key) => {
-    setProgress(prev => {
-      const next = { ...prev, [key]: !prev[key] }
-      if (!next[key]) delete next[key]
-      saveProgress(next)
-      return next
-    })
+    const next = { ...currentProgress, [key]: !currentProgress[key] }
+    if (!next[key]) delete next[key]
+    setProgressState(next)
   }, [])
 
   const getPageProgress = useCallback((labKey, activeMode, hasMode) => {
@@ -46,31 +68,15 @@ export function useProgress() {
     return { checked, total }
   }, [progress])
 
-  const { totalChecked, totalCheckboxes } = useMemo(() => {
-    const labs = getAllLabs()
-    let totalCheckboxes = 0
-    let totalChecked = 0
-
-    for (const lab of labs) {
-      const content = getLabContent(lab.fullRoute)
-      totalCheckboxes += countCheckboxes(content)
-    }
-
-    totalChecked = Object.values(progress).filter(Boolean).length
-    return { totalChecked, totalCheckboxes }
-  }, [progress])
-
   const reset = useCallback(() => {
+    setProgressState({})
     localStorage.removeItem(STORAGE_KEY)
-    setProgress({})
   }, [])
 
   return {
     isChecked,
     toggleCheckbox,
     getPageProgress,
-    totalChecked,
-    totalCheckboxes,
     reset,
   }
 }

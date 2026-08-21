@@ -5,12 +5,23 @@ import ProgressBar from "./ProgressBar";
 import ReadingProgress from "./ReadingProgress";
 import ThemeToggle from "./ThemeToggle";
 import { useProgress } from "../hooks/useProgress";
+import { useModeToggle, contentHasMode } from "./ModeToggle";
+import { getLabContent, getLabMeta } from "../content/manifest";
 
 export default function Layout({ manifest }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { totalChecked, totalCheckboxes } = useProgress();
+  const { getPageProgress } = useProgress();
+  const [activeMode] = useModeToggle();
   const base = import.meta.env.BASE_URL;
+
+  // Derive labKey from route ("/kubernetes/.../lab" → "kubernetes/.../lab").
+  // If the route matches a real lab, show its progress; otherwise skip.
+  const labKey = location.pathname.replace(/^\//, "");
+  const labMeta = getLabMeta(labKey);
+  const labContent = labMeta ? getLabContent(labKey) : "";
+  const hasMode = contentHasMode(labContent);
+  const pageProgress = labMeta ? getPageProgress(labKey, activeMode, hasMode) : null;
 
   return (
     <div className="app-layout">
@@ -36,9 +47,11 @@ export default function Layout({ manifest }) {
           />
           Falcon Cloud Security Labs
         </Link>
-        <div className="app-header__progress">
-          <ProgressBar checked={totalChecked} total={totalCheckboxes} />
-        </div>
+        {pageProgress && (
+          <div className="app-header__progress">
+            <ProgressBar checked={pageProgress.checked} total={pageProgress.total} />
+          </div>
+        )}
         <ThemeToggle />
       </header>
 
