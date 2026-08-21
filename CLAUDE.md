@@ -39,6 +39,27 @@ Shared prerequisites live in `_common/` (underscore prefix sorts first).
 - [ ] Is every explanatory sentence earning its place, or is it filler?
 - [ ] Are teaching notes short and inline (at the step), not batched into a background wall?
 
+## Callout Patterns
+
+Every `> **Bold-lede:**` blockquote is auto-classified into a color-coded callout by the webapp. **Pick the pattern that matches the intent** — the color reinforces the meaning at a glance and helps SEs new to cloud scan for the parts they need. Renderer + CSS details live in `webapp/CLAUDE.md`; this section is the authoring vocabulary.
+
+| When to reach for it | Pattern (lede in the blockquote) | Color |
+|---|---|---|
+| Explain the purpose of a step or how something works | `> **What & Why:** …` / `> **How this works:** …` | Blue (info) |
+| Teach a cloud concept inline — the "aha" for a new-to-cloud SE | `> **Tip:** …` / `> **Why this matters:** …` | Teal (tip) |
+| Flag something a first-timer commonly gets wrong | `> **Warning:** …` / `> **Caution:** …` / `> **Heads-up:** …` | Yellow (warning) |
+| Destructive / irreversible / cost-incurring action | `> **Destructive:** …` / `> **Do NOT:** …` / `> **Costs money:** …` | Red (danger) |
+| Tell them what "good" output looks like | `> **Verify:** …` / `> **Look for:** …` / `> **Confirm:** …` | Green (success) |
+| Prerequisites, status markers, side notes | `> **Prerequisites:** …` / `> **Note:** …` / `> **Status:** …` | Purple (note) |
+
+**Rules of thumb:**
+
+- **Tip vs What & Why** — `> **What & Why:**` explains the *step's purpose* (why we run this command). `> **Tip:**` / `> **Why this matters:**` teaches the *underlying cloud concept* (e.g. "The pod execution role is what lets Fargate pull from ECR — you don't attach it to pods yourself, EKS does it"). Both can appear near the same step; they answer different questions.
+- **Warning vs Danger** — `> **Warning:**` is "you might hit this snag" (yellow, cautionary). `> **Danger:**` is "this action is destructive / irreversible / costs real money" (red, high-impact). Reserve red for *real* stakes so it retains meaning.
+- **One lede per callout.** Don't stack `> **Prerequisites, Warning, and Note:** …` — pick the strongest and split if needed.
+- **The lede must be bold and end with `:`** (e.g. `> **Verify:**`). The classifier sniffs the whole callout text, but the bold lede is what makes it readable to authors and to the SE.
+- **Don't fake a variant with hex colors or emojis.** Use the pattern; the webapp handles the styling. Emojis in the lede are OK if they aid the SE (⚠️ triggers `warning`) but not required.
+
 ## Lab Format (Dual-Mode Standard)
 
 Every deployment method is a folder with `lab.md` as the primary document. All labs use a **dual-mode structure** with two views:

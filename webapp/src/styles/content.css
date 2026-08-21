@@ -77,11 +77,16 @@
 }
 
 /* -----------------------------------------------------------------------------
-   Callouts — 4 semantic variants (info=blue, warning=yellow, success=green,
-   note=purple). Unclassified blockquotes get the brand red accent.
+/* -----------------------------------------------------------------------------
+   Callouts — 7 semantic variants:
+     info=blue, tip=teal, warning=yellow, danger=red, success=green,
+     note=purple, time=neutral.
+   Unclassified blockquotes fall through to `info` (blue) via the renderer's
+   default variant. The base rule below styles ONLY unclassified blockquotes
+   (`:not([class*="callout--"])`) so it never outranks the variant rules on
+   specificity — every classified callout gets its intended color.
 ----------------------------------------------------------------------------- */
-.content-area blockquote,
-.callout {
+.content-area blockquote:not([class*="callout--"]) {
   border: 1px solid var(--border);
   border-left: 3px solid var(--cs-red);
   margin: 1.25rem 0;
@@ -91,8 +96,27 @@
   position: relative;
 }
 
-.content-area blockquote::before,
-.callout::before {
+.content-area blockquote:not([class*="callout--"])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 3px;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, var(--cs-red), transparent 60%);
+}
+
+/* Shared callout frame — variants below only override color-carrying props. */
+.content-area .callout {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cs-red);
+  margin: 1.25rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  position: relative;
+}
+
+.content-area .callout::before {
   content: '';
   position: absolute;
   top: 0;
@@ -103,64 +127,90 @@
 }
 
 /* Info variant (What & Why, How this works) — blue */
-.callout--info {
+.content-area .callout--info {
   border-left-color: var(--accent-blue);
   border-color: color-mix(in oklab, var(--accent-blue) 30%, var(--border));
   background: color-mix(in oklab, var(--accent-blue) 6%, transparent);
 }
-.callout--info::before {
+.content-area .callout--info::before {
   background: linear-gradient(to right, var(--accent-blue), transparent 60%);
 }
-.callout--info p:first-child strong:first-child {
+.content-area .callout--info p:first-child strong:first-child {
   color: var(--accent-blue);
 }
 
-/* Warning variant — yellow */
-.callout--warning {
+/* Tip variant (Tip, Why this matters) — teal (SE teaching notes) */
+.content-area .callout--tip {
+  border-left-color: var(--accent-teal);
+  border-color: color-mix(in oklab, var(--accent-teal) 30%, var(--border));
+  background: color-mix(in oklab, var(--accent-teal) 6%, transparent);
+}
+.content-area .callout--tip::before {
+  background: linear-gradient(to right, var(--accent-teal), transparent 60%);
+}
+.content-area .callout--tip p:first-child strong:first-child {
+  color: var(--accent-teal);
+}
+
+/* Warning variant (Warning, Caution, Heads-up) — yellow */
+.content-area .callout--warning {
   border-left-color: var(--accent-yellow);
   border-color: color-mix(in oklab, var(--accent-yellow) 30%, var(--border));
   background: color-mix(in oklab, var(--accent-yellow) 6%, transparent);
 }
-.callout--warning::before {
+.content-area .callout--warning::before {
   background: linear-gradient(to right, var(--accent-yellow), transparent 60%);
 }
-.callout--warning p:first-child strong:first-child {
+.content-area .callout--warning p:first-child strong:first-child {
   color: var(--accent-yellow);
 }
 
-/* Success variant (Look for, Verify) — green */
-.callout--success {
+/* Danger variant (Destructive, Do NOT, Costs money) — brand red, stronger tint */
+.content-area .callout--danger {
+  border-left-color: var(--cs-red);
+  border-color: color-mix(in oklab, var(--cs-red) 40%, var(--border));
+  background: color-mix(in oklab, var(--cs-red) 10%, transparent);
+}
+.content-area .callout--danger::before {
+  background: linear-gradient(to right, var(--cs-red), transparent 60%);
+}
+.content-area .callout--danger p:first-child strong:first-child {
+  color: var(--cs-red);
+}
+
+/* Success variant (Verify, Look for, Confirm) — green */
+.content-area .callout--success {
   border-left-color: var(--accent-green);
   border-color: color-mix(in oklab, var(--accent-green) 30%, var(--border));
   background: color-mix(in oklab, var(--accent-green) 6%, transparent);
 }
-.callout--success::before {
+.content-area .callout--success::before {
   background: linear-gradient(to right, var(--accent-green), transparent 60%);
 }
-.callout--success p:first-child strong:first-child {
+.content-area .callout--success p:first-child strong:first-child {
   color: var(--accent-green);
 }
 
-/* Note variant (Prerequisites, Status) — purple */
-.callout--note {
+/* Note variant (Prerequisites, Status, Note) — purple */
+.content-area .callout--note {
   border-left-color: #a371f7;
   border-color: color-mix(in oklab, #a371f7 30%, var(--border));
   background: color-mix(in oklab, #a371f7 6%, transparent);
 }
-.callout--note::before {
+.content-area .callout--note::before {
   background: linear-gradient(to right, #a371f7, transparent 60%);
 }
-.callout--note p:first-child strong:first-child {
+.content-area .callout--note p:first-child strong:first-child {
   color: #a371f7;
 }
 
 /* Time variant (~X min) — subtle neutral */
-.callout--time {
+.content-area .callout--time {
   border-left-color: var(--text-muted);
   border-color: var(--border);
   background: color-mix(in oklab, var(--text-muted) 4%, transparent);
 }
-.callout--time::before {
+.content-area .callout--time::before {
   background: linear-gradient(to right, var(--text-muted), transparent 60%);
 }
 

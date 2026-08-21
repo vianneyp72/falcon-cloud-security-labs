@@ -177,9 +177,12 @@ export default function LabRenderer({ labKey }) {
     blockquote({ children, ...props }) {
       const text = getTextContent(children)
       let variant = 'info'
-      if (/what\s*&\s*why|how this works/i.test(text)) variant = 'info'
-      else if (/⚠️|warning|caution|important/i.test(text)) variant = 'warning'
-      else if (/look for|verify|confirm|check/i.test(text)) variant = 'success'
+      // Order matters: most-specific / highest-impact triggers first.
+      if (/destructive|do\s*not|costs\s+money|deletes\s+all|irreversible/i.test(text)) variant = 'danger'
+      else if (/(^|\s)tip:|why this matters/i.test(text)) variant = 'tip'
+      else if (/what\s*&\s*why|how this works/i.test(text)) variant = 'info'
+      else if (/⚠️|warning|caution|important|heads-up|heads\s+up/i.test(text)) variant = 'warning'
+      else if (/verify|look for|confirm|check/i.test(text)) variant = 'success'
       else if (/prerequisites|status|note/i.test(text)) variant = 'note'
       else if (/~\d+\s*min/i.test(text)) variant = 'time'
       return <blockquote className={`callout callout--${variant}`} {...props}>{children}</blockquote>

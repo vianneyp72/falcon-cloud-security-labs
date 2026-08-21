@@ -101,17 +101,21 @@ Node data supports: `label`, `sublabel`, `isContainer`, `isCloud`, `isPhase`, `i
 
 ## Callout Variants
 
-Blockquotes are auto-classified by matching text content:
+Blockquotes are auto-classified by matching text content. Every `.callout--*` rule lives under `.content-area .callout--*` so it wins the specificity fight against the base blockquote rule — do NOT drop that `.content-area` scope when adding new variants, or the base's red will override the variant color.
 
-| Variant | Trigger keywords | Color |
+| Variant | Trigger keywords (case-insensitive, any position) | Color |
 |---------|-----------------|-------|
-| `info` | "What & Why", "How this works" | Blue (`--accent-blue`) |
-| `warning` | "warning", "caution", "important" | Yellow (`--accent-yellow`) |
-| `success` | "Look for", "verify", "confirm" | Green (`--accent-green`) |
-| `note` | "Prerequisites", "Status", "Note" | Purple (`#a371f7`) |
+| `info` | "what & why", "how this works" | Blue (`--accent-blue`) |
+| `tip` | "tip:", "why this matters" | Teal (`--accent-teal`) — SE teaching notes |
+| `warning` | "warning", "caution", "important", "heads-up", ⚠️ | Yellow (`--accent-yellow`) |
+| `danger` | "destructive", "do not", "costs money", "deletes all", "irreversible" | Red (`--cs-red`, 10% tint) — reserved for destructive/high-cost actions |
+| `success` | "verify", "look for", "confirm", "check" | Green (`--accent-green`) |
+| `note` | "prerequisites", "status", "note" | Purple (`#a371f7`) |
 | `time` | "~X min" | Neutral gray |
 
-Unclassified blockquotes fall back to the brand red (`--cs-red`) accent.
+Classifier order (in `LabRenderer.jsx` blockquote handler) goes most-specific → most-broad: `danger` → `tip` → `info` → `warning` → `success` → `note` → `time`. **Default fallback is `info` (blue), NOT red** — red is reserved for the explicit `danger` variant only. If you add a new variant, insert its regex ahead of the broader ones so it isn't swallowed.
+
+**Authoring guidance for which pattern lab writers should use lives in the repo root `CLAUDE.md`** (Callout Patterns section) — this section documents the renderer/CSS side only.
 
 ## Design System — CrowdStrike Mode A brand
 
@@ -133,6 +137,7 @@ The webapp uses the **Mode A** direction from `~/projects/claude_skillz/frontend
 | `--accent-green` | `#34d27b` | same | Success semantics |
 | `--accent-blue` | `#5b9cf5` | same | Info + links |
 | `--accent-yellow` | `#f0a830` | same | Warning semantics |
+| `--accent-teal` | `#3ecfba` | same | Tip / SE teaching-note semantics |
 | `--radius-{sm,md,lg,xl}` | `6/10/14/20px` | same | Consistent corner rounding |
 | `--motion-{fast,normal,slow}` | `150/250/400ms` | same | Consistent easing |
 | `--font-body` | `'CrowdStrike Sharp Sans', 'Inter', system-ui` | same | Sans typography |
