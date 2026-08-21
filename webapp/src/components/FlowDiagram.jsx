@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   Background,
@@ -2081,14 +2081,51 @@ export default function FlowDiagram({ content }) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  const [expanded, setExpanded] = useState(false)
+  const rfRef = useRef(null)
+
+  useEffect(() => {
+    // Re-fit view whenever expand state changes (RF doesn't auto-refit on resize)
+    const raf = requestAnimationFrame(() => {
+      rfRef.current?.fitView({ padding: 0.2, duration: 200 })
+    })
+    if (!expanded) return () => cancelAnimationFrame(raf)
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false) }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      cancelAnimationFrame(raf)
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [expanded])
 
   return (
-    <div className="flow-diagram">
+    <div className={`flow-diagram${expanded ? ' flow-diagram--expanded' : ''}`}>
+      <button
+        type="button"
+        className="flow-diagram__expand"
+        onClick={() => setExpanded(v => !v)}
+        aria-label={expanded ? 'Collapse diagram' : 'Expand diagram'}
+        title={expanded ? 'Collapse (Esc)' : 'Expand'}
+      >
+        {expanded ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+        )}
+      </button>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onInit={(rf) => { rfRef.current = rf }}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}

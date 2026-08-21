@@ -111,6 +111,67 @@
   border: 1px solid rgba(237, 28, 36, 0.15);
   background: #0c0a14;
   overflow: hidden;
+  position: relative;
+}
+
+/* Expand button — top-right of every diagram. Toggles fixed-viewport overlay. */
+.flow-diagram__expand {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(35, 32, 46, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: rgba(240, 236, 250, 0.7);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-easing),
+              border-color var(--motion-fast) var(--motion-easing),
+              background var(--motion-fast) var(--motion-easing);
+}
+
+.flow-diagram__expand:hover {
+  color: var(--cs-red);
+  border-color: var(--cs-red);
+  background: rgba(35, 32, 46, 1);
+}
+
+.flow-diagram__expand:focus-visible {
+  outline: 2px solid var(--cs-red);
+  outline-offset: 2px;
+}
+
+/* Expanded state — fixed viewport overlay */
+.flow-diagram--expanded {
+  position: fixed;
+  inset: 1rem;
+  width: auto;
+  height: auto;
+  margin: 0;
+  z-index: 200;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  border-color: rgba(237, 28, 36, 0.4);
+}
+
+[data-theme="light"] .flow-diagram__expand {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .flow-diagram__expand:hover {
+  color: var(--cs-red);
+  border-color: var(--cs-red);
+}
+
+[data-theme="light"] .flow-diagram--expanded {
+  box-shadow: 0 20px 60px rgba(30, 20, 30, 0.25);
 }
 
 .flow-diagram .react-flow__background {
