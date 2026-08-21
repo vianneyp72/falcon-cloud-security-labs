@@ -15,6 +15,30 @@ vms/linux/ansible/                        ← compute/os/method
 
 Shared prerequisites live in `_common/` (underscore prefix sorts first).
 
+## Audience & Voice
+
+**Every lab is written for a CrowdStrike Sales Engineer who is new to cloud.** This is the single most important lens for every choice — flow, wording, callouts, and level of detail. Evaluate every step, sentence, and note against this reader before shipping.
+
+### What this means in practice
+
+- **Assume Falcon fluency, not cloud fluency.** They know the Falcon platform (CID, sensor, KAC, IAR, detections) but may not know what an IAM role, security group, node pool, Fargate profile, or service principal actually IS. Explain the cloud-native primitive briefly the first time it appears in a lab; don't re-explain Falcon terms.
+- **Never assume prior console familiarity for the cloud provider.** The AWS/GCP/Azure console layout is unfamiliar territory for a first-time SE. Guide them to the exact service, then the exact button — console-first is not optional, it's the primary learning surface.
+- **Cut fluff, keep insight.** Zero tolerance for filler ("In this step, we will now proceed to…"). But DO include a short teaching note where a cloud concept genuinely helps them understand what they just did — e.g. "The pod execution role is what lets Fargate pull from ECR; you don't attach it to pods yourself, EKS does it for you." Aim for one or two-sentence insight callouts, not paragraphs.
+- **Use `> **Note:**` / `> **Why this matters:**` blockquotes to teach cloud concepts inline** — placed AT the step where the concept first bites, not lumped into a background section they'll skip. In Full Lab mode this pairs naturally with the existing `> **What & Why:**` block (What & Why = purpose of this step; Note/Why this matters = the cloud concept the step exposes).
+- **Name the cloud-provider term the same way the console does.** If AWS calls it a "trust relationship", don't rename it "trust policy" mid-lab. Consistency with the console reduces the cognitive load of translating.
+- **Never hand-wave errors.** If a command commonly fails for a first-timer (missing region, wrong context, expired token, un-enabled API), pre-empt it with a one-line "If you see X, run Y" note at the point of failure — not in a troubleshooting appendix.
+- **Explain outputs, not just inputs.** After a `kubectl get pods` / `az container show` / `gcloud … list`, tell them what to look for in the output ("STATUS should be `Running` and READY should be `1/1` or `2/2` if injected"). A first-timer stares at output and doesn't know what "good" looks like.
+- **Keep the happy path clean.** Edge cases, alternate paths, and provider-specific quirks go in scoped inline notes or Challenges — not woven into the main flow.
+
+### Voice checklist before shipping any lab or edit
+
+- [ ] Would a first-time-in-cloud SE finish this without getting stuck or context-switching to Google?
+- [ ] Does every command have a one-line intent line above it (what will happen / why)?
+- [ ] Are the cloud primitives that appear (IAM role, security group, service account, resource group, etc.) explained briefly at first use?
+- [ ] Are outputs annotated so they know what "success" looks like?
+- [ ] Is every explanatory sentence earning its place, or is it filler?
+- [ ] Are teaching notes short and inline (at the step), not batched into a background wall?
+
 ## Lab Format (Dual-Mode Standard)
 
 Every deployment method is a folder with `lab.md` as the primary document. All labs use a **dual-mode structure** with two views:
