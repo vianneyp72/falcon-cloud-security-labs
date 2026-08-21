@@ -14,20 +14,21 @@ Deploy CrowdStrike Falcon on an EKS cluster running both EC2 nodes and Fargate p
 >     - **Sensor Download** (Read)
 >   - Additional scopes IAR needs at runtime to upload image assessments:
 >     - **Falcon Container Image** (Read/Write)
->     - **Falcon Container CLI** (Read/Write)
+>     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
 >
 > **Image hosting:** All four Falcon images live in **same-account ECR**. EC2 pods (DaemonSet, KAC, IAR) pull using the **node instance role**; Fargate pods (the injector and injected sidecars) pull using the **Fargate pod execution role**. Neither uses an image pull secret.
 
 ## Reference Docs
 
-| Source                               | Link                                                                             |
-| ------------------------------------ | -------------------------------------------------------------------------------- |
-| falcon-platform Helm chart (GitHub)  | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-platform |
-| falcon-sensor Helm chart (Injector)  | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-sensor   |
-| EKS Fargate Pod Execution Role       | https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html  |
-| Amazon ECR private registry auth     | https://docs.aws.amazon.com/AmazonECR/latest/userguide/registry_auth.html        |
-| Deploy Falcon Sensor via Helm (Docs) | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/l303c850                           |
+| Source                                | Link                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| falcon-platform Helm chart (GitHub)   | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-platform                     |
+| falcon-sensor Helm chart (Injector)   | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-sensor                       |
+| Falcon Container Image Pull Script    | https://github.com/CrowdStrike/falcon-scripts/tree/main/bash/containers/falcon-container-sensor-pull |
+| EKS Fargate Pod Execution Role        | https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html                      |
+| Amazon ECR private registry auth      | https://docs.aws.amazon.com/AmazonECR/latest/userguide/registry_auth.html                            |
+| Deploy Falcon Sensor via Helm (Docs)  | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/l303c850                                               |
 
 ---
 
@@ -62,7 +63,7 @@ Hosting the images in **same-account ECR** removes the token entirely. AWS authe
 - **EC2 nodes** pull with the **node instance role**. `eksctl` (and the `terraform-aws-modules/eks` module) attach `AmazonEC2ContainerRegistryReadOnly` to the managed node group role by default, so DaemonSet/KAC/IAR pull from ECR with no secret.
 - **Fargate pods** pull with the **Fargate pod execution role**. The AWS managed policy `AmazonEKSFargatePodExecutionRolePolicy` — auto-attached by both `eksctl` and the terraform module — already grants same-account ECR reads, so the injector and every injected sidecar pull with no secret and no namespace ordering to manage.
 
-> IRSA (`serviceAccount` role annotations) does **not** authenticate image pulls — that happens before the pod's service account token exists. Image-pull auth is always the node instance role (EC2) or pod execution role (Fargate). IAR still needs API credentials at runtime for vulnerability reporting; that is unrelated to image pulls.
+> **Why this matters:** IRSA (`serviceAccount` role annotations) does **not** authenticate image pulls — that happens before the pod's service account token exists. Image-pull auth is always the node instance role (EC2) or pod execution role (Fargate). IAR still needs API credentials at runtime for vulnerability reporting; that is unrelated to image pulls.
 
 ```
 EKS HYBRID CLUSTER (EC2 + Fargate)
@@ -100,6 +101,8 @@ export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 ### 2. Create the Fargate profile for the injector namespace
 
 The DaemonSet sensor, KAC, and IAR land on EC2 nodes (no profile needed), but the sidecar injector runs on Fargate. Create a profile covering its namespace (skip this if your cluster already has matching profiles):
+
+> **Tip:** A Fargate profile is what tells EKS which pods to schedule on Fargate instead of EC2 nodes — matched by namespace (plus optional pod label selectors). Any pod created in a namespace listed here lands on a serverless Fargate micro-VM; pods in other namespaces land on your EC2 node group.
 
 ```bash
 eksctl create fargateprofile --cluster $CLUSTER_NAME --region $AWS_REGION \
@@ -218,6 +221,8 @@ Then list everything:
 kubectl get pods -A | grep falcon
 ```
 
+Expected: pods across four namespaces all `Running` — `falcon-system` (one DaemonSet pod per EC2 node), `falcon-kac` (1 pod on EC2), `falcon-image-analyzer` (1 pod on EC2), `falcon-container-injector` (2 pods on Fargate).
+
 Create a Fargate profile for the app namespace so its pods schedule on Fargate (where the sidecar gets injected):
 
 ```bash
@@ -269,6 +274,10 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 > **What & Why:** A hybrid EKS cluster uses both EC2 managed node groups (for DaemonSet workloads) and Fargate profiles (for serverless pods). This mirrors production environments where teams run a mix of compute types. The Falcon deployment must cover both — and because we host the images in ECR, both the node instance role and the Fargate pod execution role need ECR read (both get it by default from eksctl).
 
+> **Tip:** A **Fargate profile** is what tells EKS which pods to schedule on Fargate instead of EC2 nodes — matched by namespace (plus optional pod label selectors). Any pod created in a namespace listed here lands on a serverless Fargate micro-VM; pods in other namespaces land on your EC2 node group. That's why we define two profiles below — one for the injector, one for the app.
+
+> **Note:** You *can* build this cluster from the EKS console (**EKS** → **Create cluster** → then **Compute** → **Add node group** and **Add Fargate profile** twice). We use `eksctl` here because it defines the control plane, EC2 node group, and both Fargate profiles atomically from one config file — reproducible, cleanup-safe, and one command instead of five console screens. If you'd rather see it in the console after the fact, it's all there under the cluster's **Compute** tab.
+
 ### Step 1: Create the cluster configuration
 
 - [ ] Create an `eksctl` cluster config with both EC2 nodes and Fargate profiles:
@@ -316,6 +325,8 @@ eksctl create cluster -f eksctl-hybrid.yaml
 ```bash
 kubectl get nodes
 ```
+
+Expected: 2 EC2 nodes in `Ready` state (Fargate "nodes" only appear once pods are scheduled onto a Fargate profile — that comes later).
 
 - [ ] Confirm Fargate profiles exist:
 
@@ -449,7 +460,9 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> **Note:** No image pull secret is needed — the DaemonSet, KAC, and IAR pods land on EC2 and pull from ECR using the node instance role (`AmazonEC2ContainerRegistryReadOnly`). If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip the GovCloud flag if your CID is in a commercial cloud.
+> **Why this matters:** No image pull secret is needed — the DaemonSet, KAC, and IAR pods land on EC2 and pull from ECR using the **node instance role** (`AmazonEC2ContainerRegistryReadOnly`, attached to the managed node group in Section 1). ECR authenticates the pull based on the caller's IAM identity, so there's nothing to mint, propagate, or rotate on the cluster side.
+
+> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip the GovCloud flag if your CID is in a commercial cloud.
 
 ### Step 2: Verify EC2 sensor pods
 
@@ -495,6 +508,8 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
 ```bash
 kubectl get pods -n falcon-container-injector -o wide
 ```
+
+Look for `STATUS=Running`, `READY=1/1`, and a `NODE` column value starting with `fargate-ip-` (that's how you know they landed on Fargate, not EC2).
 
 - [ ] Confirm the mutating webhook is registered:
 

@@ -6,9 +6,10 @@ Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, 
 >
 > - Helm 3 installed (`helm version` shows v3.x)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required scopes:
+>   - Required scopes to pull the images (sensor, KAC, IAR):
 >     - **Sensor Download** (Read)
 >     - **Falcon Images Download** (Read)
+>   - Additional scopes IAR needs at runtime to upload image assessments:
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
@@ -302,11 +303,18 @@ az account set --subscription <YOUR_AZURE_SUBSCRIPTION_ID>
 
 ### Step 2: Create the cluster
 
-- [ ] Run the commands for your provider below. Cluster provisioning takes several minutes — don't Ctrl+C.
+Cluster provisioning takes several minutes — don't Ctrl+C.
 
 <div data-cloud="gke">
 
 **GKE:** *(expect ~3-5 min)*
+
+- [ ] **Console:** Navigate to **Kubernetes Engine** → **Clusters** → **Create** → choose **Standard** → set name `{{CLUSTER_NAME}}`, zone `{{REGION}}`, and node count `2` (machine type `e2-standard-2`) → **Create**
+
+> **Why this matters:** A GKE Standard cluster gives you node-level access (needed for the DaemonSet sensor to load its eBPF module). Autopilot restricts that — use the separate GKE Autopilot lab if you want the managed-node experience.
+
+<details>
+<summary>CLI equivalent</summary>
 
 ```bash
 gcloud container clusters create {{CLUSTER_NAME}} \
@@ -315,11 +323,21 @@ gcloud container clusters create {{CLUSTER_NAME}} \
   --machine-type e2-standard-2
 ```
 
+</details>
+
 </div>
 
 <div data-cloud="eks">
 
-**EKS:** *(expect ~15-20 min — eksctl provisions a VPC, subnets, IAM roles, control plane, and node group)*
+**EKS:** *(expect ~15-20 min — a VPC, subnets, IAM roles, control plane, and node group are all created)*
+
+- [ ] **Console:** Navigate to **EKS** → **Clusters** → **Create cluster** → set name `{{CLUSTER_NAME}}`, Kubernetes version (default is fine), and cluster service role (create one if you don't have `AmazonEKSClusterRole`) → accept default VPC/subnets → **Create**
+- [ ] After the cluster shows **Active** (~10-15 min), open it → **Compute** tab → **Add node group** → name it `default`, pick the `AmazonEKSNodeRole` (create if needed), instance type `t3.large`, desired size `2` → **Create**
+
+> **Why this matters:** EKS separates the control plane (managed by AWS) from the data plane (your node group). Both need distinct IAM roles — the cluster role authorizes AWS to manage the control plane, and the node role authorizes each worker to pull from ECR, join the cluster, and describe EC2 resources.
+
+<details>
+<summary>CLI equivalent</summary>
 
 ```bash
 eksctl create cluster \
@@ -329,11 +347,23 @@ eksctl create cluster \
   --node-type t3.large
 ```
 
+`eksctl` collapses the two console steps (cluster + node group) into one command and generates both IAM roles automatically.
+
+</details>
+
 </div>
 
 <div data-cloud="aks">
 
 **AKS:** *(expect ~5-10 min)*
+
+- [ ] **Console (Azure portal):** Search **Resource groups** → **Create** → name `falcon-lab-rg`, region `{{REGION}}` → **Review + create** → **Create**
+- [ ] Search **Kubernetes services** → **Create** → **Kubernetes cluster** → pick subscription + `falcon-lab-rg`, cluster name `{{CLUSTER_NAME}}`, region `{{REGION}}` → on the **Node pools** tab set node count `2`, size `Standard_D2s_v5` → **Review + create** → **Create**
+
+> **Why this matters:** A resource group is Azure's container for all resources tied to a workload — deleting the group at cleanup time deletes the cluster, its node VMs, load balancers, and disks together. Get in the habit of creating one per lab.
+
+<details>
+<summary>CLI equivalent</summary>
 
 ```bash
 az group create --name falcon-lab-rg --location {{REGION}}
@@ -341,6 +371,10 @@ az aks create --resource-group falcon-lab-rg --name {{CLUSTER_NAME}} \
   --node-count 2 --node-vm-size Standard_D2s_v5 --generate-ssh-keys
 az aks get-credentials --resource-group falcon-lab-rg --name {{CLUSTER_NAME}}
 ```
+
+`az aks get-credentials` merges the cluster's kubeconfig into `~/.kube/config` — the console equivalent is the **Connect** button on the cluster's Overview page, which prints the same command.
+
+</details>
 
 </div>
 

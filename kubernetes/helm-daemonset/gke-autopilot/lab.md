@@ -8,9 +8,10 @@ Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE 
 >
 > - Helm 3 installed (`helm version` shows v3.x)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required scopes:
+>   - Required scopes to pull the images (sensor, KAC, IAR):
 >     - **Sensor Download** (Read)
 >     - **Falcon Images Download** (Read)
+>   - Additional scopes IAR needs at runtime to upload image assessments:
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
 > - CrowdStrike CID (with checksum)
@@ -22,6 +23,7 @@ Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE 
 | Source                                         | Link                                                                                                 |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | CrowdStrike Docs: GKE Platform-specific config | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/f344b152/me302ce8/ef3a99a0/vaed8b6d/oa491d1f           |
+| Deploy Falcon Sensor via Helm (Docs)           | https://docs.crowdstrike.com/r/en-US/qg0ygdwl/l303c850                                               |
 | Google Docs: AllowlistSynchronizer             | https://cloud.google.com/kubernetes-engine/docs/reference/crds/allowlistsynchronizer                 |
 | falcon-platform Helm chart (GitHub)            | https://github.com/CrowdStrike/falcon-helm/tree/main/helm-charts/falcon-platform                     |
 | Falcon Container Image Pull Script             | https://github.com/CrowdStrike/falcon-scripts/tree/main/bash/containers/falcon-container-sensor-pull |
@@ -130,6 +132,15 @@ Wait for the WorkloadAllowlists to appear (1-2 minutes) — you only need them p
 
 ```bash
 kubectl get workloadallowlists
+```
+
+Expected: three entries listed once the synchronizer has fetched them:
+
+```
+NAME                                                  AGE
+crowdstrike-falconsensor-cleanup-allowlist-v1.0.0     1m
+crowdstrike-falconsensor-deploy-allowlist-v1.0.0      1m
+crowdstrike-falconsensor-falconctl-allowlist-v1.0.0   1m
 ```
 
 ### 3. Add Helm repo
@@ -308,6 +319,8 @@ EOF
 ```bash
 kubectl get allowlistsynchronizers
 ```
+
+Look for `crowdstrike-synchronizer` in the `NAME` column — that's the CR you just applied, and its presence means the controller accepted the spec.
 
 ### Step 2: Wait for the WorkloadAllowlists
 
@@ -509,6 +522,8 @@ done
 ```bash
 kubectl get pods -A | grep falcon
 ```
+
+Expected: three namespaces populated with all `Running` pods — `falcon-system` (one DaemonSet pod per node), `falcon-kac` (1 pod), and `falcon-image-analyzer` (1 pod).
 
 ---
 
