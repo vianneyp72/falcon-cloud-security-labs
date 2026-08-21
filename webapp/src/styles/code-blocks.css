@@ -1,9 +1,14 @@
+/* -----------------------------------------------------------------------------
+   Code blocks — ALWAYS dark, per Mode A brand rule. Foreground colors are
+   hardcoded (not token-tied) so the block stays legible in both light + dark.
+----------------------------------------------------------------------------- */
 .code-block {
   margin: 1rem 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
+  border: 1px solid #2e2a3a;
+  background: var(--bg-code);
+  position: relative;
 }
 
 .code-block__header {
@@ -11,7 +16,7 @@
   align-items: center;
   padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   gap: 0.5rem;
 }
 
@@ -31,32 +36,36 @@
 .code-block__dot--green { background: #28c840; }
 
 .code-block__lang {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: rgba(240, 236, 250, 0.4);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
   margin-left: auto;
 }
 
 .code-block__copy {
   background: none;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  border: 1px solid rgba(240, 236, 250, 0.15);
+  color: rgba(240, 236, 250, 0.55);
+  font-family: var(--font-body);
   font-size: 0.72rem;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color var(--motion-fast) var(--motion-easing),
+              border-color var(--motion-fast) var(--motion-easing);
 }
 
 .code-block__copy:hover {
-  color: var(--text);
-  border-color: var(--text-muted);
+  color: var(--cs-red);
+  border-color: var(--cs-red);
 }
 
 .code-block__copy--copied {
-  color: var(--success);
-  border-color: var(--success);
+  color: var(--accent-green);
+  border-color: var(--accent-green);
 }
 
 .code-block pre {
@@ -65,6 +74,7 @@
   overflow-x: auto;
   font-size: 0.84rem;
   line-height: 1.5;
+  color: #dcd8e8;
 }
 
 .code-block pre code {
@@ -72,9 +82,10 @@
   background: none;
   border: none;
   padding: 0;
+  color: inherit;
 }
 
-/* highlight.js token colors (GitHub Dark-ish) */
+/* highlight.js token colors (GitHub Dark-ish, unchanged — code is always dark) */
 .hljs-keyword { color: #ff7b72; }
 .hljs-string { color: #a5d6ff; }
 .hljs-comment { color: #8b949e; font-style: italic; }
@@ -88,19 +99,22 @@
 .hljs-addition { color: #aff5b4; background: rgba(46,160,67,0.15); }
 .hljs-deletion { color: #ffdcd7; background: rgba(248,81,73,0.15); }
 
-/* Flow Diagram */
+/* -----------------------------------------------------------------------------
+   Flow Diagram — React Flow container + custom node variants.
+   Dark by default; light-theme overrides at bottom of this file.
+----------------------------------------------------------------------------- */
 .flow-diagram {
   width: 100%;
   height: 500px;
   margin: 1.5rem 0;
-  border-radius: 12px;
-  border: 1px solid rgba(97, 196, 201, 0.12);
-  background: #0c0e14;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(237, 28, 36, 0.15);
+  background: #0c0a14;
   overflow: hidden;
 }
 
 .flow-diagram .react-flow__background {
-  background: #0c0e14;
+  background: #0c0a14;
 }
 
 .flow-diagram .react-flow__edge-text {
@@ -109,7 +123,7 @@
 }
 
 .flow-diagram .react-flow__edge-textbg {
-  fill: #0c0e14;
+  fill: #0c0a14;
 }
 
 /* Nodes */
@@ -118,10 +132,10 @@
   padding-left: 2.5rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(22, 28, 45, 0.95);
+  background: rgba(35, 32, 46, 0.95);
   font-size: 0.78rem;
   font-family: var(--font-body);
-  color: var(--text);
+  color: #dcd8e8;
   min-width: 100px;
   height: 100%;
   display: flex;
@@ -131,7 +145,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Icon badge */
+/* Icon badge — brand red tint */
 .flow-node::before {
   content: '';
   position: absolute;
@@ -141,14 +155,14 @@
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: rgba(97, 196, 201, 0.12);
-  border: 1px solid rgba(97, 196, 201, 0.25);
+  background: rgba(237, 28, 36, 0.14);
+  border: 1px solid rgba(237, 28, 36, 0.3);
 }
 
 /* Container nodes (groups) */
 .flow-node--container {
   background: transparent;
-  border: 1.5px solid rgba(97, 196, 201, 0.2);
+  border: 1.5px solid rgba(237, 28, 36, 0.22);
   border-radius: 12px;
   justify-content: flex-start;
   padding: 0.5rem 0.75rem;
@@ -162,7 +176,7 @@
 
 .flow-node__title {
   font-weight: 600;
-  color: #e8e8ef;
+  color: #f0ecfa;
   font-size: 0.82rem;
   margin-bottom: 0.1rem;
   line-height: 1.3;
@@ -186,7 +200,7 @@
 
 .flow-node__section-title {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--cs-red);
   font-size: 0.72rem;
   margin-bottom: 0.1rem;
 }
@@ -202,39 +216,39 @@
   padding-left: 2.5rem;
 }
 
-/* Cloud node variant - green */
+/* Cloud node variant — green */
 .flow-node--cloud {
-  border-color: rgba(63, 185, 80, 0.3);
+  border-color: rgba(52, 210, 123, 0.3);
 }
 
 .flow-node--cloud::before {
-  background: rgba(63, 185, 80, 0.12);
-  border-color: rgba(63, 185, 80, 0.35);
+  background: rgba(52, 210, 123, 0.12);
+  border-color: rgba(52, 210, 123, 0.35);
 }
 
 .flow-node--cloud .flow-node__title {
-  color: #3fb950;
+  color: var(--accent-green);
 }
 
-/* Danger/red variant */
+/* Danger/red variant — brand red */
 .flow-node--danger {
-  border-color: rgba(248, 81, 73, 0.3);
+  border-color: rgba(237, 28, 36, 0.35);
 }
 
 .flow-node--danger::before {
-  background: rgba(248, 81, 73, 0.12);
-  border-color: rgba(248, 81, 73, 0.35);
+  background: rgba(237, 28, 36, 0.14);
+  border-color: rgba(237, 28, 36, 0.4);
 }
 
 .flow-node--danger .flow-node__title {
-  color: #f85149;
+  color: var(--cs-red);
 }
 
 .flow-node--danger .flow-node__subtitle {
-  color: rgba(248, 81, 73, 0.7);
+  color: rgba(237, 28, 36, 0.7);
 }
 
-/* Phase container variant - dashed purple outline */
+/* Phase container variant — dashed purple outline */
 .flow-node--phase {
   background: transparent;
   border: 1.5px dashed rgba(163, 113, 247, 0.35);
@@ -255,7 +269,7 @@
   font-weight: 700;
 }
 
-/* API node variant - purple */
+/* API node variant — purple */
 .flow-node--api::before {
   background: rgba(163, 113, 247, 0.12);
   border-color: rgba(163, 113, 247, 0.35);
@@ -267,7 +281,7 @@
 
 /* React Flow controls override */
 .flow-diagram .react-flow__controls {
-  background: rgba(22, 28, 45, 0.95);
+  background: rgba(35, 32, 46, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -276,21 +290,21 @@
 .flow-diagram .react-flow__controls button {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
+  color: rgba(240, 236, 250, 0.6);
   width: 28px;
   height: 28px;
 }
 
 .flow-diagram .react-flow__controls button:hover {
-  background: rgba(97, 196, 201, 0.1);
+  background: rgba(237, 28, 36, 0.1);
 }
 
 .flow-diagram .react-flow__controls button svg {
-  fill: var(--text-muted);
+  fill: rgba(240, 236, 250, 0.6);
 }
 
 .flow-diagram .react-flow__minimap {
-  background: rgba(22, 28, 45, 0.95);
+  background: rgba(35, 32, 46, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
 }
@@ -301,4 +315,126 @@
 
 .flow-diagram .react-flow__attribution {
   display: none;
+}
+
+/* -----------------------------------------------------------------------------
+   Light-theme FlowDiagram overrides — warm cream surfaces with dark ink so
+   diagrams follow the page theme (per user feedback). Code BLOCKS still stay
+   dark in both themes; only the React Flow diagram surfaces flip.
+----------------------------------------------------------------------------- */
+[data-theme="light"] .flow-diagram {
+  background: var(--bg-card);
+  border-color: color-mix(in oklab, var(--cs-red) 22%, var(--border));
+}
+
+[data-theme="light"] .flow-diagram .react-flow__background {
+  background: var(--bg-card);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__background pattern circle,
+[data-theme="light"] .flow-diagram .react-flow__background pattern path {
+  fill: color-mix(in oklab, var(--text-muted) 40%, transparent);
+  stroke: color-mix(in oklab, var(--text-muted) 40%, transparent);
+}
+
+[data-theme="light"] .flow-node {
+  background: #ffffff;
+  border-color: color-mix(in oklab, var(--text-muted) 30%, transparent);
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(30, 20, 30, 0.08);
+}
+
+[data-theme="light"] .flow-node__title {
+  color: var(--text-bright);
+}
+
+[data-theme="light"] .flow-node__subtitle,
+[data-theme="light"] .flow-node__detail,
+[data-theme="light"] .flow-node__section-item {
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .flow-node__section {
+  border-bottom-color: color-mix(in oklab, var(--text-muted) 18%, transparent);
+}
+
+[data-theme="light"] .flow-node--container {
+  background: transparent;
+  border-color: color-mix(in oklab, var(--cs-red) 30%, transparent);
+}
+
+[data-theme="light"] .flow-node--cloud {
+  border-color: color-mix(in oklab, var(--accent-green) 45%, transparent);
+}
+
+[data-theme="light"] .flow-node--cloud .flow-node__title {
+  color: color-mix(in oklab, var(--accent-green) 70%, #000);
+}
+
+[data-theme="light"] .flow-node--danger {
+  border-color: color-mix(in oklab, var(--cs-red) 45%, transparent);
+}
+
+[data-theme="light"] .flow-node--danger .flow-node__title {
+  color: var(--cs-red);
+}
+
+[data-theme="light"] .flow-node--danger .flow-node__subtitle {
+  color: color-mix(in oklab, var(--cs-red) 75%, var(--text-muted));
+}
+
+[data-theme="light"] .flow-node--phase {
+  background: transparent;
+  border-color: color-mix(in oklab, #a371f7 55%, transparent);
+}
+
+[data-theme="light"] .flow-node--phase > .flow-node__title {
+  color: color-mix(in oklab, #a371f7 70%, #000);
+}
+
+[data-theme="light"] .flow-node--api .flow-node__title {
+  color: color-mix(in oklab, #a371f7 65%, #000);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__edge-text {
+  fill: var(--text-primary);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__edge-textbg {
+  fill: var(--bg-card);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__edge-path {
+  stroke: color-mix(in oklab, var(--text-muted) 65%, transparent);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__arrowhead,
+[data-theme="light"] .flow-diagram .react-flow__edge .react-flow__arrowhead polyline {
+  fill: color-mix(in oklab, var(--text-muted) 65%, transparent);
+  stroke: color-mix(in oklab, var(--text-muted) 65%, transparent);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__controls {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(30, 20, 30, 0.1);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__controls button {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__controls button:hover {
+  background: color-mix(in oklab, var(--cs-red) 10%, transparent);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__controls button svg {
+  fill: var(--text-primary);
+}
+
+[data-theme="light"] .flow-diagram .react-flow__minimap {
+  background: #ffffff;
+  border-color: var(--border);
 }

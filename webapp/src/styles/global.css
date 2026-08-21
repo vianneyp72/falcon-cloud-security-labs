@@ -1,21 +1,147 @@
+/* -----------------------------------------------------------------------------
+   CrowdStrike Sharp Sans — brand typeface (Book/Medium/SemiBold/Bold/ExtraBold
+   used across the app; Thin + Light kept for optional display use).
+----------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-Thin.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-Lgt.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-Book.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-Mdm.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-SmBd.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'CrowdStrike Sharp Sans';
+  src: url('/fonts/CrowdstrikeSharpSans-ExBd.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* -----------------------------------------------------------------------------
+   Design tokens — Mode A (CrowdStrike Brand).
+   Dark theme is the default. `[data-theme="light"]` block below overrides.
+----------------------------------------------------------------------------- */
 :root {
-  --accent: #61C4C9;
-  --bg: #17181c;
-  --nav-bg: #0d1117;
-  --text: #d0d0d5;
-  --text-accent: #61C4C9;
-  --border: #212929;
-  --code-bg: rgb(1, 4, 9);
-  --card-border: #6c707a;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Surfaces */
+  --bg-primary: #171520;
+  --bg-card: #23202e;
+  --bg-sidebar: #13111c;
+  --bg-code: #12101a;              /* code stays dark in BOTH themes */
+
+  /* Brand */
+  --cs-red: #ED1C24;
+  --cs-red-icon: #EC0000;
+  --cs-black: #231f20;
+  --cs-white: #f8f8f8;
+
+  /* Semantic accents */
+  --accent-green: #34d27b;
+  --accent-blue: #5b9cf5;
+  --accent-yellow: #f0a830;
+
+  /* Text */
+  --text-primary: #dcd8e8;
+  --text-bright: #f0ecfa;
+  --text-muted: #8f8a9e;
+
+  /* Structure */
+  --border: #2e2a3a;
+  --border-strong: #3a3548;
+
+  /* Scale */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Motion */
+  --motion-easing: cubic-bezier(0.25, 1, 0.5, 1);
+  --motion-fast: 150ms;
+  --motion-normal: 250ms;
+  --motion-slow: 400ms;
+
+  /* Fonts */
+  --font-body: 'CrowdStrike Sharp Sans', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Layout */
   --sidebar-width: 18.75rem;
   --nav-height: 4rem;
   --content-max: 1000px;
   --toc-width: 220px;
-  --text-muted: #8b8b8b;
-  --success: #3fb950;
-  --warning: #d29922;
+
+  /* Legacy aliases — keep so downstream selectors don't all need renaming in one pass */
+  --accent: var(--cs-red);
+  --bg: var(--bg-primary);
+  --nav-bg: var(--bg-sidebar);
+  --text: var(--text-primary);
+  --text-accent: var(--cs-red);
+  --code-bg: var(--bg-code);
+  --card-border: var(--border);
+  --success: var(--accent-green);
+  --warning: var(--accent-yellow);
+}
+
+/* Light theme — warm cream, not clinical white. Warm text, softer borders. */
+[data-theme="light"] {
+  --bg-primary: #f8f6f3;
+  --bg-card: #ffffff;
+  --bg-sidebar: #f4f2ef;
+  --bg-code: #12101a;              /* still dark, per brand */
+
+  --text-primary: #2d2a36;
+  --text-bright: #1a1724;
+  --text-muted: #6b6675;
+
+  --border: #e5e0d8;
+  --border-strong: #d2ccc0;
+}
+
+/* Reduced motion — respect user preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 *, *::before, *::after {
@@ -30,19 +156,22 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: var(--bg);
-  color: var(--text);
+  font-size: 15px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-y: scroll;
   scrollbar-width: none;
+  transition: background var(--motion-normal) var(--motion-easing),
+              color var(--motion-normal) var(--motion-easing);
 }
 
 body::-webkit-scrollbar {
   display: none;
 }
 
-/* Hide scrollbars globally but keep scroll functionality */
 *::-webkit-scrollbar {
   display: none;
 }
@@ -52,8 +181,9 @@ body::-webkit-scrollbar {
 }
 
 a {
-  color: var(--text-accent);
+  color: var(--accent-blue);
   text-decoration: none;
+  transition: color var(--motion-fast) var(--motion-easing);
 }
 
 a:hover {
@@ -77,10 +207,10 @@ code {
   display: flex;
   align-items: center;
   padding: 0 1.5rem;
-  background: rgba(13, 17, 23, 0.8);
+  background: color-mix(in oklab, var(--bg-sidebar) 80%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: none;
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -91,17 +221,29 @@ code {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-family: var(--font-body);
   font-weight: 600;
-  font-size: 1rem;
-  color: var(--text);
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  color: var(--text-bright);
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
 }
 
-.app-header__logo svg {
-  width: 28px;
+.app-header__logo:hover {
+  text-decoration: none;
+}
+
+.app-header__logo-mark {
   height: 28px;
+  width: auto;
+  display: none;
+}
+
+[data-theme="light"] .app-header__logo-mark--light,
+:root:not([data-theme="light"]) .app-header__logo-mark--dark {
+  display: block;
 }
 
 .app-header__progress {
@@ -114,10 +256,45 @@ code {
   display: none;
   background: none;
   border: none;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0.25rem;
+}
+
+/* Theme toggle button — 32×32 icon, glass surface, sun/moon inline SVG. */
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--bg-card) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--motion-fast) var(--motion-easing),
+              border-color var(--motion-fast) var(--motion-easing),
+              background var(--motion-fast) var(--motion-easing);
+}
+
+.theme-toggle:hover {
+  color: var(--cs-red);
+  border-color: var(--cs-red);
+  background: color-mix(in oklab, var(--cs-red) 8%, transparent);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--cs-red);
+  outline-offset: 2px;
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 @media (max-width: 900px) {
@@ -137,7 +314,7 @@ code {
     width: var(--sidebar-width);
     z-index: 90;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    transition: transform var(--motion-normal) var(--motion-easing);
   }
 
   .sidebar.open {
@@ -148,7 +325,7 @@ code {
     position: fixed;
     inset: 0;
     top: var(--nav-height);
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 89;
   }
 
@@ -170,6 +347,6 @@ code {
 
 .reading-progress__bar {
   height: 100%;
-  background: var(--accent);
-  transition: width 0.1s linear;
+  background: var(--cs-red);
+  transition: width 100ms linear;
 }
