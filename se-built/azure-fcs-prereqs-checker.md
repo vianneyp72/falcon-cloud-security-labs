@@ -58,8 +58,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/mikedzikowski/AzureFal
 ./Get-PreReqs.ps1
 ```
 
-> **Caution:** Downloading and running a remote script executes unreviewed code. For anything beyond a throwaway check, read `Get-PreReqs.ps1` before running it.
-
 ## Sample Output
 
 ```
