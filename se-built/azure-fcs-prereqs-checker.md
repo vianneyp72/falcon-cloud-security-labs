@@ -2,12 +2,11 @@
 
 A community/SE-built PowerShell script that validates an Azure environment meets the prerequisites for onboarding to CrowdStrike Falcon Cloud Security. It runs comprehensive permission, provider, diagnostic, and policy checks across the tenant root management group and each subscription, then prints color-coded readiness indicators.
 
-> **Note:** Community/SE-built — **not** an official CrowdStrike tool. The project has since **moved to an officially maintained repo:** [CrowdStrike/azure-readiness-check](https://github.com/CrowdStrike/azure-readiness-check). Prefer the official repo for current work; this entry documents the original SE-built tool.
+> **Note:** Community/SE-built — **not** an official CrowdStrike tool. Use at your own discretion.
 
 | Source | Owner | Link |
 |--------|-------|------|
-| Original Repository | [@mikedzikowski](https://github.com/mikedzikowski) | https://github.com/mikedzikowski/AzureFalconCloudSecurityPreReqs |
-| Official Successor | [@CrowdStrike](https://github.com/CrowdStrike) | https://github.com/CrowdStrike/azure-readiness-check |
+| Repository | [@mikedzikowski](https://github.com/mikedzikowski) | https://github.com/mikedzikowski/AzureFalconCloudSecurityPreReqs |
 
 ## What It Does
 
@@ -59,7 +58,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/mikedzikowski/AzureFal
 ./Get-PreReqs.ps1
 ```
 
-> **Caution:** Downloading and running a remote script executes unreviewed code. For anything beyond a throwaway check, read `Get-PreReqs.ps1` before running it — and prefer the [official successor repo](https://github.com/CrowdStrike/azure-readiness-check).
+> **Caution:** Downloading and running a remote script executes unreviewed code. For anything beyond a throwaway check, read `Get-PreReqs.ps1` before running it.
 
 ## Sample Output
 
