@@ -9,8 +9,8 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 
 > **Prerequisites:**
 >
-> - AWS account with `eksctl`, `aws` CLI, and `kubectl` installed and configured
 > - Helm 3 installed (`helm version` shows v3.x)
+> - `aws` CLI, `eksctl`, and `kubectl` installed and configured
 > - Docker, Podman, or Skopeo installed and running (to copy the images to ECR)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required API scopes to pull the images (injector, KAC, IAR):
@@ -20,6 +20,8 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Read/Write)
 > - CrowdStrike CID (with checksum)
+> - **Quick Deploy path:** an existing EKS cluster with Fargate enabled and `kubectl` pointed at it (`kubectl get pods -A` works)
+> - **Full Lab path:** an AWS account and credentials; Section 1 provisions the Fargate-only cluster for you
 >
 > **Image hosting:** This lab hosts all three Falcon images in **same-account ECR**. On Fargate, image pulls are authenticated by the **Fargate pod execution role**, so no image pull secret is used.
 
@@ -39,34 +41,18 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 
 ## Core Concepts
 
-AWS Fargate runs each pod in its own isolated micro-VM with **no host access** — you cannot reach the worker node kernel, run privileged containers, or schedule DaemonSets. That rules out the kernel-mode DaemonSet Sensor entirely. Instead, Fargate is protected with the **Falcon Container Sensor**, which runs fully in **user space** and is injected into each application pod as a sidecar container.
+Fargate runs each pod in its own micro-VM with **no host access**, so the kernel-mode DaemonSet Sensor cannot run. Instead, the user-space **Falcon Container Sensor** is injected into each application pod as a sidecar.
 
-This lab deploys three Fargate-compatible components, each as a standard non-privileged workload:
+- **Sidecar Injector** (`falcon-sensor` chart, injector mode): a mutating webhook that adds the sensor to every new pod. Namespace: `falcon-container-injector`.
+- **Falcon KAC** (`falcon-kac` chart): Kubernetes Admission Controller for visibility and policy. Namespace: `falcon-kac`.
+- **Falcon Image Analyzer** (`falcon-image-analyzer` chart): image vulnerability scanning, in Watcher mode only. Namespace: `falcon-image-analyzer`.
 
-- **Sidecar Injector** (`falcon-sensor` chart, injector mode) — a Deployment fronted by a `MutatingWebhookConfiguration`. When a pod is created, the webhook patches the pod spec to add the Falcon Container Sensor as a sidecar. Namespace: `falcon-container-injector`.
-- **Falcon KAC** (`falcon-kac` chart) — Kubernetes Admission Controller for cluster visibility and policy enforcement. A non-privileged Deployment. Namespace: `falcon-kac`.
-- **Falcon Image Analyzer / IAR** (`falcon-image-analyzer` chart) — scans images for vulnerabilities. Must run in **Watcher mode** (`deployment.enabled=true`) on Fargate, never Socket/DaemonSet mode. Namespace: `falcon-image-analyzer`.
-
-### Why Fargate changes the rules
-
-| Concern                | EC2 nodes                       | EKS Fargate                                        |
-| ---------------------- | ------------------------------- | -------------------------------------------------- |
-| Runtime protection     | DaemonSet sensor (eBPF, kernel) | Sidecar injection (user space)                     |
-| Privileged containers  | Allowed                         | **Not allowed**                                    |
-| DaemonSets             | Scheduled per node              | **Silently ignored**                               |
-| Image Analyzer mode    | Socket (DaemonSet) or Watcher   | **Watcher (Deployment) only**                      |
-| Image pull auth        | Node instance profile / secret  | **Fargate pod execution role (ECR, same account)** |
-| Scheduling a namespace | Any node                        | Requires a **Fargate profile**                     |
-
-### Image pulls on Fargate use the pod execution role
-
-Fargate has no worker nodes, so there is no node instance profile to authenticate registry pulls. Every Fargate pod pulls its images using the **Fargate pod execution role**, which `eksctl` and the `terraform-aws-modules/eks` module auto-attach the `AmazonEKSFargatePodExecutionRolePolicy` to. That policy already grants ECR pull access, so once the Falcon images live in a **same-account ECR** repo, pulls just work — which is why this lab hosts all three images in ECR.
-
-### Fargate profiles are mandatory
-
-On Fargate there are no nodes to fall back on — a pod only schedules if its namespace matches a **Fargate profile**. That means every Falcon namespace (`falcon-container-injector`, `falcon-kac`, `falcon-image-analyzer`), the `kube-system` namespace (CoreDNS runs on Fargate too), and your application namespaces all need profile coverage, or their pods stay `Pending` forever.
-
-> **CoreDNS caveat:** The injector's default namespace exclusions (`falcon-system`, `kube-system`, `kube-public`) exist for a reason — `kube-system` hosts CoreDNS, which you must **not** inject a sensor into. Keep those exclusions intact.
+| Concern | EC2 nodes | EKS Fargate |
+| ------- | --------- | ----------- |
+| Runtime protection | DaemonSet sensor (eBPF, kernel) | Sidecar injection (user space) |
+| DaemonSets and privileged containers | Allowed | **Not supported** |
+| Image pull auth | Node instance profile or secret | **Pod execution role** (same-account ECR) |
+| Scheduling a namespace | Any node | Needs a **Fargate profile**, or pods stay `Pending` |
 
 ```
 EKS FARGATE CLUSTER (serverless, no EC2 nodes)
@@ -88,77 +74,77 @@ CrowdStrike Cloud: sidecar telemetry over TLS 443
 
 ### 1. Set credentials and context
 
-Set your API credentials, CID, existing cluster name, and derive the ECR registry for your account:
+Fill in your values once. Every command below picks them up, so you can copy each block as-is.
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:EKS cluster name,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
+
+Export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
-export FALCON_CID=<YOUR_FALCON_CID>
-export FALCON_CLIENT_ID=<YOUR_CLIENT_ID>
-export FALCON_CLIENT_SECRET=<YOUR_CLIENT_SECRET>
-export CLUSTER_NAME=<YOUR_CLUSTER_NAME>
-export AWS_REGION=<YOUR_AWS_REGION>
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ### 2. Create Fargate profiles for the Falcon namespaces
 
-On a Fargate-only cluster a pod only schedules if its namespace matches a Fargate profile. Create a profile covering the three Falcon namespaces (skip this if your cluster already has matching profiles):
+On a Fargate-only cluster a pod only schedules if its namespace matches a Fargate profile. Create a profile covering the Falcon namespaces (skip this if your cluster already has matching profiles):
 
 ```bash
-eksctl create fargateprofile --cluster $CLUSTER_NAME --region $AWS_REGION \
-  --name falcon \
+eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
   --namespace falcon-container-injector \
-  --namespace falcon-kac \
-  --namespace falcon-image-analyzer
+  --namespace falcon-kac \ #@opt=kac
+  --namespace falcon-image-analyzer \ #@opt=iar
+  --name falcon
 ```
 
 ### 3. Create ECR repos and copy the images
 
-Create the three ECR repos (skips any that already exist — e.g. if Terraform pre-created them). The repo names must be exactly `falcon-container`, `falcon-kac`, and `falcon-imageanalyzer` because that's where `--copy` pushes each image:
+Fargate has no nodes, so it pulls images with the pod execution role, which can read your account's ECR with no pull secret. That is why this guide copies the images into ECR instead of pulling from CrowdStrike's registry. Create the repos (skips any that already exist). Repo names must match the image names because `--copy` does not rename:
 
 ```bash
-for repo in falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr describe-repositories --repository-names $repo --region $AWS_REGION >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region $AWS_REGION
+for repo in falcon-container falcon-kac falcon-imageanalyzer; do #@opt=kac #@opt=iar
+for repo in falcon-container falcon-kac; do #@opt=kac #@opt=noiar
+for repo in falcon-container falcon-imageanalyzer; do #@opt=nokac #@opt=iar
+for repo in falcon-container; do #@opt=nokac #@opt=noiar
+  aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --region <AWS_REGION>
 done
 ```
 
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 
 ```bash
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 ```
 
-Copy each image from the CrowdStrike registry into ECR (`--copy` pushes to `$ECR_REGISTRY/<image-name>:<tag>`):
+Copy each image from the CrowdStrike registry into ECR (`--copy` pushes to `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<image-name>:<tag>`):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-container --copy $ECR_REGISTRY
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-kac --copy $ECR_REGISTRY
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-imageanalyzer --copy $ECR_REGISTRY
+for t in falcon-container falcon-kac falcon-imageanalyzer; do #@opt=kac #@opt=iar
+for t in falcon-container falcon-kac; do #@opt=kac #@opt=noiar
+for t in falcon-container falcon-imageanalyzer; do #@opt=nokac #@opt=iar
+for t in falcon-container; do #@opt=nokac #@opt=noiar
+  curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+    --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type $t --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
+done
 ```
 
 ### 4. Read the image tags from ECR
 
-> Note: `falcon-container` is the **Container Sensor** (the user-space sidecar), not `falcon-sensor` — the DaemonSet Sensor (kernel-mode image) that can't run on Fargate.
+`--copy` keeps each image's tag, so read it back from ECR. `falcon-container` is the **Container Sensor** (the user-space sidecar), not `falcon-sensor`, the DaemonSet Sensor that cannot run on Fargate.
 
 ```bash
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=kac
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=iar
 ```
 
-Validate every variable the Helm installs need was populated:
+Validate the client secret and every image tag the Helm installs need was populated (a ✅ means set, a ❌ means missing):
 
 ```bash
-echo "CID              : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster          : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
-echo "ECR Registry     : $([ -n "$ECR_REGISTRY" ] && echo SET || echo MISSING) ($ECR_REGISTRY)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-container:$CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-kac:$KAC_TAG)"
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-imageanalyzer:$IAR_TAG)"
+echo "Client Secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && echo ✅ || echo ❌) ($KAC_TAG)" #@opt=kac
+echo "IAR              : $([ -n "$IAR_TAG" ] && echo ✅ || echo ❌) ($IAR_TAG)" #@opt=iar
 ```
 
 ### 5. Add Helm repo and deploy
@@ -170,30 +156,46 @@ helm repo add crowdstrike https://crowdstrike.github.io/falcon-helm
 helm repo update
 ```
 
-Install the `falcon-sensor` chart in injector mode, pointing at the ECR image (no pull secret needed — the pod execution role authenticates the pull):
+> **Note:** Open **Additional settings** below for GovCloud, proxy, and which components (KAC, Image Analyzer) to deploy. The commands update to match.
+
+<div data-deploy-options></div>
+
+Install the `falcon-sensor` chart in injector mode, pointing at the ECR image. No pull secret is needed because the pod execution role authenticates the pull.
+
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group the injected sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 ```bash
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
   --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
+  --set falcon.aph=<PROXY_HOST> \ #@opt=proxy
+  --set falcon.app=<PROXY_PORT> \ #@opt=proxy
   --set node.enabled=false \
   --set container.enabled=true \
-  --set container.image.repository=$ECR_REGISTRY/falcon-container \
+  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
-Install KAC (cluster visibility + admission control):
+<div data-opt="kac">
+
+Install KAC (cluster visibility and admission control):
 
 ```bash
 helm upgrade --install falcon-kac crowdstrike/falcon-kac \
   --namespace falcon-kac --create-namespace \
-  --set falcon.cid=$FALCON_CID \
-  --set clusterName=$CLUSTER_NAME \
-  --set image.repository=$ECR_REGISTRY/falcon-kac \
+  --set falcon.cid=<FALCON_CID> \
+  --set falcon.aph=<PROXY_HOST> \ #@opt=proxy
+  --set falcon.app=<PROXY_PORT> \ #@opt=proxy
+  --set clusterName=<CLUSTER_NAME> \
+  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac \
   --set image.tag=$KAC_TAG
 ```
+
+</div>
+
+<div data-opt="iar">
 
 Install Image Analyzer in Watcher mode (image vulnerability scanning):
 
@@ -201,23 +203,57 @@ Install Image Analyzer in Watcher mode (image vulnerability scanning):
 helm upgrade --install falcon-image-analyzer crowdstrike/falcon-image-analyzer \
   --namespace falcon-image-analyzer --create-namespace \
   --set deployment.enabled=true \
-  --set image.repository=$ECR_REGISTRY/falcon-imageanalyzer \
+  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-imageanalyzer \
   --set image.tag=$IAR_TAG \
-  --set crowdstrikeConfig.cid=$FALCON_CID \
-  --set crowdstrikeConfig.clusterName=$CLUSTER_NAME \
-  --set crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
-  --set crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET \
-  --set crowdstrikeConfig.agentRegion=us-1
+  --set crowdstrikeConfig.cid=<FALCON_CID> \
+  --set crowdstrikeConfig.clusterName=<CLUSTER_NAME> \
+  --set crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
+  --set crowdstrikeConfig.agentRegion=gov1 \ #@region=gov1
+  --set crowdstrikeConfig.agentRegion=gov2 \ #@region=gov2
+  --set crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1> \ #@region=commercial
+  --set proxyConfig.HTTP_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=proxy
+  --set proxyConfig.HTTPS_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=proxy
+  --set crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
-> `node.enabled=false` disables the DaemonSet sensor (no kernel access on Fargate). `container.enabled=true` turns on injector mode. `deployment.enabled=true` selects IAR **Watcher mode** — the only mode that works on Fargate. `crowdstrikeConfig.cid` is required (the chart's schema rejects a null CID). Set `agentRegion` to your cloud (`us-1`, `us-2`, `eu-1`, `gov1`, `gov2`).
+</div>
 
-### 6. Verify injection and trigger a detection
+> **Why this matters:** `node.enabled=false` turns off the DaemonSet sensor (Fargate has no kernel access) and `container.enabled=true` turns on injector mode. `deployment.enabled=true` selects IAR **Watcher mode**, the only mode that works on Fargate. Set the commercial `agentRegion` to your cloud (`us-1`, `us-2`, or `eu-1`); the sensor and KAC derive their region from the CID.
 
-Create a Fargate profile for the app namespace so its pods can schedule:
+### 6. Verify deployment
+
+Wait for every Falcon pod to reach `Ready`. Each namespace is checked in parallel and prints ✅ when ready or ❌ if not within 5 minutes:
 
 ```bash
-eksctl create fargateprofile --cluster $CLUSTER_NAME --region $AWS_REGION \
+(
+for ns in falcon-container-injector falcon-kac falcon-image-analyzer; do #@opt=kac #@opt=iar
+for ns in falcon-container-injector falcon-kac; do #@opt=kac #@opt=noiar
+for ns in falcon-container-injector falcon-image-analyzer; do #@opt=nokac #@opt=iar
+for ns in falcon-container-injector; do #@opt=nokac #@opt=noiar
+  (kubectl wait --for=condition=Ready pods --all -n $ns --timeout=300s >/dev/null 2>&1 \
+    && echo "✅ $ns: Ready" \
+    || echo "❌ $ns: not Ready (run: kubectl get pods -n $ns)") &
+done
+wait
+)
+```
+
+> **Heads-up:** Fargate starts a separate micro-VM for every pod, so the first pods take about a minute to come up. A pod stuck in `Pending` almost always means its namespace has no matching Fargate profile (step 2).
+
+Then list the Falcon pods:
+
+```bash
+kubectl get pods -A -o wide | grep falcon
+```
+
+Every pod should show `STATUS` `Running`, and the `NODE` column should start with `fargate-ip-` (proof the pod landed on Fargate). The injector shows `1/1` or `2/2` replicas, KAC `3/3`, and Image Analyzer `1/1`.
+
+### 7. Test a detection (optional)
+
+Create a Fargate profile for the app namespace so its pods can schedule (this is what puts the app on Fargate, where the sidecar gets injected):
+
+```bash
+eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
   --name app-workloads \
   --namespace detection-vulnapp
 ```
@@ -228,7 +264,7 @@ Create the app namespace:
 kubectl create namespace detection-vulnapp
 ```
 
-Deploy the CrowdStrike vulnapp:
+Deploy the CrowdStrike vulnapp, a web app that fires safe, simulated attacks:
 
 ```bash
 kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
@@ -238,22 +274,44 @@ Confirm the Falcon sidecar was injected:
 
 ```bash
 kubectl get pod -l run=vulnerable.example.com -n detection-vulnapp -o jsonpath='{.items[0].spec.containers[*].name}'
-# Should show: crowdstrike-falcon-container vulnapp
 ```
 
-Port-forward and trigger a simulated attack, then check the console:
+> **Verify:** The output should include `crowdstrike-falcon-container` next to your app container (`vulnapp`). If it only shows the app container, the webhook did not reach this namespace; check the injector pods from step 6.
+
+Port-forward the app to your machine (this blocks, so leave it running):
 
 ```bash
 kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 ```
 
-Open [http://localhost:8060](http://localhost:8060), click any attack simulation, then check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections** (filter **Source product** = **Cloud**). Stop the port-forward (Ctrl+C) when done.
+Open [http://localhost:8060](http://localhost:8060) and click any attack simulation. Then check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections** (filter **Source product** = **Cloud**). Stop the port-forward (Ctrl+C) when done.
 
-When you're finished, remove the vulnapp:
+### 8. Clean up (optional)
+
+Removes everything this guide deployed. Your EKS cluster itself is not touched.
 
 ```bash
 kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+helm uninstall falcon-container-injector -n falcon-container-injector
 ```
+
+Remove KAC and Image Analyzer if you installed them:
+
+```bash
+helm uninstall falcon-kac -n falcon-kac #@opt=kac
+helm uninstall falcon-image-analyzer -n falcon-image-analyzer #@opt=iar
+```
+
+Delete the namespaces and the ECR repos (`--force` removes repos that still hold images):
+
+```bash
+kubectl delete namespace detection-vulnapp falcon-container-injector falcon-kac falcon-image-analyzer --ignore-not-found
+for repo in falcon-container falcon-kac falcon-imageanalyzer; do
+  aws ecr delete-repository --repository-name $repo --force --region <AWS_REGION>
+done
+```
+
+> **Note:** Host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them with `eksctl delete fargateprofile --cluster <CLUSTER_NAME> --name <profile>` if you no longer need them.
 
 </div>
 
@@ -261,25 +319,54 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 ## 1. Provision an EKS Fargate-Only Cluster
 
-> **What & Why:** A Fargate-only cluster has zero EC2 nodes — every pod, including CoreDNS, runs in its own micro-VM. This forces the serverless protection model (sidecar injection) and makes the "every namespace needs a Fargate profile" rule impossible to skip. It mirrors production teams who run fully serverless Kubernetes.
+> **What & Why:** A Fargate-only cluster has zero EC2 nodes. Every pod, including CoreDNS, runs in its own micro-VM. This forces the serverless protection model (sidecar injection) and makes the "every namespace needs a Fargate profile" rule impossible to skip. It mirrors production teams who run fully serverless Kubernetes.
 
-### Step 1: Create the cluster configuration
+### Step 1: Install and authenticate the AWS tools
 
-> **What & Why:** The `fargateProfiles` block is the whole game on a nodeless cluster — a namespace with no matching profile can never schedule a pod. We pre-declare profiles for `default`/`kube-system` (CoreDNS), all three Falcon namespaces, and a `detection-vulnapp` namespace for later testing.
+> **What & Why:** Fresh machines often hit "command not found" or "Unable to locate credentials" on the first provision command. Install the tools and log in first. The panel below sets the cluster name and region used in every command that follows.
 
-- [ ] Create an `eksctl` config with Fargate profiles and no node groups:
+<div data-lab-variables></div>
+
+- [ ] Install the [`aws` CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [`eksctl`](https://eksctl.io/installation/), and `kubectl`, then log in:
 
 ```bash
-export CLUSTER_NAME=falcon-fargate-lab
-export AWS_REGION=us-east-1
+aws configure   # or: aws sso login
+```
 
+- [ ] Confirm you are the expected AWS principal:
+
+```bash
+aws sts get-caller-identity
+```
+
+The `Account` value is where the cluster and ECR repos will be created. Your IAM principal needs the [eksctl minimum policies](https://eksctl.io/usage/minimum-iam-policies/) (EC2, EKS, IAM, CloudFormation, VPC).
+
+### Step 2: Create the cluster
+
+> **What & Why:** The Fargate profiles are the whole game on a nodeless cluster. A namespace with no matching profile can never schedule a pod. We pre-declare profiles for `default`/`kube-system` (CoreDNS), the three Falcon namespaces, and a `detection-vulnapp` namespace for testing. Cluster creation takes several minutes; do not Ctrl+C.
+
+> **Why this matters:** A **Fargate profile** tells EKS which pods run on Fargate, matched by namespace (and optional labels). EKS also creates a **pod execution role** for the profile. That IAM role is what lets Fargate pull images from ECR and write logs; you never attach it to pods yourself. `AmazonEKSFargatePodExecutionRolePolicy` on that role is why same-account ECR pulls need no pull secret later.
+
+- [ ] **Console:** Navigate to **EKS** → **Clusters** → **Create cluster** → set name `{{CLUSTER_NAME}}` and a cluster service role (create one if you do not have `AmazonEKSClusterRole`) → accept the default VPC and subnets → **Create**
+- [ ] When the cluster shows **Active**, open it → **Compute** tab → **Add Fargate profile** and create three profiles, each with its own pod execution role (create `AmazonEKSFargatePodExecutionRole` once, then reuse it):
+  - `falcon`: namespaces `falcon-container-injector`, `falcon-kac`, `falcon-image-analyzer`
+  - `app-workloads`: namespace `detection-vulnapp`
+  - `default`: namespaces `default`, `kube-system`
+- [ ] Open **Add-ons** → **CoreDNS** → **Edit** → set **Compute type** to **Fargate** (a nodeless cluster has nowhere else to run it)
+
+<details>
+<summary>CLI equivalent</summary>
+
+`eksctl` collapses all of the above into one config file and fixes CoreDNS for you, since no managed node group is defined:
+
+```bash
 cat <<'EOF' > eksctl-fargate.yaml
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: falcon-fargate-lab
-  region: us-east-1
+  name: {{CLUSTER_NAME}}
+  region: {{REGION}}
 
 iam:
   withOIDC: true
@@ -300,21 +387,23 @@ fargateProfiles:
 EOF
 ```
 
-### Step 2: Create the cluster
-
-> **What & Why:** With no managed node groups defined, eksctl automatically reconfigures the CoreDNS deployment to run on Fargate (it removes the EC2 compute-type annotation). This takes a few minutes. eksctl also creates a **Fargate pod execution role** and attaches `AmazonEKSFargatePodExecutionRolePolicy` to it — that policy grants same-account ECR pulls, which is what lets the Falcon pods pull from ECR later with no pull secret.
-
-- [ ] Deploy the cluster:
-
 ```bash
 eksctl create cluster -f eksctl-fargate.yaml
 ```
 
-> **Terraform alternative:** The `tf-k8s-eks-fargate-lab` project provisions the same nodeless cluster **and** the three ECR repos this lab uses. If you applied it, skip the `eksctl` steps and run `aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME`, then continue from Section 2 (the repos already exist, so the create step there becomes a no-op).
+</details>
+
+> **Note:** The `tf-k8s-eks-fargate-lab` Terraform project provisions the same nodeless cluster **and** the three ECR repos this lab uses. If you applied it, skip this step and run `aws eks update-kubeconfig --region {{REGION}} --name {{CLUSTER_NAME}}`. The repo-creation step in Section 2 then becomes a no-op.
 
 ### Step 3: Verify the serverless setup
 
-- [ ] Confirm there are **no** EC2 nodes (they only appear as Fargate-backed nodes once pods schedule):
+- [ ] Confirm kubectl points at the new cluster (the output should contain `{{CLUSTER_NAME}}`):
+
+```bash
+kubectl config current-context
+```
+
+- [ ] Confirm there are no EC2 nodes yet (Fargate nodes only appear once pods schedule onto them):
 
 ```bash
 kubectl get nodes
@@ -323,7 +412,7 @@ kubectl get nodes
 - [ ] Confirm the Fargate profiles exist:
 
 ```bash
-eksctl get fargateprofile --cluster $CLUSTER_NAME
+eksctl get fargateprofile --cluster {{CLUSTER_NAME}} --region {{REGION}}
 ```
 
 You should see `default`, `falcon`, and `app-workloads`.
@@ -334,82 +423,107 @@ You should see `default`, `falcon`, and `app-workloads`.
 kubectl get pods -n kube-system -o wide -l k8s-app=kube-dns
 ```
 
-The node names should be `fargate-ip-...` — proof CoreDNS itself moved to Fargate.
+> **Look for:** `STATUS` `Running` and a `NODE` value that starts with `fargate-ip-`. That proves CoreDNS itself moved to Fargate. If the pods are `Pending`, the `kube-system` namespace is missing from a Fargate profile.
 
 ---
 
 ## 2. Stage Images in ECR
 
-> **What & Why:** On Fargate, image pulls are authenticated by the pod execution role — not by an `imagePullSecret`. Hosting the three Falcon images in same-account ECR means the pod execution role's `AmazonEKSFargatePodExecutionRolePolicy` authenticates every pull, so there's no pull token to mint, no secret to propagate, and no namespace-ordering caveat. IAR still needs API credentials at runtime for vulnerability reporting — that's unrelated to image pulls.
+> **What & Why:** On Fargate, image pulls are authenticated by the pod execution role, not by an `imagePullSecret`. Hosting the three Falcon images in same-account ECR means that role authenticates every pull, so there is no pull token to mint, no secret to propagate, and no namespace-ordering caveat. Image Analyzer still needs API credentials at runtime for vulnerability reporting; that is unrelated to image pulls.
 
-### Step 1: Set API credentials and context
+### Step 1: Create an API client
 
-- [ ] Export your Falcon API credentials, CID, cluster name, and the ECR registry for your account:
+- [ ] Navigate to **Falcon Console** > **Support and resources** > **API clients and keys** > **Create API client**
+- [ ] Set the following OAuth 2.0 scopes:
+  - Sensor Download: **Read**
+  - Falcon Images Download: **Read**
+  - Falcon Container Image: **Read/Write**
+  - Falcon Container CLI: **Read/Write**
+
+<details>
+<summary>CLI equivalent</summary>
+
+There is no CLI for creating API clients; this must be done in the console.
+
+</details>
+
+### Step 2: Fill in your values and export the secret
+
+- [ ] Fill in your values once. Every command below picks them up, so you can copy each block as-is. Use the `Account` value from `aws sts get-caller-identity` in Section 1 for the account ID:
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_ACCOUNT_ID:AWS account ID"></div>
+
+- [ ] Export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
-export FALCON_CID=<YOUR_FALCON_CID>
-export FALCON_CLIENT_ID=<YOUR_CLIENT_ID>
-export FALCON_CLIENT_SECRET=<YOUR_CLIENT_SECRET>
-export CLUSTER_NAME=falcon-fargate-lab
-export AWS_REGION=us-east-1
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
-### Step 2: Create the ECR repositories
+### Step 3: Create the ECR repositories
 
-> **What & Why:** The pull script's `--copy` flag pushes to `<registry>/<image-name>:<tag>` but does **not** create the destination repo. The image names are fixed — `falcon-container`, `falcon-kac`, `falcon-imageanalyzer` (no hyphen) — so the repos must use exactly those names. This create step is idempotent, so it's safe whether or not the `tf-k8s-eks-fargate-lab` Terraform already made them.
+> **What & Why:** The pull script's `--copy` flag pushes to `<registry>/<image-name>:<tag>` but does **not** create the destination repo. The image names are fixed (`falcon-container`, `falcon-kac`, `falcon-imageanalyzer`, with no hyphen in the last one), so the repos must use exactly those names. ECR (Elastic Container Registry) is AWS's private image registry; each image name gets its own repository.
 
-- [ ] Create the three repos (skips any that already exist):
+- [ ] **Console:** Navigate to **ECR** → **Private registry** → **Repositories** → **Create repository** → set the repository name to `falcon-container` → **Create**. Repeat for `falcon-kac` and `falcon-imageanalyzer`.
+
+<details>
+<summary>CLI equivalent</summary>
+
+Idempotent, so it is safe to re-run or to use after the Terraform project already created them:
 
 ```bash
 for repo in falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr describe-repositories --repository-names $repo --region $AWS_REGION >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region $AWS_REGION
+  aws ecr describe-repositories --repository-names $repo --region {{REGION}} >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --region {{REGION}}
 done
 ```
 
-### Step 3: Log Docker in to ECR
+</details>
+
+### Step 4: Log Docker in to ECR
 
 > **What & Why:** The pull script logs in to the **CrowdStrike** registry to read the images, but it does **not** log in to your **destination** registry. You must authenticate Docker to ECR yourself before `--copy` can push.
 
-- [ ] Authenticate to your ECR registry:
+- [ ] Authenticate to your ECR registry (the output should end with `Login Succeeded`):
 
 ```bash
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+aws ecr get-login-password --region {{REGION}} | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
 ```
 
-### Step 4: Copy the images into ECR
+### Step 5: Copy the images into ECR
 
-- [ ] Copy each image from the CrowdStrike registry to ECR (`--copy` pushes to `$ECR_REGISTRY/<image-name>:<tag>`):
+- [ ] Copy each image from the CrowdStrike registry to ECR (`--copy` pushes to `<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/<image-name>:<tag>`):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-container --copy $ECR_REGISTRY
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-kac --copy $ECR_REGISTRY
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-imageanalyzer --copy $ECR_REGISTRY
+for t in falcon-container falcon-kac falcon-imageanalyzer; do
+  curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+    --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type $t --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
+done
 ```
 
-### Step 5: Read the image tags from ECR
+- [ ] **Console:** Open **ECR** → **Repositories** → each `falcon-*` repo and confirm it holds one image with a version tag.
 
-> **What & Why:** The sidecar sensor is the `falcon-container` image type — the user-space **Container Sensor**, distinct from `falcon-sensor` (the **DaemonSet Sensor**, a kernel-mode image which cannot run on Fargate). Because `--copy` preserved each image's original tag, read it straight back from ECR rather than invoking the pull script a second time with `--get-image-path`. This also means the tag you deploy is exactly what actually landed in your registry.
+### Step 6: Read the image tags from ECR
 
-- [ ] Capture each tag from ECR and validate everything populated:
+> **What & Why:** The sidecar sensor is the `falcon-container` image type, the user-space **Container Sensor**. It is distinct from `falcon-sensor`, the **DaemonSet Sensor**, a kernel-mode image that cannot run on Fargate. Because `--copy` preserved each image's original tag, read it back from ECR rather than calling the pull script again. The tag you deploy is then exactly what landed in your registry.
+
+- [ ] Capture each tag from ECR:
 
 ```bash
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-
-echo "CID              : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster          : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
-echo "ECR Registry     : $([ -n "$ECR_REGISTRY" ] && echo SET || echo MISSING) ($ECR_REGISTRY)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-container:$CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-kac:$KAC_TAG)"
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-imageanalyzer:$IAR_TAG)"
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
 ```
+
+- [ ] Validate the client secret and every tag populated (a ✅ means set, a ❌ means missing):
+
+```bash
+echo "Client Secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && echo ✅ || echo ❌) ($KAC_TAG)"
+echo "IAR              : $([ -n "$IAR_TAG" ] && echo ✅ || echo ❌) ($IAR_TAG)"
+```
+
+> **Look for:** a ✅ on every line. A ❌ on a tag means that repo is empty, so re-run the matching `--copy` in Step 5. `None` as a tag value means the image was pushed untagged.
 
 ---
 
@@ -447,10 +561,10 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
   --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
   --set node.enabled=false \
   --set container.enabled=true \
-  --set container.image.repository=$ECR_REGISTRY/falcon-container \
+  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
@@ -464,11 +578,15 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
 kubectl get pods -n falcon-container-injector -o wide
 ```
 
+> **Look for:** `STATUS` `Running`, `READY` `1/1` (or `2/2`), and a `NODE` value starting with `fargate-ip-`. The injector pods themselves run on Fargate, so the `falcon` profile from Section 1 must cover this namespace or they stay `Pending`.
+
 - [ ] Confirm the mutating webhook is registered:
 
 ```bash
 kubectl get mutatingwebhookconfigurations | grep falcon
 ```
+
+You should see one `falcon` webhook configuration. This is the object that intercepts every new pod and adds the sidecar.
 
 ---
 
@@ -484,9 +602,9 @@ kubectl get mutatingwebhookconfigurations | grep falcon
 helm upgrade --install falcon-kac crowdstrike/falcon-kac \
   --namespace falcon-kac \
   --create-namespace \
-  --set falcon.cid=$FALCON_CID \
-  --set clusterName=$CLUSTER_NAME \
-  --set image.repository=$ECR_REGISTRY/falcon-kac \
+  --set falcon.cid=<FALCON_CID> \
+  --set clusterName={{CLUSTER_NAME}} \
+  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-kac \
   --set image.tag=$KAC_TAG
 ```
 
@@ -498,9 +616,15 @@ helm upgrade --install falcon-kac crowdstrike/falcon-kac \
 
 ```bash
 kubectl get pods -n falcon-kac -o wide
-kubectl get pod -n falcon-kac -o jsonpath='{.items[0].spec.containers[*].name}'
-# Expected: falcon-client falcon-watcher falcon-ac
 ```
+
+> **Look for:** `READY` `3/3` and `STATUS` `Running`. Then list the container names:
+
+```bash
+kubectl get pod -n falcon-kac -o jsonpath='{.items[0].spec.containers[*].name}'
+```
+
+The output should be `falcon-client falcon-watcher falcon-ac`.
 
 ---
 
@@ -517,16 +641,18 @@ helm upgrade --install falcon-image-analyzer crowdstrike/falcon-image-analyzer \
   --namespace falcon-image-analyzer \
   --create-namespace \
   --set deployment.enabled=true \
-  --set image.repository=$ECR_REGISTRY/falcon-imageanalyzer \
+  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-imageanalyzer \
   --set image.tag=$IAR_TAG \
-  --set crowdstrikeConfig.cid=$FALCON_CID \
-  --set crowdstrikeConfig.clusterName=$CLUSTER_NAME \
-  --set crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
+  --set crowdstrikeConfig.cid=<FALCON_CID> \
+  --set crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
+  --set crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET \
-  --set crowdstrikeConfig.agentRegion=us-1
+  --set crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1>
 ```
 
-> `deployment.enabled=true` selects Watcher mode. **Never** set `daemonset.enabled=true` on Fargate. `crowdstrikeConfig.*` supplies the **runtime** API credentials IAR uses to upload assessments (unrelated to image pulls); `crowdstrikeConfig.cid` is required — the chart's values schema rejects a null CID. Set `agentRegion` to your cloud (`us-1`, `us-2`, `eu-1`, `gov1`, `gov2`).
+> **Why this matters:** `deployment.enabled=true` selects Watcher mode. **Never** set `daemonset.enabled=true` on Fargate. `crowdstrikeConfig.*` supplies the **runtime** API credentials IAR uses to upload assessments (unrelated to image pulls), and `crowdstrikeConfig.cid` is required because the chart's values schema rejects a null CID.
+
+> **Note:** Set `agentRegion` to your Falcon cloud: `us-1`, `us-2`, or `eu-1` for commercial. For GovCloud this flag is **required**, so use `gov1` (US-GOV-1) or `gov2` (US-GOV-2). Unlike Image Analyzer, the injector and KAC derive their region from the CID.
 
 > **Sizing caveat:** IAR mounts a `tmp-volume` emptyDir (default 20Gi) sized to ~2× the largest image it scans. On Fargate this consumes the pod's ephemeral storage, so a scan-heavy IAR pod may need a larger Fargate configuration. Watch for `Evicted` pods and raise the volume/ephemeral-storage request if needed.
 
@@ -541,32 +667,41 @@ kubectl get pods -n falcon-image-analyzer -o wide
 
 ---
 
-## 7. Verify Fargate Coverage and Test a Detection
+## 7. Verify Fargate Coverage
 
-> **What & Why:** Verification means proving the injection path actually works end to end: a new pod in a Fargate-profiled namespace should come up with the Falcon sidecar attached and generate real detections. The CrowdStrike vulnapp doubles as both the injection target and a safe attack simulator.
+> **What & Why:** Verification means proving the injection path works end to end: a new pod in a Fargate-profiled namespace should come up with the Falcon sidecar attached and register as a host in the Falcon console.
 
-### Step 1: Check all Falcon components
+### Step 1: Confirm all Falcon pods are Running
 
-- [ ] Get a full picture of every Falcon pod:
+- [ ] List every Falcon pod across all namespaces:
 
 ```bash
-kubectl get pods -A | grep falcon
+kubectl get pods -A -o wide | grep falcon
 ```
 
-Expected namespaces: `falcon-container-injector` (injector), `falcon-kac` (KAC), `falcon-image-analyzer` (IAR).
+> **Look for:** pods in three namespaces, all `Running`, each with a `NODE` value starting with `fargate-ip-`: `falcon-container-injector` (the injector), `falcon-kac` (KAC, `3/3`), and `falcon-image-analyzer` (Image Analyzer, `1/1`).
 
 ### Step 2: Deploy the vulnapp into a Fargate-profiled namespace
 
-> The `detection-vulnapp` namespace is covered by the `app-workloads` Fargate profile from Section 1. Because pulls use the pod execution role, this namespace can be created now — there's no pull secret to seed ahead of time.
+> **Why this matters:** The `detection-vulnapp` namespace is covered by the `app-workloads` Fargate profile from Section 1. Because Fargate pulls with the pod execution role, you can create this namespace at any time; there is no pull secret to seed ahead of the injector.
 
-- [ ] Create the namespace and deploy the vulnapp:
+- [ ] Create the namespace:
 
 ```bash
 kubectl create namespace detection-vulnapp
+```
+
+- [ ] Deploy the CrowdStrike vulnapp, a web app that fires safe, simulated attacks:
+
+```bash
 kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
 ```
 
-- [ ] Give the pod a moment to schedule — Fargate provisions a micro-VM per pod, so the first start is slower than EC2.
+- [ ] Wait for the pod to become Ready (Fargate starts a separate micro-VM per pod, so expect about a minute):
+
+```bash
+kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s
+```
 
 ### Step 3: Verify sidecar injection
 
@@ -574,32 +709,52 @@ kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstr
 
 ```bash
 kubectl get pod -l run=vulnerable.example.com -n detection-vulnapp -o jsonpath='{.items[0].spec.containers[*].name}'
-# Expected: crowdstrike-falcon-container vulnapp
 ```
 
-> **Look for:** the `crowdstrike-falcon-container` name alongside your app container (`vulnapp`). If it's missing, the webhook didn't reach this namespace — re-check Section 4. If the pod is stuck in `Init:ImagePullBackOff`, confirm the images are in ECR (Section 2) and that the Fargate pod execution role carries `AmazonEKSFargatePodExecutionRolePolicy`.
+> **Verify:** The output should include `crowdstrike-falcon-container` next to your app container (`vulnapp`). If it is missing, the webhook did not reach this namespace, so re-check Section 4. If the pod is stuck in `Init:ImagePullBackOff`, confirm the images are in ECR (Section 2) and that the Fargate pod execution role carries `AmazonEKSFargatePodExecutionRolePolicy`.
 
 ### Step 4: Verify in the Falcon console
 
-- [ ] Navigate to **Falcon Console** > **Host management** > **Hosts**
-- [ ] Filter by your cluster name — the Fargate pod should appear as a host tagged `eks-fargate`
+- [ ] Navigate to **Falcon Console** > **Host setup and management** > **Host management**
+- [ ] Filter by **Grouping Tags** with the tag you set at deploy time (`eks-fargate` by default)
+- [ ] The Fargate pod should appear as a host within a few minutes
 
-### Step 5: Test a detection (optional)
+### Step 5: Troubleshooting
 
-> **What & Why:** Injection proves coverage; a real detection proves the sidecar is actively monitoring. The vulnapp's web UI fires safe, simulated attacks.
+If a pod is not Running or a sidecar never registers, work through this table:
 
-- [ ] Port-forward to the vulnapp service (this blocks — leave it running):
+| Symptom | Likely cause | Check |
+|---------|--------------|-------|
+| Pod stuck in `Pending` | The namespace has no matching Fargate profile | `eksctl get fargateprofile --cluster {{CLUSTER_NAME}} --region {{REGION}}`, then add the namespace to a profile |
+| `ImagePullBackOff` or `Init:ImagePullBackOff` | Image missing from ECR, or wrong repo name or tag | `kubectl describe pod <name> -n <ns>` and read `Events`; re-run the Section 2 validate block |
+| Pod Running but no `crowdstrike-falcon-container` | Webhook did not reach the namespace, or pod predates the injector | `kubectl get mutatingwebhookconfigurations \| grep falcon`; delete and recreate the pod |
+| Sidecar Running but no host in console | Egress to the Falcon cloud blocked, or still registering | `kubectl logs <pod> -n <ns> -c crowdstrike-falcon-container`; wait 5 more minutes |
+| `helm status` shows `failed` | Empty variable in a `--set` value | Re-run the Section 2 Step 6 validate block; any ❌ means an earlier step failed silently |
+
+---
+
+## 8. Test a Detection (Optional)
+
+> **What & Why:** Hosts registering proves connectivity; a detection proves the sidecar is actively monitoring. The vulnapp's web UI fires safe, simulated attacks.
+
+### Step 1: Trigger a simulated attack
+
+- [ ] Port-forward to the vulnapp service (this blocks, so leave it running):
 
 ```bash
 kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 ```
 
-- [ ] Open [http://localhost:8060](http://localhost:8060) and click any attack simulation (e.g. **Access sensitive files**, **Kill process**, **Run a reverse shell**).
-- [ ] In the console, go to **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, filter **Source product** = **Cloud** — a detection tied to the Fargate pod should appear within a few minutes. Stop the port-forward (Ctrl+C) when done.
+- [ ] Open [http://localhost:8060](http://localhost:8060) and click any attack simulation (for example **Access sensitive files**, **Kill process**, or **Run a reverse shell**)
 
-### Step 6: Clean up the vulnapp
+### Step 2: Confirm the detection
 
-- [ ] Remove the vulnapp:
+- [ ] In the Falcon console, go to **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**
+- [ ] A detection tied to the Fargate pod should appear within a few minutes. Stop the port-forward (Ctrl+C) when done.
+
+### Step 3: Remove the vulnapp
+
+- [ ] Delete the test app:
 
 ```bash
 kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
@@ -607,9 +762,9 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 ---
 
-## 8. Cleanup
+## 9. Cleanup
 
-> **What & Why:** Removes all Falcon components, the ECR repos, and the cluster to avoid ongoing AWS costs.
+> **Destructive:** This removes the Falcon components, the ECR repos and their images, and the EKS cluster. Run it only when you are finished with the lab.
 
 ### Step 1: Uninstall the Helm releases
 
@@ -621,51 +776,65 @@ helm uninstall falcon-kac -n falcon-kac
 helm uninstall falcon-image-analyzer -n falcon-image-analyzer
 ```
 
-### Step 2: Delete the namespaces
-
-- [ ] Clean up the Falcon namespaces:
+- [ ] Delete the namespaces:
 
 ```bash
 kubectl delete namespace falcon-container-injector falcon-kac falcon-image-analyzer detection-vulnapp
 ```
 
-### Step 3: Delete the ECR repositories
+> **Verify:** `kubectl get pods -A | grep falcon` should print nothing.
 
-- [ ] Delete the three repos (`--force` removes them even if they still hold images):
+### Step 2: Delete the ECR repositories
+
+- [ ] **Console:** Navigate to **ECR** → **Private registry** → **Repositories** → select the three `falcon-*` repos → **Delete** → type `delete` to confirm
+
+<details>
+<summary>CLI equivalent</summary>
+
+`--force` removes a repo even if it still holds images:
 
 ```bash
 for repo in falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr delete-repository --repository-name $repo --force --region $AWS_REGION
+  aws ecr delete-repository --repository-name $repo --force --region {{REGION}}
 done
 ```
 
-> If you created the repos with the `tf-k8s-eks-fargate-lab` Terraform, run `terraform destroy` there instead of this step — the repos use `force_delete = true` so they're removed with the rest of the stack.
+</details>
 
-### Step 4: Delete the cluster
+> **Note:** If you created the repos with the `tf-k8s-eks-fargate-lab` Terraform, run `terraform destroy` there instead of this step. The repos use `force_delete = true`, so they are removed with the rest of the stack.
 
-- [ ] Remove the EKS cluster (this also removes the Fargate profiles):
+### Step 3: Delete the cluster
+
+- [ ] **Console:** Navigate to **EKS** → **Clusters** → select `{{CLUSTER_NAME}}` → **Delete cluster**. If prompted, delete the Fargate profiles first (**Compute** tab), one at a time.
+
+<details>
+<summary>CLI equivalent</summary>
+
+`eksctl` deletes the Fargate profiles, IAM roles, and VPC it created, in the right order:
 
 ```bash
-eksctl delete cluster --name $CLUSTER_NAME --region $AWS_REGION
+eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 ```
+
+</details>
 
 ---
 
-## Challenges
+## 10. Challenges
 
 ### Challenge 1: Opt-in injection via namespace label
 
 **Scenario:** Your platform team runs many namespaces on Fargate and only wants Falcon injected into approved workload namespaces — not everything. Reconfigure the injector so injection is **opt-in** rather than all-namespaces.
 
 <details>
-<summary>💡 Hint</summary>
+<summary>Hint</summary>
 
 Look at `container.disableNSInjection` and the per-namespace label the injector honors. When injection is disabled by default, you enable it per namespace with a label.
 
 </details>
 
 <details>
-<summary>✅ Solution</summary>
+<summary>Solution</summary>
 
 Redeploy the injector with namespace-scoped injection disabled by default:
 
@@ -674,11 +843,11 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
   --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
   --set node.enabled=false \
   --set container.enabled=true \
   --set container.disableNSInjection=true \
-  --set container.image.repository=$ECR_REGISTRY/falcon-container \
+  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
@@ -697,14 +866,14 @@ Only labeled namespaces now get the sidecar. This is the safest pattern on Farga
 **Scenario:** Finance flags that some Fargate pods jumped to a larger (more expensive) size after Falcon was added. Set explicit sidecar resource requests so pod sizing is predictable, and explain why it matters on Fargate specifically.
 
 <details>
-<summary>💡 Hint</summary>
+<summary>Hint</summary>
 
 Fargate rounds each pod up to the next CPU/memory configuration based on the **sum of all container requests**. The injected sidecar's requests come from `container.sensorResources` in the falcon-sensor chart.
 
 </details>
 
 <details>
-<summary>✅ Solution</summary>
+<summary>Solution</summary>
 
 Set `container.sensorResources` so every injected sidecar carries a known, modest request:
 
@@ -725,21 +894,21 @@ Because Fargate bills at discrete sizes (starting at 0.25 vCPU / 0.5 GB) and rou
 **Scenario:** Your organization hosts golden images in a central "shared services" AWS account and each workload account runs its own EKS Fargate cluster. Configure the Fargate pods to pull the Falcon images from an ECR repo in a **different** account.
 
 <details>
-<summary>💡 Hint</summary>
+<summary>Hint</summary>
 
 Same-account pulls work because `AmazonEKSFargatePodExecutionRolePolicy` grants ECR on `Resource: *`, but the **repository's own resource policy** still has to allow the calling account. Cross-account needs a repository policy on the source repo **and** the reader's pod execution role must be allowed to pull.
 
 </details>
 
 <details>
-<summary>✅ Solution</summary>
+<summary>Solution</summary>
 
 Two pieces are required — one in each account.
 
 **1. In the account that owns the ECR repo**, attach a repository policy that allows the consumer account's pod execution role to pull:
 
 ```bash
-aws ecr set-repository-policy --repository-name falcon-container --region $AWS_REGION \
+aws ecr set-repository-policy --repository-name falcon-container --region {{REGION}} \
   --policy-text '{
     "Version": "2012-10-17",
     "Statement": [{
@@ -758,7 +927,7 @@ aws ecr set-repository-policy --repository-name falcon-container --region $AWS_R
 **2. In the consumer (cluster) account**, make sure the Fargate pod execution role can call ECR in the other account. `AmazonEKSFargatePodExecutionRolePolicy` already covers this, but if you use a trimmed custom role, attach `AmazonEC2ContainerRegistryReadOnly`:
 
 ```bash
-POD_EXEC_ROLE=$(aws eks describe-fargate-profile --cluster-name $CLUSTER_NAME --fargate-profile-name app-workloads \
+POD_EXEC_ROLE=$(aws eks describe-fargate-profile --cluster-name {{CLUSTER_NAME}} --fargate-profile-name app-workloads \
   --query 'fargateProfile.podExecutionRoleArn' --output text | awk -F/ '{print $NF}')
 aws iam attach-role-policy --role-name $POD_EXEC_ROLE \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
@@ -772,24 +941,21 @@ Then point the charts at the cross-account registry (`<OWNER_ACCOUNT_ID>.dkr.ecr
 
 ## Quick Reference
 
-| Action                       | Command / Value                                                                                                 |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Sidecar image type           | `--type falcon-container` (NOT `falcon-sensor`)                                                                 |
-| ECR repo names               | `falcon-container`, `falcon-kac`, `falcon-imageanalyzer` (must match `--copy` names)                            |
-| Copy image to ECR            | `... --type <t> --copy $ECR_REGISTRY`                                                                           |
-| Docker login to ECR          | `aws ecr get-login-password --region $AWS_REGION \| docker login --username AWS --password-stdin $ECR_REGISTRY` |
-| Fargate image pull auth      | Pod execution role (`AmazonEKSFargatePodExecutionRolePolicy`) — no pull secret                                  |
-| Disable DaemonSet            | `--set node.enabled=false`                                                                                      |
-| Enable injector              | `--set container.enabled=true`                                                                                  |
-| Opt-in injection             | `--set container.disableNSInjection=true` + namespace label                                                     |
-| Sidecar sizing               | `--set container.sensorResources.requests.{cpu,memory}`                                                         |
-| IAR Fargate mode             | `--set deployment.enabled=true` (Watcher, never DaemonSet)                                                      |
-| Injected container name      | `crowdstrike-falcon-container`                                                                                  |
-| Namespaces needing a profile | Every Falcon ns + `kube-system` + app namespaces                                                                |
-| List Fargate profiles        | `eksctl get fargateprofile --cluster $CLUSTER_NAME`                                                             |
+| Action | Console Path | CLI Command |
+|--------|-------------|-------------|
+| Create the cluster | **EKS** → **Clusters** → **Create cluster** | `eksctl create cluster -f eksctl-fargate.yaml` |
+| List Fargate profiles | **EKS** → cluster → **Compute** tab | `eksctl get fargateprofile --cluster {{CLUSTER_NAME}} --region {{REGION}}` |
+| Create ECR repos | **ECR** → **Private registry** → **Repositories** → **Create repository** | `aws ecr create-repository --repository-name <repo> --region {{REGION}}` |
+| Docker login to ECR | n/a | `aws ecr get-login-password --region {{REGION}} \| docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com` |
+| Copy an image to ECR | n/a | `... falcon-container-sensor-pull.sh --type <t> --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com` |
+| Sidecar image type | n/a | `--type falcon-container` (NOT `falcon-sensor`) |
+| ECR repo names | **ECR** → **Repositories** | `falcon-container`, `falcon-kac`, `falcon-imageanalyzer` (must match `--copy` names) |
+| Fargate image pull auth | **IAM** → **Roles** → pod execution role | `AmazonEKSFargatePodExecutionRolePolicy`; no pull secret |
+| Enable injector mode | n/a | `--set node.enabled=false --set container.enabled=true` |
+| Opt-in injection | n/a | `--set container.disableNSInjection=true` + namespace label |
+| Sidecar sizing | n/a | `--set container.sensorResources.requests.{cpu,memory}` |
+| Image Analyzer mode | n/a | `--set deployment.enabled=true` (Watcher, never DaemonSet) |
+| Injected container name | n/a | `crowdstrike-falcon-container` |
+| Namespaces needing a profile | **EKS** → cluster → **Compute** → **Add Fargate profile** | Every Falcon namespace, `kube-system`, and app namespaces |
 
 </div>
-
----
-
-_Created: 2026-07-06 | Topics: cloud-security, kubernetes, eks, fargate, sidecar, helm, ecr_

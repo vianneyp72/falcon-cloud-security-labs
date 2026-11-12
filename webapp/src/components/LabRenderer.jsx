@@ -15,6 +15,7 @@ import StatusBadge from './StatusBadge'
 import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
+import FillFields from './FillFields'
 import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
 import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
 import { LabVarsContext } from './labVarsContext'
@@ -66,6 +67,16 @@ function CloudBlockGate({ cloud, children, ...props }) {
 function RegistryBlockGate({ registry, children, ...props }) {
   const choice = useRegistryChoice()
   if (!registryMatches(registry, choice)) {
+    return <div className="mode-content--hidden" />
+  }
+  return <div {...props}>{children}</div>
+}
+
+// Shows its children only when the reader's Additional settings (DeployOptions picker) match,
+// e.g. data-opt="kac" hides a block when KAC is unchecked.
+function OptBlockGate({ opt, children, ...props }) {
+  const deploy = useDeployOptions()
+  if (!markerMatches('opt', opt, deploy)) {
     return <div className="mode-content--hidden" />
   }
   return <div {...props}>{children}</div>
@@ -182,12 +193,19 @@ export default function LabRenderer({ labKey }) {
       if (node?.properties?.dataDeployOptions !== undefined) {
         return <DeployOptions />
       }
+      if (node?.properties?.dataFillFields) {
+        return <FillFields spec={node.properties.dataFillFields} />
+      }
       if (dataMode && dataMode !== activeMode) {
         return <div className="mode-content--hidden" />
       }
       const dataRegistry = node?.properties?.dataRegistry
       if (dataRegistry) {
         return <RegistryBlockGate registry={dataRegistry} {...props}>{children}</RegistryBlockGate>
+      }
+      const dataOpt = node?.properties?.dataOpt
+      if (dataOpt) {
+        return <OptBlockGate opt={dataOpt} {...props}>{children}</OptBlockGate>
       }
       if (dataCloud) {
         return <CloudBlockGate cloud={dataCloud} {...props}>{children}</CloudBlockGate>

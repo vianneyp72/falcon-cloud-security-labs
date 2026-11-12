@@ -199,7 +199,15 @@ export const manifest = [
       label: 'Helm Sidecar',
       route: 'helm-sidecar',
       children: [
-        lab('EKS Fargate', 'eks-fargate', 'kubernetes/helm-sidecar/eks-fargate/lab.md'),
+        lab('EKS Fargate', 'eks-fargate', 'kubernetes/helm-sidecar/eks-fargate/lab.md', {
+          variables: {
+            modes: ['lab'],
+            fields: [
+              { key: 'CLUSTER_NAME', label: 'Cluster name', type: 'text', default: 'falcon-fargate-lab' },
+              { key: 'REGION',       label: 'Region',       type: 'text', default: 'us-east-1' },
+            ],
+          },
+        }),
       ],
     },
     {

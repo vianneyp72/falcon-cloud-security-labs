@@ -170,6 +170,8 @@ Brief explanation of what this method is.
 - `terraform.tfvars` — User values (gitignored)
 - `scripts/` — Shell scripts for the method
 - `_common/` — Shared reference docs, not labs
+- `_common/lab-template.md` — Copy-and-fill starting point for every new `lab.md` (dual-mode, pickers, variables, callouts); modeled on `kubernetes/helm-daemonset/k8s-standard/lab.md`
+- `_common/lab-authoring-features.md` — Reference for the interactive markers (`data-registry`, `#@opt=`, `{{TOKEN}}`, `<PLACEHOLDER>`, etc.)
 
 ## Webapp dependency management
 
