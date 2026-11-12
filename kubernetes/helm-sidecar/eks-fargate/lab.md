@@ -43,9 +43,11 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 
 Fargate runs each pod in its own micro-VM with **no host access**, so the kernel-mode DaemonSet Sensor cannot run. Instead, the user-space **Falcon Container Sensor** is injected into each application pod as a sidecar.
 
-- **Sidecar Injector** (`falcon-sensor` chart, injector mode): a mutating webhook that adds the sensor to every new pod. Namespace: `falcon-container-injector`.
-- **Falcon KAC** (`falcon-kac` chart): Kubernetes Admission Controller for visibility and policy. Namespace: `falcon-kac`.
-- **Falcon Image Analyzer** (`falcon-image-analyzer` chart): image vulnerability scanning, in Watcher mode only. Namespace: `falcon-image-analyzer`.
+The `falcon-platform` chart deploys three components in one Helm release:
+
+- **Sidecar Injector** (`falcon-sensor` subchart, injector mode): a mutating webhook that adds the sensor to every new pod. Namespace: `falcon-system`.
+- **Falcon KAC** (`falcon-kac` subchart): Kubernetes Admission Controller for visibility and policy. Namespace: `falcon-kac`.
+- **Falcon Image Analyzer** (`falcon-image-analyzer` subchart): image vulnerability scanning, in Watcher mode only. Namespace: `falcon-image-analyzer`.
 
 | Concern | EC2 nodes | EKS Fargate |
 | ------- | --------- | ----------- |
@@ -74,11 +76,9 @@ CrowdStrike Cloud: sidecar telemetry over TLS 443
 
 ### 1. Set credentials and context
 
-Fill in your values once. Every command below picks them up, so you can copy each block as-is.
-
 <div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:EKS cluster name,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
 
-Export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
+Export the API client secret:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
@@ -90,7 +90,7 @@ On a Fargate-only cluster a pod only schedules if its namespace matches a Fargat
 
 ```bash
 eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
-  --namespace falcon-container-injector \
+  --namespace falcon-system \
   --namespace falcon-kac \ #@opt=kac
   --namespace falcon-image-analyzer \ #@opt=iar
   --name falcon
@@ -133,18 +133,18 @@ done
 `--copy` keeps each image's tag, so read it back from ECR. `falcon-container` is the **Container Sensor** (the user-space sidecar), not `falcon-sensor`, the DaemonSet Sensor that cannot run on Fargate.
 
 ```bash
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=kac
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=iar
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region <AWS_REGION> --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region <AWS_REGION> --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=kac
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region <AWS_REGION> --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text) #@opt=iar
 ```
 
 Validate the client secret and every image tag the Helm installs need was populated (a ✅ means set, a ❌ means missing):
 
 ```bash
 echo "Client Secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo ✅ || echo ❌) ($KAC_TAG)" #@opt=kac
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo ✅ || echo ❌) ($IAR_TAG)" #@opt=iar
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && [ "$CONTAINER_TAG" != None ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && [ "$KAC_TAG" != None ] && echo ✅ || echo ❌) ($KAC_TAG)" #@opt=kac
+echo "IAR              : $([ -n "$IAR_TAG" ] && [ "$IAR_TAG" != None ] && echo ✅ || echo ❌) ($IAR_TAG)" #@opt=iar
 ```
 
 ### 5. Add Helm repo and deploy
@@ -160,65 +160,43 @@ helm repo update
 
 <div data-deploy-options></div>
 
-Install the `falcon-sensor` chart in injector mode, pointing at the ECR image. No pull secret is needed because the pod execution role authenticates the pull.
+Install the `falcon-platform` chart, which deploys the injector, KAC, and Image Analyzer in one release. No pull secret is needed because the pod execution role authenticates the pull.
 
 > **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group the injected sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 ```bash
-helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
-  --namespace falcon-container-injector \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
+  --namespace falcon-platform \
   --create-namespace \
-  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=<FALCON_CID> \
-  --set falcon.aph=<PROXY_HOST> \ #@opt=proxy
-  --set falcon.app=<PROXY_PORT> \ #@opt=proxy
-  --set node.enabled=false \
-  --set container.enabled=true \
-  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container \
-  --set container.image.tag=$CONTAINER_TAG
+  --set global.falcon.cid=<FALCON_CID> \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:eks-fargate>" \
+  --set falcon-sensor.falcon.aph=<PROXY_HOST> \ #@opt=proxy
+  --set falcon-sensor.falcon.app=<PROXY_PORT> \ #@opt=proxy
+  --set falcon-sensor.node.enabled=false \
+  --set falcon-sensor.container.enabled=true \
+  --set falcon-sensor.container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container \
+  --set falcon-sensor.container.image.tag=$CONTAINER_TAG \
+  --set falcon-kac.enabled=false \ #@opt=nokac
+  --set falcon-kac.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac \ #@opt=kac
+  --set falcon-kac.image.tag=$KAC_TAG \ #@opt=kac
+  --set falcon-kac.falcon.aph=<PROXY_HOST> \ #@opt=kac #@opt=proxy
+  --set falcon-kac.falcon.app=<PROXY_PORT> \ #@opt=kac #@opt=proxy
+  --set falcon-image-analyzer.enabled=false \ #@opt=noiar
+  --set falcon-image-analyzer.deployment.enabled=true \ #@opt=iar
+  --set falcon-image-analyzer.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-imageanalyzer \ #@opt=iar
+  --set falcon-image-analyzer.image.tag=$IAR_TAG \ #@opt=iar
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=<CLUSTER_NAME> \ #@opt=iar
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1 \ #@opt=iar #@region=gov1
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov2 \ #@opt=iar #@region=gov2
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1> \ #@opt=iar #@region=commercial
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \ #@opt=iar
+  --set falcon-image-analyzer.proxyConfig.HTTP_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=iar #@opt=proxy
+  --set falcon-image-analyzer.proxyConfig.HTTPS_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=iar #@opt=proxy
+  --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET \ #@opt=iar
+  --set createComponentNamespaces=true
 ```
 
-<div data-opt="kac">
-
-Install KAC (cluster visibility and admission control):
-
-```bash
-helm upgrade --install falcon-kac crowdstrike/falcon-kac \
-  --namespace falcon-kac --create-namespace \
-  --set falcon.cid=<FALCON_CID> \
-  --set falcon.aph=<PROXY_HOST> \ #@opt=proxy
-  --set falcon.app=<PROXY_PORT> \ #@opt=proxy
-  --set clusterName=<CLUSTER_NAME> \
-  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac \
-  --set image.tag=$KAC_TAG
-```
-
-</div>
-
-<div data-opt="iar">
-
-Install Image Analyzer in Watcher mode (image vulnerability scanning):
-
-```bash
-helm upgrade --install falcon-image-analyzer crowdstrike/falcon-image-analyzer \
-  --namespace falcon-image-analyzer --create-namespace \
-  --set deployment.enabled=true \
-  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-imageanalyzer \
-  --set image.tag=$IAR_TAG \
-  --set crowdstrikeConfig.cid=<FALCON_CID> \
-  --set crowdstrikeConfig.clusterName=<CLUSTER_NAME> \
-  --set crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
-  --set crowdstrikeConfig.agentRegion=gov1 \ #@region=gov1
-  --set crowdstrikeConfig.agentRegion=gov2 \ #@region=gov2
-  --set crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1> \ #@region=commercial
-  --set proxyConfig.HTTP_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=proxy
-  --set proxyConfig.HTTPS_PROXY=http://<PROXY_HOST>:<PROXY_PORT> \ #@opt=proxy
-  --set crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
-```
-
-</div>
-
-> **Why this matters:** `node.enabled=false` turns off the DaemonSet sensor (Fargate has no kernel access) and `container.enabled=true` turns on injector mode. `deployment.enabled=true` selects IAR **Watcher mode**, the only mode that works on Fargate. Set the commercial `agentRegion` to your cloud (`us-1`, `us-2`, or `eu-1`); the sensor and KAC derive their region from the CID.
+> **Why this matters:** `falcon-sensor.node.enabled=false` turns off the DaemonSet sensor (Fargate has no kernel access) and `falcon-sensor.container.enabled=true` turns on injector mode. The injector lands in `falcon-system`, which its webhook never injects into, so it can't try to inject itself. `deployment.enabled=true` selects Image Analyzer **Watcher mode**, the only mode that works on Fargate. Set the commercial `agentRegion` to your cloud (`us-1`, `us-2`, or `eu-1`); the sensor and KAC derive their region from the CID.
 
 ### 6. Verify deployment
 
@@ -226,10 +204,10 @@ Wait for every Falcon pod to reach `Ready`. Each namespace is checked in paralle
 
 ```bash
 (
-for ns in falcon-container-injector falcon-kac falcon-image-analyzer; do #@opt=kac #@opt=iar
-for ns in falcon-container-injector falcon-kac; do #@opt=kac #@opt=noiar
-for ns in falcon-container-injector falcon-image-analyzer; do #@opt=nokac #@opt=iar
-for ns in falcon-container-injector; do #@opt=nokac #@opt=noiar
+for ns in falcon-system falcon-kac falcon-image-analyzer; do #@opt=kac #@opt=iar
+for ns in falcon-system falcon-kac; do #@opt=kac #@opt=noiar
+for ns in falcon-system falcon-image-analyzer; do #@opt=nokac #@opt=iar
+for ns in falcon-system; do #@opt=nokac #@opt=noiar
   (kubectl wait --for=condition=Ready pods --all -n $ns --timeout=300s >/dev/null 2>&1 \
     && echo "✅ $ns: Ready" \
     || echo "❌ $ns: not Ready (run: kubectl get pods -n $ns)") &
@@ -238,7 +216,7 @@ wait
 )
 ```
 
-> **Heads-up:** Fargate starts a separate micro-VM for every pod, so the first pods take about a minute to come up. A pod stuck in `Pending` almost always means its namespace has no matching Fargate profile (step 2).
+> **Heads-up:** Fargate starts a separate micro-VM for every pod, so the first pods take about a minute to come up. If you see ❌ right away, the pods may not have been created yet; wait a few seconds and re-run. A pod stuck in `Pending` almost always means its namespace has no matching Fargate profile (step 2), and `ImagePullBackOff` means the image pull is failing (repo, tag, or pod execution role), so don't wait out the timeout.
 
 Then list the Falcon pods:
 
@@ -270,6 +248,12 @@ Deploy the CrowdStrike vulnapp, a web app that fires safe, simulated attacks:
 kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
 ```
 
+Wait for the pod to be Ready (Fargate starts a micro-VM for it, so expect about a minute):
+
+```bash
+kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s
+```
+
 Confirm the Falcon sidecar was injected:
 
 ```bash
@@ -278,40 +262,60 @@ kubectl get pod -l run=vulnerable.example.com -n detection-vulnapp -o jsonpath='
 
 > **Verify:** The output should include `crowdstrike-falcon-container` next to your app container (`vulnapp`). If it only shows the app container, the webhook did not reach this namespace; check the injector pods from step 6.
 
-Port-forward the app to your machine (this blocks, so leave it running):
+Port-forward to the app (this blocks, so leave it running):
 
 ```bash
 kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 ```
 
-Open [http://localhost:8060](http://localhost:8060) and click any attack simulation. Then check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections** (filter **Source product** = **Cloud**). Stop the port-forward (Ctrl+C) when done.
+Open [http://localhost:8060](http://localhost:8060) in your browser and click any attack simulation (e.g. **Access sensitive files**, **Kill process**) to generate activity the injected sensor will detect.
+
+Check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**. A new detection should appear within a few minutes. Then stop the port-forward (Ctrl+C) and remove the app:
+
+```bash
+kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
+```
 
 ### 8. Clean up (optional)
 
 Removes everything this guide deployed. Your EKS cluster itself is not touched.
 
+Remove the vulnapp if it's still running (safe to run if you already deleted it):
+
 ```bash
-kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
-helm uninstall falcon-container-injector -n falcon-container-injector
+kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml --ignore-not-found
 ```
 
-Remove KAC and Image Analyzer if you installed them:
+Uninstall the Falcon platform release. This removes the injector, KAC, and Image Analyzer:
 
 ```bash
-helm uninstall falcon-kac -n falcon-kac #@opt=kac
-helm uninstall falcon-image-analyzer -n falcon-image-analyzer #@opt=iar
+helm uninstall falcon-platform -n falcon-platform
 ```
 
-Delete the namespaces and the ECR repos (`--force` removes repos that still hold images):
+Delete the namespaces:
 
 ```bash
-kubectl delete namespace detection-vulnapp falcon-container-injector falcon-kac falcon-image-analyzer --ignore-not-found
+kubectl delete ns falcon-platform falcon-system falcon-kac falcon-image-analyzer detection-vulnapp --ignore-not-found
+```
+
+Delete the ECR repos (`--force` removes repos that still hold images):
+
+```bash
 for repo in falcon-container falcon-kac falcon-imageanalyzer; do
   aws ecr delete-repository --repository-name $repo --force --region <AWS_REGION>
 done
 ```
 
-> **Note:** Host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them with `eksctl delete fargateprofile --cluster <CLUSTER_NAME> --name <profile>` if you no longer need them.
+Confirm nothing is left:
+
+```bash
+kubectl get pods -A | grep falcon
+helm list -A | grep falcon
+```
+
+> **Verify:** Both commands should print nothing. A pod still listed as `Terminating` is fine; it disappears within a minute.
+
+> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them with `eksctl delete fargateprofile --cluster <CLUSTER_NAME> --name <profile>` if you no longer need them.
 
 </div>
 
@@ -349,7 +353,7 @@ The `Account` value is where the cluster and ECR repos will be created. Your IAM
 
 - [ ] **Console:** Navigate to **EKS** → **Clusters** → **Create cluster** → set name `{{CLUSTER_NAME}}` and a cluster service role (create one if you do not have `AmazonEKSClusterRole`) → accept the default VPC and subnets → **Create**
 - [ ] When the cluster shows **Active**, open it → **Compute** tab → **Add Fargate profile** and create three profiles, each with its own pod execution role (create `AmazonEKSFargatePodExecutionRole` once, then reuse it):
-  - `falcon`: namespaces `falcon-container-injector`, `falcon-kac`, `falcon-image-analyzer`
+  - `falcon`: namespaces `falcon-system`, `falcon-kac`, `falcon-image-analyzer`
   - `app-workloads`: namespace `detection-vulnapp`
   - `default`: namespaces `default`, `kube-system`
 - [ ] Open **Add-ons** → **CoreDNS** → **Edit** → set **Compute type** to **Fargate** (a nodeless cluster has nowhere else to run it)
@@ -378,7 +382,7 @@ fargateProfiles:
       - namespace: kube-system
   - name: falcon
     selectors:
-      - namespace: falcon-container-injector
+      - namespace: falcon-system
       - namespace: falcon-kac
       - namespace: falcon-image-analyzer
   - name: app-workloads
@@ -449,11 +453,11 @@ There is no CLI for creating API clients; this must be done in the console.
 
 ### Step 2: Fill in your values and export the secret
 
-- [ ] Fill in your values once. Every command below picks them up, so you can copy each block as-is. Use the `Account` value from `aws sts get-caller-identity` in Section 1 for the account ID:
+- [ ] Enter your values. Use the `Account` value from `aws sts get-caller-identity` in Section 1 for the account ID:
 
 <div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_ACCOUNT_ID:AWS account ID"></div>
 
-- [ ] Export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
+- [ ] Export the API client secret:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
@@ -509,18 +513,18 @@ done
 - [ ] Capture each tag from ECR:
 
 ```bash
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region {{REGION}} --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region {{REGION}} --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region {{REGION}} --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
 ```
 
 - [ ] Validate the client secret and every tag populated (a ✅ means set, a ❌ means missing):
 
 ```bash
 echo "Client Secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo ✅ || echo ❌) ($KAC_TAG)"
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo ✅ || echo ❌) ($IAR_TAG)"
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && [ "$CONTAINER_TAG" != None ] && echo ✅ || echo ❌) ($CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && [ "$KAC_TAG" != None ] && echo ✅ || echo ❌) ($KAC_TAG)"
+echo "IAR              : $([ -n "$IAR_TAG" ] && [ "$IAR_TAG" != None ] && echo ✅ || echo ❌) ($IAR_TAG)"
 ```
 
 > **Look for:** a ✅ on every line. A ❌ on a tag means that repo is empty, so re-run the matching `--copy` in Step 5. `None` as a tag value means the image was pushed untagged.
@@ -529,7 +533,7 @@ echo "IAR              : $([ -n "$IAR_TAG" ] && echo ✅ || echo ❌) ($IAR_TAG)
 
 ## 3. Add the Helm Repository
 
-> **What & Why:** CrowdStrike publishes a standalone chart per component. On a Fargate-only cluster we deploy three separate charts (`falcon-sensor` in injector mode, `falcon-kac`, `falcon-image-analyzer`) rather than the `falcon-platform` umbrella, because the umbrella's node-sensor subchart assumes DaemonSet mode.
+> **What & Why:** CrowdStrike publishes its charts to a public Helm repository. The `falcon-platform` umbrella chart bundles the sidecar injector, KAC, and Image Analyzer, so one release deploys all three.
 
 - [ ] Add and update the repo:
 
@@ -538,44 +542,58 @@ helm repo add crowdstrike https://crowdstrike.github.io/falcon-helm
 helm repo update
 ```
 
-- [ ] Verify the charts are available:
+- [ ] Verify the chart is available:
 
 ```bash
-helm search repo crowdstrike/falcon-sensor
-helm search repo crowdstrike/falcon-kac
-helm search repo crowdstrike/falcon-image-analyzer
+helm search repo crowdstrike/falcon-platform
 ```
 
 ---
 
-## 4. Deploy the Sidecar Injector
+## 4. Deploy the Falcon Platform
 
-> **What & Why:** Fargate pods have no host to run a DaemonSet on, so runtime protection comes from a mutating admission webhook. When a pod is created in an injectable namespace, the webhook patches the pod spec to add the Falcon Container Sensor as a sidecar. Any Fargate-profiled namespace can be injected at any time — the ordering that a pull secret would impose doesn't apply here.
+> **What & Why:** Fargate pods have no host to run a DaemonSet on, so runtime protection comes from a mutating admission webhook. The `falcon-platform` chart installs that injector, plus KAC and Image Analyzer, in a single Helm release. When a pod is created in an injectable namespace, the webhook adds the Falcon Container Sensor as a sidecar. Any Fargate-profiled namespace can be injected at any time, because there is no pull secret to order around.
 
-### Step 1: Install the injector
+### Step 1: Install the chart
 
-- [ ] Install the `falcon-sensor` chart in injector mode, pointing at your ECR image:
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group the injected sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+
+- [ ] Install the chart with all three components pointed at your ECR images:
 
 ```bash
-helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
-  --namespace falcon-container-injector \
+helm upgrade --install falcon-platform crowdstrike/falcon-platform \
+  --namespace falcon-platform \
   --create-namespace \
-  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=<FALCON_CID> \
-  --set node.enabled=false \
-  --set container.enabled=true \
-  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
-  --set container.image.tag=$CONTAINER_TAG
+  --set global.falcon.cid=<FALCON_CID> \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:eks-fargate>" \
+  --set falcon-sensor.node.enabled=false \
+  --set falcon-sensor.container.enabled=true \
+  --set falcon-sensor.container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
+  --set falcon-sensor.container.image.tag=$CONTAINER_TAG \
+  --set falcon-kac.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-kac \
+  --set falcon-kac.image.tag=$KAC_TAG \
+  --set falcon-image-analyzer.deployment.enabled=true \
+  --set falcon-image-analyzer.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-imageanalyzer \
+  --set falcon-image-analyzer.image.tag=$IAR_TAG \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1> \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET \
+  --set createComponentNamespaces=true
 ```
 
-> `node.enabled=false` disables the DaemonSet (no kernel on Fargate). `container.enabled=true` activates injector mode. To scope injection to specific namespaces instead of all of them, see Challenge 1.
+> **Why this matters:** `falcon-sensor.node.enabled=false` turns off the DaemonSet sensor (no kernel on Fargate) and `falcon-sensor.container.enabled=true` turns on injector mode. The injector lands in `falcon-system`, which its webhook never injects into, so it can't try to inject itself. `deployment.enabled=true` selects Image Analyzer **Watcher mode** (a non-privileged Deployment), the only mode that works on Fargate. **Never** enable the Socket (DaemonSet) mode here.
+
+> **Note:** Set `agentRegion` to your Falcon cloud: `us-1`, `us-2`, or `eu-1` for commercial. For GovCloud this flag is **required**, so use `gov1` (US-GOV-1) or `gov2` (US-GOV-2). The injector and KAC derive their region from the CID.
+
+> **Sizing caveat:** Image Analyzer mounts a `tmp-volume` emptyDir (default 20Gi) sized to about 2x the largest image it scans. On Fargate this consumes the pod's ephemeral storage, so a scan-heavy pod may need a larger Fargate configuration. Watch for `Evicted` pods and raise the volume or ephemeral-storage request if needed.
 
 ### Step 2: Verify the injector is running on Fargate
 
 - [ ] Confirm the injector pods are running:
 
 ```bash
-kubectl get pods -n falcon-container-injector -o wide
+kubectl get pods -n falcon-system -o wide
 ```
 
 > **Look for:** `STATUS` `Running`, `READY` `1/1` (or `2/2`), and a `NODE` value starting with `fargate-ip-`. The injector pods themselves run on Fargate, so the `falcon` profile from Section 1 must cover this namespace or they stay `Pending`.
@@ -588,29 +606,7 @@ kubectl get mutatingwebhookconfigurations | grep falcon
 
 You should see one `falcon` webhook configuration. This is the object that intercepts every new pod and adds the sidecar.
 
----
-
-## 5. Deploy the Kubernetes Admission Controller (KAC)
-
-> **What & Why:** KAC gives you cluster-wide Kubernetes visibility and admission-time policy enforcement. It's a single non-privileged Deployment (three containers, all `readOnlyRootFilesystem`, `runAsNonRoot`), so it's fully Fargate-compatible — its namespace just needs a Fargate profile (already created in Section 1).
-
-### Step 1: Install KAC
-
-- [ ] Deploy the `falcon-kac` chart from your ECR repo:
-
-```bash
-helm upgrade --install falcon-kac crowdstrike/falcon-kac \
-  --namespace falcon-kac \
-  --create-namespace \
-  --set falcon.cid=<FALCON_CID> \
-  --set clusterName={{CLUSTER_NAME}} \
-  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-kac \
-  --set image.tag=$KAC_TAG
-```
-
-> KAC's pod-validating webhook defaults to `failurePolicy: Ignore`, which is the safer setting on Fargate — an admission hiccup won't block pod scheduling. KAC also auto-excludes `kube-system`, `kube-public`, `falcon-system`, and its own namespace.
-
-### Step 2: Verify KAC
+### Step 3: Verify KAC
 
 - [ ] Confirm the KAC pod is running (one pod, three containers):
 
@@ -618,58 +614,24 @@ helm upgrade --install falcon-kac crowdstrike/falcon-kac \
 kubectl get pods -n falcon-kac -o wide
 ```
 
-> **Look for:** `READY` `3/3` and `STATUS` `Running`. Then list the container names:
+> **Look for:** `READY` `3/3` and `STATUS` `Running`. KAC's pod-validating webhook defaults to `failurePolicy: Ignore`, the safer setting on Fargate, so an admission hiccup will not block pod scheduling.
 
-```bash
-kubectl get pod -n falcon-kac -o jsonpath='{.items[0].spec.containers[*].name}'
-```
+### Step 4: Verify Image Analyzer
 
-The output should be `falcon-client falcon-watcher falcon-ac`.
-
----
-
-## 6. Deploy Falcon Image Analyzer (IAR)
-
-> **What & Why:** IAR scans images for vulnerabilities. It has two modes: Socket mode (a privileged DaemonSet that mounts the container runtime socket) and Watcher mode (a non-privileged Deployment that watches the K8s API and pulls images itself). **Only Watcher mode works on Fargate** — there's no node socket to mount and no privileged containers allowed.
-
-### Step 1: Install IAR in Watcher mode
-
-- [ ] Deploy the `falcon-image-analyzer` chart with `deployment.enabled=true` from your ECR repo:
-
-```bash
-helm upgrade --install falcon-image-analyzer crowdstrike/falcon-image-analyzer \
-  --namespace falcon-image-analyzer \
-  --create-namespace \
-  --set deployment.enabled=true \
-  --set image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-imageanalyzer \
-  --set image.tag=$IAR_TAG \
-  --set crowdstrikeConfig.cid=<FALCON_CID> \
-  --set crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
-  --set crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
-  --set crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET \
-  --set crowdstrikeConfig.agentRegion=<YOUR_AGENT_REGION:us-1>
-```
-
-> **Why this matters:** `deployment.enabled=true` selects Watcher mode. **Never** set `daemonset.enabled=true` on Fargate. `crowdstrikeConfig.*` supplies the **runtime** API credentials IAR uses to upload assessments (unrelated to image pulls), and `crowdstrikeConfig.cid` is required because the chart's values schema rejects a null CID.
-
-> **Note:** Set `agentRegion` to your Falcon cloud: `us-1`, `us-2`, or `eu-1` for commercial. For GovCloud this flag is **required**, so use `gov1` (US-GOV-1) or `gov2` (US-GOV-2). Unlike Image Analyzer, the injector and KAC derive their region from the CID.
-
-> **Sizing caveat:** IAR mounts a `tmp-volume` emptyDir (default 20Gi) sized to ~2× the largest image it scans. On Fargate this consumes the pod's ephemeral storage, so a scan-heavy IAR pod may need a larger Fargate configuration. Watch for `Evicted` pods and raise the volume/ephemeral-storage request if needed.
-
-### Step 2: Verify IAR
-
-- [ ] Confirm the IAR pod is running as a Deployment (not a DaemonSet):
+- [ ] Confirm Image Analyzer is running as a Deployment (not a DaemonSet):
 
 ```bash
 kubectl get deploy -n falcon-image-analyzer
 kubectl get pods -n falcon-image-analyzer -o wide
 ```
 
+> **Look for:** one `falcon-image-analyzer` Deployment with `READY` `1/1`, and no DaemonSet in that namespace.
+
 ---
 
-## 7. Verify Fargate Coverage
+## 5. Verify Deployment
 
-> **What & Why:** Verification means proving the injection path works end to end: a new pod in a Fargate-profiled namespace should come up with the Falcon sidecar attached and register as a host in the Falcon console.
+> **What & Why:** Confirm every Falcon pod is running in-cluster, then prove the injection path works end to end: a new pod in a Fargate-profiled namespace should come up with the Falcon sidecar attached and register as a host in the Falcon console.
 
 ### Step 1: Confirm all Falcon pods are Running
 
@@ -679,7 +641,7 @@ kubectl get pods -n falcon-image-analyzer -o wide
 kubectl get pods -A -o wide | grep falcon
 ```
 
-> **Look for:** pods in three namespaces, all `Running`, each with a `NODE` value starting with `fargate-ip-`: `falcon-container-injector` (the injector), `falcon-kac` (KAC, `3/3`), and `falcon-image-analyzer` (Image Analyzer, `1/1`).
+> **Look for:** pods in three namespaces, all `Running`, each with a `NODE` value starting with `fargate-ip-`: `falcon-system` (the injector), `falcon-kac` (KAC, `3/3`), and `falcon-image-analyzer` (Image Analyzer, `1/1`).
 
 ### Step 2: Deploy the vulnapp into a Fargate-profiled namespace
 
@@ -711,7 +673,7 @@ kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300
 kubectl get pod -l run=vulnerable.example.com -n detection-vulnapp -o jsonpath='{.items[0].spec.containers[*].name}'
 ```
 
-> **Verify:** The output should include `crowdstrike-falcon-container` next to your app container (`vulnapp`). If it is missing, the webhook did not reach this namespace, so re-check Section 4. If the pod is stuck in `Init:ImagePullBackOff`, confirm the images are in ECR (Section 2) and that the Fargate pod execution role carries `AmazonEKSFargatePodExecutionRolePolicy`.
+> **Verify:** The output should include `crowdstrike-falcon-container` next to your app container (`vulnapp`). If it is missing, the webhook did not reach this namespace, so re-check Section 4 Step 2. If the pod is stuck in `Init:ImagePullBackOff`, confirm the images are in ECR (Section 2) and that the Fargate pod execution role carries `AmazonEKSFargatePodExecutionRolePolicy`.
 
 ### Step 4: Verify in the Falcon console
 
@@ -733,28 +695,32 @@ If a pod is not Running or a sidecar never registers, work through this table:
 
 ---
 
-## 8. Test a Detection (Optional)
+## 6. Test a Detection (Optional)
 
-> **What & Why:** Hosts registering proves connectivity; a detection proves the sidecar is actively monitoring. The vulnapp's web UI fires safe, simulated attacks.
+> **What & Why:** Confirming the sidecar reports a host proves connectivity, but triggering a real detection proves it is actively monitoring workloads. The vulnapp you deployed in Section 5 is a purpose-built web app that generates safe, simulated attacks you can fire from a browser and watch land in the Falcon console.
 
-### Step 1: Trigger a simulated attack
+### Step 1: Port-forward and open the web UI
 
-- [ ] Port-forward to the vulnapp service (this blocks, so leave it running):
+- [ ] Forward the service to your local machine (this blocks, so leave it running):
 
 ```bash
 kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 ```
 
-- [ ] Open [http://localhost:8060](http://localhost:8060) and click any attack simulation (for example **Access sensitive files**, **Kill process**, or **Run a reverse shell**)
+- [ ] Open [http://localhost:8060](http://localhost:8060) in your browser.
 
-### Step 2: Confirm the detection
+### Step 2: Trigger a simulated attack
+
+- [ ] Click any attack simulation in the UI (e.g. **Access sensitive files**, **Kill process**, or **Run a reverse shell**). Each button generates activity the injected sensor observes.
+
+### Step 3: Confirm the detection
 
 - [ ] In the Falcon console, go to **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**
-- [ ] A detection tied to the Fargate pod should appear within a few minutes. Stop the port-forward (Ctrl+C) when done.
+- [ ] A new detection tied to the Fargate pod should appear within a few minutes. Open it to review the process tree and mapped tactic/technique.
 
-### Step 3: Remove the vulnapp
+### Step 4: Clean up the vulnapp
 
-- [ ] Delete the test app:
+- [ ] Stop the port-forward (Ctrl+C), then remove the app:
 
 ```bash
 kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
@@ -762,27 +728,25 @@ kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdst
 
 ---
 
-## 9. Cleanup
+## 7. Cleanup
 
 > **Destructive:** This removes the Falcon components, the ECR repos and their images, and the EKS cluster. Run it only when you are finished with the lab.
 
-### Step 1: Uninstall the Helm releases
+### Step 1: Uninstall the Helm release
 
-- [ ] Remove all three releases:
+- [ ] Remove the Falcon platform release:
 
 ```bash
-helm uninstall falcon-container-injector -n falcon-container-injector
-helm uninstall falcon-kac -n falcon-kac
-helm uninstall falcon-image-analyzer -n falcon-image-analyzer
+helm uninstall falcon-platform -n falcon-platform
 ```
 
 - [ ] Delete the namespaces:
 
 ```bash
-kubectl delete namespace falcon-container-injector falcon-kac falcon-image-analyzer detection-vulnapp
+kubectl delete namespace falcon-platform falcon-system falcon-kac falcon-image-analyzer detection-vulnapp
 ```
 
-> **Verify:** `kubectl get pods -A | grep falcon` should print nothing.
+> **Verify:** `kubectl get pods -A | grep falcon` should print nothing. A pod still listed as `Terminating` is fine; it disappears within a minute.
 
 ### Step 2: Delete the ECR repositories
 
@@ -820,7 +784,7 @@ eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 
 ---
 
-## 10. Challenges
+## 8. Challenges
 
 ### Challenge 1: Opt-in injection via namespace label
 
@@ -829,26 +793,20 @@ eksctl delete cluster --name {{CLUSTER_NAME}} --region {{REGION}}
 <details>
 <summary>Hint</summary>
 
-Look at `container.disableNSInjection` and the per-namespace label the injector honors. When injection is disabled by default, you enable it per namespace with a label.
+Look at `falcon-sensor.container.disableNSInjection` and the per-namespace label the injector honors. When injection is disabled by default, you enable it per namespace with a label.
 
 </details>
 
 <details>
 <summary>Solution</summary>
 
-Redeploy the injector with namespace-scoped injection disabled by default:
+Upgrade the release with namespace-scoped injection disabled by default. `--reuse-values` keeps everything from Section 4:
 
 ```bash
-helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
-  --namespace falcon-container-injector \
-  --create-namespace \
-  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=<FALCON_CID> \
-  --set node.enabled=false \
-  --set container.enabled=true \
-  --set container.disableNSInjection=true \
-  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
-  --set container.image.tag=$CONTAINER_TAG
+helm upgrade falcon-platform crowdstrike/falcon-platform \
+  --namespace falcon-platform \
+  --reuse-values \
+  --set falcon-sensor.container.disableNSInjection=true
 ```
 
 Then opt a namespace in with the label:
@@ -868,21 +826,21 @@ Only labeled namespaces now get the sidecar. This is the safest pattern on Farga
 <details>
 <summary>Hint</summary>
 
-Fargate rounds each pod up to the next CPU/memory configuration based on the **sum of all container requests**. The injected sidecar's requests come from `container.sensorResources` in the falcon-sensor chart.
+Fargate rounds each pod up to the next CPU/memory configuration based on the **sum of all container requests**. The injected sidecar's requests come from `falcon-sensor.container.sensorResources` in the falcon-platform chart.
 
 </details>
 
 <details>
 <summary>Solution</summary>
 
-Set `container.sensorResources` so every injected sidecar carries a known, modest request:
+Set `falcon-sensor.container.sensorResources` so every injected sidecar carries a known, modest request:
 
 ```bash
-helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
-  --namespace falcon-container-injector \
+helm upgrade falcon-platform crowdstrike/falcon-platform \
+  --namespace falcon-platform \
   --reuse-values \
-  --set container.sensorResources.requests.cpu=100m \
-  --set container.sensorResources.requests.memory=256Mi
+  --set falcon-sensor.container.sensorResources.requests.cpu=100m \
+  --set falcon-sensor.container.sensorResources.requests.memory=256Mi
 ```
 
 Because Fargate bills at discrete sizes (starting at 0.25 vCPU / 0.5 GB) and rounds up the sum of all container requests, an unbounded sidecar request can silently bump a pod into the next tier. Setting explicit requests makes the total predictable — you can right-size the app + sidecar to land just under a Fargate boundary. Tune from real telemetry after observing steady-state usage.
@@ -951,10 +909,11 @@ Then point the charts at the cross-account registry (`<OWNER_ACCOUNT_ID>.dkr.ecr
 | Sidecar image type | n/a | `--type falcon-container` (NOT `falcon-sensor`) |
 | ECR repo names | **ECR** → **Repositories** | `falcon-container`, `falcon-kac`, `falcon-imageanalyzer` (must match `--copy` names) |
 | Fargate image pull auth | **IAM** → **Roles** → pod execution role | `AmazonEKSFargatePodExecutionRolePolicy`; no pull secret |
-| Enable injector mode | n/a | `--set node.enabled=false --set container.enabled=true` |
-| Opt-in injection | n/a | `--set container.disableNSInjection=true` + namespace label |
-| Sidecar sizing | n/a | `--set container.sensorResources.requests.{cpu,memory}` |
-| Image Analyzer mode | n/a | `--set deployment.enabled=true` (Watcher, never DaemonSet) |
+| Enable injector mode | n/a | `--set falcon-sensor.node.enabled=false --set falcon-sensor.container.enabled=true` |
+| Opt-in injection | n/a | `--set falcon-sensor.container.disableNSInjection=true` + namespace label |
+| Sidecar sizing | n/a | `--set falcon-sensor.container.sensorResources.requests.{cpu,memory}` |
+| Image Analyzer mode | n/a | `--set falcon-image-analyzer.deployment.enabled=true` (Watcher, never DaemonSet) |
+| Deploy everything | n/a | `helm upgrade --install falcon-platform crowdstrike/falcon-platform ...` |
 | Injected container name | n/a | `crowdstrike-falcon-container` |
 | Namespaces needing a profile | **EKS** → cluster → **Compute** → **Add Fargate profile** | Every Falcon namespace, `kube-system`, and app namespaces |
 

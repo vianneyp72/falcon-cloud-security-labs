@@ -76,6 +76,25 @@ Gotchas:
 
 `<div data-fill-fields="FALCON_CID:CID (with checksum),AWS_REGION:AWS region"></div>` renders a labeled form for shared `<NAME>` placeholders so the reader enters them once, outside any copy block. Format is `NAME:Label` pairs separated by commas (no commas inside a label). The inputs read and write the same values as inline `<NAME>` fields, so every code block using that name updates live. Names containing `SECRET`, `PASSWORD`, `TOKEN`, or `PRIVATE` render as password inputs and are never saved. Keep secrets in an `export` line below the panel, since a secret placeholder still needs to land in a shell variable.
 
+**Derived placeholders.** Add `data-fill-derive="NAME=<A>.suffix.<B>"` (several allowed, separated by `;`) to compose one placeholder from others. `REGISTRY` below is rebuilt live as the reader types and is empty until every piece is filled:
+
+```html
+<div data-fill-fields="AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"
+     data-fill-derive="REGISTRY=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com"></div>
+```
+
+### Variable methodology (use this in every lab)
+
+| Kind of value | How to write it | Why |
+|---|---|---|
+| Reader-supplied (CID, client ID, cluster name, account, region, registry host) | Shared `<NAME>` placeholder, entered once in a `data-fill-fields` panel, written inline in every command | One entry, no re-exporting, nothing to forget after a shell restart |
+| Built from other reader values (registry address) | `data-fill-derive` | Reader never assembles the string |
+| Secrets (`*SECRET*`, `*PASSWORD*`, `*TOKEN*`, `*PRIVATE*`) | `export X="<X>"` in its own block, secret placeholder in the panel only if the command needs the literal | Secret placeholders are never saved to localStorage, and the shell needs the value |
+| Discovered at run time (image tags, image paths, pull tokens) | `export`, computed by a command | The page cannot know them in advance |
+| Full Lab cluster name and region | `{{CLUSTER_NAME}}` / `{{REGION}}` from the Lab Variables panel | Already shared across the lab |
+
+Do not `export` a value the reader typed unless it is a secret. Validate blocks then check only the secret and the discovered values.
+
 ## Lab Variables panel (Full Lab)
 
 1. Add `<div data-lab-variables></div>` once, under the Step 1 that first needs it.

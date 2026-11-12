@@ -194,7 +194,7 @@ export default function LabRenderer({ labKey }) {
         return <DeployOptions />
       }
       if (node?.properties?.dataFillFields) {
-        return <FillFields spec={node.properties.dataFillFields} />
+        return <FillFields spec={node.properties.dataFillFields} derive={node.properties.dataFillDerive} />
       }
       if (dataMode && dataMode !== activeMode) {
         return <div className="mode-content--hidden" />

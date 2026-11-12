@@ -76,13 +76,23 @@ CrowdStrike Cloud — Telemetry
      - One command block = one step. Give each block its own intro line.
      - It must CREATE anything it later depends on (profiles, namespaces); do not assume them. -->
 
+<!-- AUTHOR: VARIABLE METHODOLOGY. Values the reader types (CID, client ID, cluster name, account,
+     region, registry host) are shared <PLACEHOLDERS> entered ONCE in a data-fill-fields panel and
+     written inline in every command. Never `export` them. Only two things get `export`:
+       1. Secrets (FALCON_CLIENT_SECRET): a secret placeholder is never saved, and the shell
+          still needs the value.
+       2. Runtime-discovered values (image tags, image paths, pull tokens): the page cannot know
+          them in advance.
+     Registry addresses built from pieces use data-fill-derive (see step 2). -->
+
 ### 1. Set credentials
 
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:Cluster name"></div>
+
+Export the API client secret:
+
 ```bash
-export FALCON_CID="<YOUR_CID_WITH_CHECKSUM>"
-export CLUSTER_NAME="<YOUR_CLUSTER_NAME>"
-export FALCON_CLIENT_ID="<YOUR_FALCON_CLIENT_ID>"
-export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ### 2. Get the images
@@ -100,7 +110,7 @@ Generate the registry pull token (the target uses it to authenticate to CrowdStr
 
 ```bash
 export FALCON_PULL_TOKEN=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type TODO-image-type \
   --get-pull-token)
@@ -111,7 +121,7 @@ Get each component's image location and split it into registry + tag:
 
 ```bash
 export COMPONENT_A_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type TODO-image-type \
   --get-image-path)
@@ -123,6 +133,11 @@ export COMPONENT_A_IMAGE_TAG=$(echo $COMPONENT_A_IMAGE_PATH | cut -d: -f2)
 </div>
 
 <div data-registry="ecr">
+
+<!-- AUTHOR: A registry address built from pieces is derived, not exported:
+     <div data-fill-fields="AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"
+          data-fill-derive="REGISTRY=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com"></div>
+     Then write <REGISTRY> (or the pieces) inline in later commands. -->
 
 <!-- AUTHOR: Copy the ecr-new / ecr-existing / acr / gar / generic / own blocks from
      kubernetes/helm-daemonset/k8s-standard/lab.md (guide step 2) and adapt image names.
@@ -136,9 +151,6 @@ TODO ECR steps
 Validate every variable the deploy needs was populated (a ✅ means set, a ❌ means missing):
 
 ```bash
-echo "CID            : $([ -n "$FALCON_CID" ] && echo ✅ || echo ❌) ($FALCON_CID)"
-echo "Cluster        : $([ -n "$CLUSTER_NAME" ] && echo ✅ || echo ❌) ($CLUSTER_NAME)"
-echo "Client ID      : $([ -n "$FALCON_CLIENT_ID" ] && echo ✅ || echo ❌) ($FALCON_CLIENT_ID)"
 echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
 echo "Pull Token     : $([ -n "$FALCON_PULL_TOKEN" ] && echo ✅ || echo ❌)"  #@registry=crowdstrike
 echo "Component A    : $([ -n "$COMPONENT_A_REGISTRY" ] && echo ✅ || echo ❌) ($COMPONENT_A_REGISTRY:$COMPONENT_A_IMAGE_TAG)"
@@ -169,7 +181,7 @@ Install, passing the pull token so the target can pull from CrowdStrike's regist
 ```bash
 TODO deploy command \
   --set falcon.tags="<SENSOR_TAGS:TODO-default-tag>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
   --set image.repository=$COMPONENT_A_REGISTRY \
   --set image.tag=$COMPONENT_A_IMAGE_TAG \
   --set falcon.aph=<PROXY_HOST> \ #@opt=proxy
@@ -369,11 +381,14 @@ There is no CLI for creating API clients; this must be done in the console.
 
 ### Step 2: Export credentials
 
-- [ ] Set your credentials as environment variables:
+- [ ] Enter your values:
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID"></div>
+
+- [ ] Export the API client secret:
 
 ```bash
-export FALCON_CLIENT_ID="<YOUR_FALCON_CLIENT_ID>"
-export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ---
