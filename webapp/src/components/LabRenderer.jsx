@@ -6,6 +6,8 @@ import { getLabContent, getLabMeta } from '../content/manifest'
 import { useProgress } from '../hooks/useProgress'
 import { useHeadings } from '../hooks/useHeadings'
 import { useLabVariables } from '../hooks/useLabVariables'
+import { usePlaceholderValues } from '../hooks/usePlaceholderValues'
+import { PlaceholderContext } from './placeholderContext'
 import TableOfContents from './TableOfContents'
 import CodeBlock from './CodeBlock'
 import FlowDiagram, { isAsciiDiagram } from './FlowDiagram'
@@ -67,6 +69,7 @@ export default function LabRenderer({ labKey }) {
   const varsConfig = meta?.variables || NO_VARIABLES
   const { values: varValues, setValue: setVarValue, resetToDefaults: resetVars } =
     useLabVariables(labKey, varsConfig)
+  const placeholders = usePlaceholderValues(labKey)
   const hasVariables = !!meta?.variables
   const showVariablesPanel = hasVariables &&
     (!meta.variables.modes || meta.variables.modes.includes(activeMode))
@@ -253,13 +256,15 @@ export default function LabRenderer({ labKey }) {
       <main className="content-area" ref={contentRef}>
         <LabDisclaimer />
         <LabVarsContext.Provider value={labVarsContextValue}>
-          <Markdown
-            remarkPlugins={REMARK_PLUGINS}
-            rehypePlugins={REHYPE_PLUGINS}
-            components={components}
-          >
-            {content}
-          </Markdown>
+          <PlaceholderContext.Provider value={placeholders}>
+            <Markdown
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={components}
+            >
+              {content}
+            </Markdown>
+          </PlaceholderContext.Provider>
         </LabVarsContext.Provider>
       </main>
       <TableOfContents headings={headings} />
