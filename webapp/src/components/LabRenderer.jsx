@@ -15,6 +15,8 @@ import StatusBadge from './StatusBadge'
 import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
+import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
+import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
 import { LabVarsContext } from './labVarsContext'
 
 // Noop config passed to the hook when a lab has no variables — keeps hook order stable.
@@ -58,6 +60,40 @@ function CloudBlockGate({ cloud, children, ...props }) {
     return <div className="mode-content--hidden" />
   }
   return <div {...props}>{children}</div>
+}
+
+// Shows its children only when the reader's registry choice (RegistryChoice picker) matches.
+function RegistryBlockGate({ registry, children, ...props }) {
+  const choice = useRegistryChoice()
+  if (!registryMatches(registry, choice)) {
+    return <div className="mode-content--hidden" />
+  }
+  return <div {...props}>{children}</div>
+}
+
+// Per-line gating inside a code block: trailing `#@registry=<gate>`, `#@region=<gate>` or
+// `#@opt=<gate>` markers (stackable, all must match) keep the line with the markers stripped,
+// otherwise the line is dropped.
+const LINE_MARKER_RE = /\s*#@(registry|region|opt)=(\S+)\s*$/
+function RegistryFilteredCodeBlock({ language, hasVariables, children }) {
+  const registry = useRegistryChoice()
+  const deploy = useDeployOptions()
+  const filtered = children
+    .split('\n')
+    .flatMap(line => {
+      let rest = line
+      let keep = true
+      let m
+      while ((m = LINE_MARKER_RE.exec(rest))) {
+        const [, kind, gate] = m
+        if (kind === 'registry' ? !registryMatches(gate, registry) : !markerMatches(kind, gate, deploy)) keep = false
+        rest = rest.slice(0, m.index)
+      }
+      return keep ? [rest] : []
+    })
+    .join('\n')
+  const Block = hasVariables ? TokenSubstitutingCodeBlock : CodeBlock
+  return <Block language={language}>{filtered}</Block>
 }
 
 export default function LabRenderer({ labKey }) {
@@ -108,6 +144,13 @@ export default function LabRenderer({ labKey }) {
         if (isAsciiDiagram(codeContent)) {
           return <FlowDiagram content={codeContent} />
         }
+        if (/#@(registry|region|opt)=/.test(codeContent)) {
+          return (
+            <RegistryFilteredCodeBlock language={match ? match[1] : ''} hasVariables={hasVariables}>
+              {codeContent}
+            </RegistryFilteredCodeBlock>
+          )
+        }
         if (hasVariables) {
           return (
             <TokenSubstitutingCodeBlock language={match ? match[1] : ''}>
@@ -133,8 +176,18 @@ export default function LabRenderer({ labKey }) {
       if (dataLabVariables) {
         return showVariablesPanel ? <LabVariables /> : null
       }
+      if (node?.properties?.dataRegistryPicker !== undefined) {
+        return <RegistryChoice />
+      }
+      if (node?.properties?.dataDeployOptions !== undefined) {
+        return <DeployOptions />
+      }
       if (dataMode && dataMode !== activeMode) {
         return <div className="mode-content--hidden" />
+      }
+      const dataRegistry = node?.properties?.dataRegistry
+      if (dataRegistry) {
+        return <RegistryBlockGate registry={dataRegistry} {...props}>{children}</RegistryBlockGate>
       }
       if (dataCloud) {
         return <CloudBlockGate cloud={dataCloud} {...props}>{children}</CloudBlockGate>
