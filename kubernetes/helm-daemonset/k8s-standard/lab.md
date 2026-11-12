@@ -117,6 +117,17 @@ curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/head
   --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 ```
 
+> **Note:** The script appends the image name itself, so `--copy` takes just the registry (no `/<REPOSITORY>` suffix) and pushes to `<registry>/falcon-sensor:<tag>`. To push to a differently named ECR repo instead, end the value with the repo and add `--copy-omit-image-name` — this pushes to `<REPOSITORY>:<tag>`:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<REPOSITORY> \
+  --copy-omit-image-name
+```
+
 </details>
 
 <details>
@@ -184,13 +195,13 @@ helm repo update
 
 ### 4. Deploy the chart
 
-> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="daemonset-sensor" \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:daemonset-sensor>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -505,6 +516,17 @@ curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/head
   --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 ```
 
+> **Note:** The script appends the image name itself, so `--copy` takes just the registry (no `/<REPOSITORY>` suffix) and pushes to `<registry>/falcon-sensor:<tag>`. To push to a differently named ECR repo instead, end the value with the repo and add `--copy-omit-image-name` — this pushes to `<REPOSITORY>:<tag>`:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id $FALCON_CLIENT_ID \
+  --client-secret $FALCON_CLIENT_SECRET \
+  --type falcon-sensor \
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<REPOSITORY> \
+  --copy-omit-image-name
+```
+
 </div>
 
 <div data-cloud="aks">
@@ -599,7 +621,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 - [ ] Run the Helm install with all component configurations:
 
@@ -607,7 +629,7 @@ helm search repo crowdstrike/falcon-platform
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="daemonset-sensor" \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:daemonset-sensor>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \

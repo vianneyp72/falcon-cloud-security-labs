@@ -152,13 +152,13 @@ helm repo update
 
 ### 4. Deploy the chart (Autopilot settings)
 
-> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="gke-autopilot" \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:gke-autopilot>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
@@ -454,7 +454,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group this sensor in the Falcon console.
+> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 - [ ] Run the Helm install:
 
@@ -462,7 +462,7 @@ helm search repo crowdstrike/falcon-platform
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="gke-autopilot" \
+  --set falcon-sensor.falcon.tags="<SENSOR_TAGS:gke-autopilot>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \

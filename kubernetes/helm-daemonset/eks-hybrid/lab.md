@@ -174,7 +174,7 @@ Install the `falcon-platform` umbrella chart (DaemonSet sensor + KAC + IAR) poin
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="eks-ec2-node" \
+  --set falcon-sensor.falcon.tags="<NODE_SENSOR_TAGS:eks-ec2-node>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set falcon-sensor.node.image.repository=$ECR_REGISTRY/falcon-sensor \
@@ -195,7 +195,7 @@ Install the sidecar injector for Fargate pods, pointing at your ECR Container Se
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
-  --set falcon.tags="eks-fargate" \
+  --set falcon.tags="<FARGATE_SENSOR_TAGS:eks-fargate>" \
   --set falcon.cid=$FALCON_CID \
   --set node.enabled=false \
   --set container.enabled=true \
@@ -437,7 +437,7 @@ helm search repo crowdstrike/falcon-sensor
 
 ### Step 1: Install the platform chart
 
-> **Note:** Change `falcon-sensor.falcon.tags` to any custom value to group the EC2 node sensor in the Falcon console.
+> **Note:** Edit the highlighted `NODE_SENSOR_TAGS` field (the page replaces it when you click Copy) to group the EC2 node sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 - [ ] Deploy with all component images pointed at ECR:
 
@@ -445,7 +445,7 @@ helm search repo crowdstrike/falcon-sensor
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
   --create-namespace \
-  --set falcon-sensor.falcon.tags="eks-ec2-node" \
+  --set falcon-sensor.falcon.tags="<NODE_SENSOR_TAGS:eks-ec2-node>" \
   --set createComponentNamespaces=true \
   --set global.falcon.cid=$FALCON_CID \
   --set falcon-sensor.node.image.repository=$ECR_REGISTRY/falcon-sensor \
@@ -483,7 +483,7 @@ kubectl get ds -n falcon-system
 
 ### Step 1: Deploy the injector
 
-> **Note:** Change `falcon.tags` to any custom value to group the Fargate sidecars in the Falcon console.
+> **Note:** Edit the highlighted `FARGATE_SENSOR_TAGS` field (the page replaces it when you click Copy) to group the Fargate sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 - [ ] Install the `falcon-sensor` chart in injector mode, pointing at your ECR image:
 
@@ -491,7 +491,7 @@ kubectl get ds -n falcon-system
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
-  --set falcon.tags="eks-fargate" \
+  --set falcon.tags="<FARGATE_SENSOR_TAGS:eks-fargate>" \
   --set falcon.cid=$FALCON_CID \
   --set node.enabled=false \
   --set container.enabled=true \

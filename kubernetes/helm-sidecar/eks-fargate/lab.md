@@ -176,7 +176,7 @@ Install the `falcon-sensor` chart in injector mode, pointing at the ECR image (n
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
-  --set falcon.tags="eks-fargate" \
+  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
   --set falcon.cid=$FALCON_CID \
   --set node.enabled=false \
   --set container.enabled=true \
@@ -446,7 +446,7 @@ helm search repo crowdstrike/falcon-image-analyzer
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
-  --set falcon.tags="eks-fargate" \
+  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
   --set falcon.cid=$FALCON_CID \
   --set node.enabled=false \
   --set container.enabled=true \
@@ -673,7 +673,7 @@ Redeploy the injector with namespace-scoped injection disabled by default:
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
-  --set falcon.tags="eks-fargate" \
+  --set falcon.tags="<SENSOR_TAGS:eks-fargate>" \
   --set falcon.cid=$FALCON_CID \
   --set node.enabled=false \
   --set container.enabled=true \
