@@ -20,4 +20,4 @@ Use this approach when:
 ## Guides
 
 - [Local Docker](local-docker/) -- Patch images locally using Docker and the CrowdStrike patching utility
-- [CI/CD Integration](cicd/) -- Integrate image patching into GitHub Actions, GitLab CI, or other pipelines (stub)
+- [GitHub Actions](github-actions/), [GitLab CI](gitlab-ci/), [Jenkins](jenkins/) -- Integrate image patching into CI/CD pipelines

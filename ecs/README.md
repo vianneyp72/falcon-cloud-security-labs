@@ -22,5 +22,7 @@ Alternatively, install the sensor directly on the EC2 instances using the same m
 
 ## Guides
 
-- [Fargate](fargate/) -- Task definition patching and falcon-utility sidecar
-- [EC2](ec2/) -- Daemon service deployment on EC2-backed clusters
+- [Fargate task patching](fargate-task-patching/) -- Patch the task definition with the sensor container
+- [Fargate falcon-utility](fargate-falcon-utility/) -- Falcon utility init container sidecar
+- [Fargate Terraform module](fargate-terraform-module/) -- CrowdStrike's official Terraform module
+- [EC2 daemon service](ec2-daemon-service/) -- Daemon service deployment on EC2-backed clusters

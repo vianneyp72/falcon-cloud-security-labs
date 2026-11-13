@@ -9,5 +9,5 @@ Refer to [container-image-patching/](../container-image-patching/) for the core 
 ## Supported Platforms
 
 - [Google Cloud Run](cloud-run/) -- Deploy patched images to Cloud Run services
-- [Azure Container Instances (ACI)](aci/) -- Deploy patched images to ACI
+- [Azure Container Instances (ACI)](azure-container-instances/) -- Deploy patched images to ACI
 - [Azure Container Apps](azure-container-apps/) -- Deploy patched images to Azure Container Apps

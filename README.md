@@ -2,6 +2,10 @@
 
 This repository contains step-by-step lab guides for CrowdStrike Falcon Cloud Security across cloud workloads — sensor deployments, cloud account registration, container protection, and more. Each guide is a self-contained lab folder with instructions and (where applicable) Terraform files for reproducible environments.
 
+## Browsing the site
+
+The lab site is organized **cloud first** (AWS, Azure, Google Cloud, Any Cloud / Tooling), then by service and OS, and every cloud has an Account Registration section. Generic guides such as the standard Kubernetes Helm lab appear under each cloud but are the same page. A **Modernization Roadmap** page tracks which labs meet the current lab standard (Modernized) and which are still Legacy or not yet written. The folders in this repo stay organized by compute type, as in the matrix below.
+
 ## Decision Matrix
 
 Find the right guide: "I have X compute type" → follow the link.
@@ -19,9 +23,10 @@ Find the right guide: "I have X compute type" → follow the link.
 | **ECS EC2** | Daemon service | [ecs/ec2-daemon-service/](ecs/ec2-daemon-service/) |
 | **Linux VMs** | Manual, SSM, Ansible, startup script | [vms/linux/](vms/linux/) |
 | **Windows VMs** | Manual, SSM, GPO, Intune | [vms/windows/](vms/windows/) |
-| **Serverless containers** (Cloud Run, ACI) | Container image patching | [serverless-containers/](serverless-containers/) |
+| **Serverless containers** (Cloud Run, ACI, Container Apps) | Container image patching | [serverless-containers/](serverless-containers/) |
 | **Container images** (build-time) | falconutil patch-image | [container-image-patching/](container-image-patching/) |
-| **Serverless functions** (Lambda, etc.) | Agentless — no sensor deployed | [serverless-functions/](serverless-functions/) |
+| **FCS CLI** (CI image scanning) | GitHub Actions | [fcs-cli/](fcs-cli/) |
+| **Cloud account registration** (AWS, Azure, GCP) | Terraform, CloudFormation, Bicep, Resource Manager | [cspm/account-registration/](cspm/account-registration/) |
 
 ## Shared Prerequisites
 
@@ -29,8 +34,6 @@ Before starting any lab, review the shared setup steps in [`_common/`](_common/)
 
 - [API Credentials](_common/api-credentials.md) — Create API clients and required scopes
 - [Pull Sensor Images](_common/pull-sensor-images.md) — Download sensor images from CrowdStrike registry
-- [Registry Setup](_common/registry-setup/) — Push images to ECR, GAR, ACR, or generic OCI registries
-- [GitOps Delivery](_common/gitops/) — ArgoCD, Flux, Terraform patterns
 - [Verification](_common/verification.md) — Confirm sensor connectivity
 
 ## Repository Structure
@@ -38,15 +41,12 @@ Before starting any lab, review the shared setup steps in [`_common/`](_common/)
 ```
 falcon-cloud-security-labs/
 ├── README.md
-├── _common/                          # Shared prerequisites and utilities
+├── _common/                          # Shared prerequisites and authoring references
 │   ├── api-credentials.md
 │   ├── pull-sensor-images.md
-│   ├── falcon-container-sensor-pull.sh
-│   ├── registry-setup/
-│   │   ├── ecr.md, gar.md, acr.md, generic-oci.md
-│   ├── gitops/
-│   │   ├── argocd.md, flux.md, terraform-helm-release.md
-│   └── verification.md
+│   ├── verification.md
+│   ├── lab-template.md               # Copy-and-fill starting point for every lab
+│   └── lab-authoring-features.md     # Interactive markers the webapp understands
 ├── kubernetes/                       # All K8s deployments
 │   ├── helm-daemonset/               # Node-level sensor via Helm
 │   │   ├── k8s-standard/, eks-hybrid/, gke-autopilot/
@@ -55,8 +55,8 @@ falcon-cloud-security-labs/
 │   └── operator/                     # Falcon Operator (CRD-based)
 │       ├── generic/, openshift/
 ├── ecs/                              # AWS ECS
-│   ├── fargate-task-patching/
-│   ├── fargate-falcon-utility/
+│   ├── fargate-task-patching/, fargate-falcon-utility/
+│   ├── fargate-terraform-module/
 │   └── ec2-daemon-service/
 ├── vms/                              # Virtual machines
 │   ├── linux/
@@ -69,5 +69,12 @@ falcon-cloud-security-labs/
 ├── serverless-containers/            # Cloud Run, ACI, Container Apps
 ├── container-image-patching/         # Build-time falconutil
 │   ├── local-docker/, github-actions/, gitlab-ci/, jenkins/
-└── serverless-functions/             # Agentless (no sensor deployed)
+├── fcs-cli/                          # FCS CLI in CI
+│   └── github-actions-image-scan/
+├── cspm/account-registration/        # Cloud account registration
+│   ├── aws/ (terraform, cloudformation)
+│   ├── azure/ (terraform, bicep)
+│   └── gcp/ (terraform, resource-manager)
+├── se-built/                         # SE-built tools and references
+└── webapp/                           # React site that renders the labs
 ```

@@ -275,6 +275,7 @@ function buildLeaf(spec, base, cloudRoute) {
     cloud: cloudRoute,
     cloudPreset: spec.cloudPreset,
     primary: !!spec.primary,
+    category: spec.category,
   }
   placements.push(placement)
   placementByRoute[fullRoute] = placement
@@ -301,118 +302,149 @@ function cloud(label, route, logo, description, children) {
 
 const K8S = 'kubernetes/helm-daemonset/k8s-standard'
 
+// Tags nodes with the landing-page section they appear under (Containers, Virtual Machines, ...).
+// `inline(group)` shows that group's labs directly on the landing page instead of a service card.
+const cat = (category, nodes) => nodes.map(n => ({ ...n, category }))
+const inline = node => ({ ...node, inline: true })
+
 export const manifest = [
   cloud('AWS', 'aws', 'aws', 'EKS, ECS, EC2 fleets, and AWS account registration.', [
-    g('EKS', 'eks', [
-      l(K8S, 'standard', { label: 'Standard (EC2 Node Groups)', cloudPreset: 'eks' }),
-      l('kubernetes/helm-sidecar/eks-fargate', 'fargate'),
-      l('kubernetes/helm-daemonset/eks-hybrid', 'hybrid-nodes'),
+    ...cat('Containers', [
+      g('EKS', 'eks', [
+        l(K8S, 'standard', { label: 'Standard (EC2 Node Groups)', cloudPreset: 'eks' }),
+        l('kubernetes/helm-sidecar/eks-fargate', 'fargate'),
+        l('kubernetes/helm-daemonset/eks-hybrid', 'hybrid-nodes'),
+      ]),
+      g('ECS', 'ecs', [
+        g('Fargate', 'fargate', [
+          l('ecs/fargate-task-patching', 'task-patching', { label: 'Task Patching' }),
+          l('ecs/fargate-falcon-utility', 'falcon-utility', { label: 'Falcon Utility' }),
+          l('ecs/fargate-terraform-module', 'terraform-module', { label: 'Terraform Module' }),
+        ]),
+        l('ecs/ec2-daemon-service', 'ec2-daemon-service'),
+      ], 'ecs/README.md'),
     ]),
-    g('ECS', 'ecs', [
-      g('Fargate', 'fargate', [
-        l('ecs/fargate-task-patching', 'task-patching', { label: 'Task Patching' }),
-        l('ecs/fargate-falcon-utility', 'falcon-utility', { label: 'Falcon Utility' }),
-        l('ecs/fargate-terraform-module', 'terraform-module', { label: 'Terraform Module' }),
-      ]),
-      l('ecs/ec2-daemon-service', 'ec2-daemon-service'),
-    ], 'ecs/README.md'),
-    g('EC2', 'ec2', [
-      g('Linux', 'linux', [
-        l('vms/linux/aws-ssm', 'aws-ssm'),
-        l('vms/linux/packer-ami', 'packer-ami'),
-        l('vms/linux/terraform-userdata', 'terraform-userdata'),
-        l('vms/linux/ansible', 'ansible'),
-        l('vms/linux/manual-cli', 'manual-cli'),
-      ]),
-      g('Windows', 'windows', [
-        l('vms/windows/aws-ssm', 'aws-ssm'),
-        l('vms/windows/packer-ami', 'packer-ami'),
-        l('vms/windows/manual-cli', 'manual-cli'),
+    ...cat('Virtual Machines', [
+      g('EC2', 'ec2', [
+        g('Linux', 'linux', [
+          l('vms/linux/aws-ssm', 'aws-ssm'),
+          l('vms/linux/packer-ami', 'packer-ami'),
+          l('vms/linux/terraform-userdata', 'terraform-userdata'),
+          l('vms/linux/ansible', 'ansible'),
+          l('vms/linux/manual-cli', 'manual-cli'),
+        ]),
+        g('Windows', 'windows', [
+          l('vms/windows/aws-ssm', 'aws-ssm'),
+          l('vms/windows/packer-ami', 'packer-ami'),
+          l('vms/windows/manual-cli', 'manual-cli'),
+        ]),
       ]),
     ]),
-    g('Account Registration', 'registration', [
-      l('cspm/account-registration/aws-terraform', 'terraform', { label: 'Terraform' }),
-      l('cspm/account-registration/aws-cloudformation', 'cloudformation', { label: 'CloudFormation' }),
+    ...cat('Account Registration', [
+      inline(g('Account Registration', 'registration', [
+        l('cspm/account-registration/aws-terraform', 'terraform', { label: 'Terraform' }),
+        l('cspm/account-registration/aws-cloudformation', 'cloudformation', { label: 'CloudFormation' }),
+      ])),
     ]),
   ]),
 
   cloud('Azure', 'azure', 'azure', 'AKS, Container Instances, Container Apps, virtual machines, and Azure account registration.', [
-    g('AKS', 'aks', [
-      l(K8S, 'standard', { label: 'Standard', cloudPreset: 'aks' }),
-    ]),
-    l('serverless-containers/azure-container-instances', 'container-instances', { label: 'Container Instances (ACI)' }),
-    l('serverless-containers/azure-container-apps', 'container-apps', { label: 'Container Apps' }),
-    g('Virtual Machines', 'vms', [
-      g('Linux', 'linux', [
-        l('vms/linux/ansible', 'ansible'),
-        l('vms/linux/manual-cli', 'manual-cli'),
+    ...cat('Containers', [
+      g('AKS', 'aks', [
+        l(K8S, 'standard', { label: 'Standard', cloudPreset: 'aks' }),
       ]),
-      g('Windows', 'windows', [
-        l('vms/windows/intune', 'intune'),
-        l('vms/windows/manual-cli', 'manual-cli'),
+      l('serverless-containers/azure-container-instances', 'container-instances', { label: 'Container Instances (ACI)' }),
+      l('serverless-containers/azure-container-apps', 'container-apps', { label: 'Container Apps' }),
+    ]),
+    ...cat('Virtual Machines', [
+      g('Azure VMs', 'vms', [
+        g('Linux', 'linux', [
+          l('vms/linux/ansible', 'ansible'),
+          l('vms/linux/manual-cli', 'manual-cli'),
+        ]),
+        g('Windows', 'windows', [
+          l('vms/windows/intune', 'intune'),
+          l('vms/windows/manual-cli', 'manual-cli'),
+        ]),
       ]),
     ]),
-    g('Account Registration', 'registration', [
-      l('cspm/account-registration/azure-terraform', 'terraform', { label: 'Terraform' }),
-      l('cspm/account-registration/azure-bicep', 'bicep', { label: 'Bicep' }),
+    ...cat('Account Registration', [
+      inline(g('Account Registration', 'registration', [
+        l('cspm/account-registration/azure-terraform', 'terraform', { label: 'Terraform' }),
+        l('cspm/account-registration/azure-bicep', 'bicep', { label: 'Bicep' }),
+      ])),
     ]),
   ]),
 
   cloud('Google Cloud', 'gcp', 'gcp', 'GKE, Cloud Run, Compute Engine, and GCP account registration.', [
-    g('GKE', 'gke', [
-      l(K8S, 'standard', { label: 'Standard', cloudPreset: 'gke' }),
-      l('kubernetes/helm-daemonset/gke-autopilot', 'autopilot'),
+    ...cat('Containers', [
+      g('GKE', 'gke', [
+        l(K8S, 'standard', { label: 'Standard', cloudPreset: 'gke' }),
+        l('kubernetes/helm-daemonset/gke-autopilot', 'autopilot'),
+      ]),
+      l('serverless-containers/cloud-run', 'cloud-run', { label: 'Cloud Run' }),
     ]),
-    l('serverless-containers/cloud-run', 'cloud-run', { label: 'Cloud Run' }),
-    g('Compute Engine', 'compute-engine', [
-      g('Linux', 'linux', [
-        l('vms/linux/gce-startup-script', 'startup-script'),
-        l('vms/linux/ansible', 'ansible'),
-        l('vms/linux/manual-cli', 'manual-cli'),
+    ...cat('Virtual Machines', [
+      g('Compute Engine', 'compute-engine', [
+        g('Linux', 'linux', [
+          l('vms/linux/gce-startup-script', 'startup-script'),
+          l('vms/linux/ansible', 'ansible'),
+          l('vms/linux/manual-cli', 'manual-cli'),
+        ]),
       ]),
     ]),
-    g('Account Registration', 'registration', [
-      l('cspm/account-registration/gcp-terraform', 'terraform', { label: 'Terraform' }),
-      l('cspm/account-registration/gcp-resource-manager', 'resource-manager', { label: 'Resource Manager' }),
+    ...cat('Account Registration', [
+      inline(g('Account Registration', 'registration', [
+        l('cspm/account-registration/gcp-terraform', 'terraform', { label: 'Terraform' }),
+        l('cspm/account-registration/gcp-resource-manager', 'resource-manager', { label: 'Resource Manager' }),
+      ])),
     ]),
   ]),
 
   cloud('Any Cloud / Tooling', 'any-cloud', 'any', 'Cloud-agnostic tooling: any Kubernetes cluster, the Falcon Operator, image patching, FCS CLI, configuration management, and reference guides.', [
-    g('Kubernetes', 'kubernetes', [
-      l(K8S, 'standard', { label: 'Standard (Any Cluster)', primary: true }),
-      l('kubernetes/operator/generic', 'operator'),
-      l('kubernetes/operator/openshift', 'openshift'),
-    ], 'kubernetes/README.md'),
-    g('Container Image Patching', 'container-image-patching', [
-      l('container-image-patching/local-docker', 'local-docker'),
-      l('container-image-patching/github-actions', 'github-actions'),
-      l('container-image-patching/gitlab-ci', 'gitlab-ci'),
-      l('container-image-patching/jenkins', 'jenkins'),
-    ], 'container-image-patching/README.md'),
-    g('FCS CLI', 'fcs-cli', [
-      l('fcs-cli/github-actions-image-scan', 'github-actions-image-scan'),
+    ...cat('Containers', [
+      g('Kubernetes', 'kubernetes', [
+        l(K8S, 'standard', { label: 'Standard (Any Cluster)', primary: true }),
+        l('kubernetes/operator/generic', 'operator'),
+        l('kubernetes/operator/openshift', 'openshift'),
+      ], 'kubernetes/README.md'),
+      g('Container Image Patching', 'container-image-patching', [
+        l('container-image-patching/local-docker', 'local-docker'),
+        l('container-image-patching/github-actions', 'github-actions'),
+        l('container-image-patching/gitlab-ci', 'gitlab-ci'),
+        l('container-image-patching/jenkins', 'jenkins'),
+      ], 'container-image-patching/README.md'),
     ]),
-    g('Linux VMs', 'linux-vms', [
-      l('vms/linux/ansible', 'ansible', { primary: true }),
-      l('vms/linux/chef', 'chef'),
-      l('vms/linux/puppet', 'puppet'),
-      l('vms/linux/manual-cli', 'manual-cli', { primary: true }),
+    ...cat('Virtual Machines', [
+      g('Linux VMs', 'linux-vms', [
+        l('vms/linux/ansible', 'ansible', { primary: true }),
+        l('vms/linux/chef', 'chef'),
+        l('vms/linux/puppet', 'puppet'),
+        l('vms/linux/manual-cli', 'manual-cli', { primary: true }),
+      ]),
+      g('Windows VMs', 'windows-vms', [
+        l('vms/windows/gpo', 'gpo'),
+        l('vms/windows/sccm', 'sccm'),
+        l('vms/windows/manual-cli', 'manual-cli', { primary: true }),
+      ]),
     ]),
-    g('Windows VMs', 'windows-vms', [
-      l('vms/windows/gpo', 'gpo'),
-      l('vms/windows/sccm', 'sccm'),
-      l('vms/windows/manual-cli', 'manual-cli', { primary: true }),
+    ...cat('CI/CD & Scanning', [
+      g('FCS CLI', 'fcs-cli', [
+        l('fcs-cli/github-actions-image-scan', 'github-actions-image-scan'),
+      ]),
     ]),
-    g('Reference', 'reference', [
-      l('common/api-credentials', 'api-credentials'),
-      l('common/pull-sensor-images', 'pull-sensor-images'),
-      l('common/verification', 'verification'),
-    ]),
-    g('SE-Built Tools', 'se-built', [
-      l('se-built/yet-another-sensor-installer', 'yet-another-sensor-installer'),
-      l('se-built/ecs-fargate-sidecar-injector', 'ecs-fargate-sidecar-injector'),
-      l('se-built/simple-rego-examples', 'simple-rego-examples'),
-      l('se-built/azure-fcs-prereqs-checker', 'azure-fcs-prereqs-checker'),
+    ...cat('Reference & Tools', [
+      g('Reference', 'reference', [
+        l('common/api-credentials', 'api-credentials'),
+        l('common/pull-sensor-images', 'pull-sensor-images'),
+        l('common/verification', 'verification'),
+      ]),
+      g('SE-Built Tools', 'se-built', [
+        l('se-built/yet-another-sensor-installer', 'yet-another-sensor-installer'),
+        l('se-built/ecs-fargate-sidecar-injector', 'ecs-fargate-sidecar-injector'),
+        l('se-built/simple-rego-examples', 'simple-rego-examples'),
+        l('se-built/azure-fcs-prereqs-checker', 'azure-fcs-prereqs-checker'),
+      ]),
     ]),
   ]),
 ]

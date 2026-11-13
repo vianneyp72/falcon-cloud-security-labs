@@ -104,10 +104,11 @@ Do not `export` a value the reader typed unless it is a secret. Validate blocks 
 ## Lab Variables panel (Full Lab)
 
 1. Add `<div data-lab-variables></div>` once, under the Step 1 that first needs it.
-2. Register the fields on the lab in `webapp/src/content/manifest.js`:
+2. Register the fields on the lab's entry in the `LABS` array in `webapp/src/content/manifest.js`:
 
 ```js
-lab('Title', 'route', 'category/method/lab.md', {
+{
+  id: 'category/method', label: 'Title', area: 'Category', md: 'category/method/lab.md',
   variables: {
     modes: ['lab'],
     fields: [
@@ -117,7 +118,7 @@ lab('Title', 'route', 'category/method/lab.md', {
       { key: 'REGION', label: 'Region', type: 'text' },
     ],
   },
-}),
+},
 ```
 
 3. Use `{{CLUSTER_NAME}}` / `{{REGION}}` directly in commands. Do NOT also `export` them.
@@ -139,4 +140,4 @@ lab('Title', 'route', 'category/method/lab.md', {
 
 ## Registering a new lab
 
-Add the `?raw` import, the `labs` map entry, and the tree entry in `webapp/src/content/manifest.js` (steps in `webapp/CLAUDE.md`, "Adding a New Lab"). Then run `npm run build` in `webapp/`.
+In `webapp/src/content/manifest.js`: add the `?raw` import and `labs` map entry, a `LABS` entry, and at least one nav placement under a cloud (steps in `webapp/CLAUDE.md`, "Adding a New Lab"). Until `modernized: true` is set the lab shows as Legacy or Roadmap. Then run `npm run build` in `webapp/`.

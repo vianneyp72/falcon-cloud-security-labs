@@ -20,19 +20,19 @@ Interactive React webapp that renders the repo's `lab.md` files as a polished do
 ```
 src/
 ├── main.jsx              ← Entry, HashRouter wrap
-├── App.jsx               ← Routes (sections/groups/leaves from manifest)
+├── App.jsx               ← Recursive routes from the manifest + redirects for old compute-first URLs + /roadmap
 ├── content/
 │   └── manifest.js       ← Central registry: imports, LABS, cloud-first nav placements, status + roadmap
 ├── components/
 │   ├── Layout.jsx        ← Grid shell: header + sidebar + content + TOC + ThemeToggle
-│   ├── Sidebar.jsx       ← Collapsible tree nav (recursive)
+│   ├── Sidebar.jsx       ← Collapsible cloud > service > OS tree nav (one recursive group node)
 │   ├── LabRenderer.jsx   ← Markdown → interactive page (custom renderers)
 │   ├── CodeBlock.jsx     ← Terminal dots + copy button + highlight.js
 │   ├── FlowDiagram.jsx   ← ASCII art → React Flow diagrams (with built-in expand button)
 │   ├── ThemeToggle.jsx   ← 32×32 header button, sun/moon SVG, toggles data-theme
 │   ├── TableOfContents.jsx ← Right-side scroll-spy TOC
 │   ├── ReadingProgress.jsx ← Scroll progress bar under header
-│   ├── OverviewPage.jsx  ← Category landing pages with card grid
+│   ├── OverviewPage.jsx  ← Home (cloud cards), cloud pages (Containers / Virtual Machines / ... sections of service cards), service pages (OS sections)
 │   ├── ProgressBar.jsx   ← Global completion bar
 │   ├── StatusBadge.jsx   ← Modernized / Legacy / Roadmap indicators
 │   ├── CloudLogo.jsx     ← AWS / Azure / Google Cloud marks (brand-color tokens in global.css)

@@ -15,6 +15,18 @@ vms/linux/ansible/                        ← compute/os/method
 
 Shared prerequisites live in `_common/` (underscore prefix sorts first).
 
+## Site navigation & modernization status
+
+The folders above are organized by compute type, but the **webapp nav is cloud-first**: AWS / Azure / Google Cloud / Any Cloud, then service (EKS, ECS, EC2, ...), then OS or method. A generic lab (for example `k8s-standard`) is **placed under several clouds** and renders the same page. Never duplicate a lab per cloud; add another placement in `webapp/src/content/manifest.js` instead. Every cloud also carries an Account Registration group (`cspm/account-registration/`).
+
+Each lab is tracked on a modernization roadmap (`/roadmap`, generated from the manifest):
+
+- **Modernized** (green): meets the current lab standard (the helm-daemonset template). Set `modernized: true` on the lab's entry in `LABS`. Today: `k8s-standard`, `eks-fargate`, `fargate-terraform-module`.
+- **Legacy** (yellow): written, but not yet brought up to the standard. Shows a banner pointing at the roadmap.
+- **Roadmap** (yellow, hollow): stub, not written yet.
+
+When you finish modernizing a lab, flip its `modernized` flag. Steps to add or place a lab are in `webapp/CLAUDE.md`, "Adding a New Lab".
+
 ## Audience & Voice
 
 **Every lab is written for a CrowdStrike Sales Engineer who is new to cloud.** This is the single most important lens for every choice — flow, wording, callouts, and level of detail. Evaluate every step, sentence, and note against this reader before shipping.
@@ -22,7 +34,7 @@ Shared prerequisites live in `_common/` (underscore prefix sorts first).
 ### What this means in practice
 
 - **Assume Falcon fluency, not cloud fluency.** They know the Falcon platform (CID, sensor, KAC, IAR, detections) but may not know what an IAM role, security group, node pool, Fargate profile, or service principal actually IS. Explain the cloud-native primitive briefly the first time it appears in a lab; don't re-explain Falcon terms.
-- **Never assume prior console familiarity for the cloud provider.** The AWS/GCP/Azure console layout is unfamiliar territory for a first-time SE. Guide them to the exact service, then the exact button — console-first is not optional, it's the primary learning surface.
+- **Never assume prior console familiarity for the cloud provider.** The AWS/GCP/Azure console layout is unfamiliar territory for a first-time SE. Guide them to the exact service, then the exact button — in Full Lab, console-first is not optional, it's the primary learning surface.
 - **Cut fluff, keep insight.** Zero tolerance for filler ("In this step, we will now proceed to…"). But DO include a short teaching note where a cloud concept genuinely helps them understand what they just did — e.g. "The pod execution role is what lets Fargate pull from ECR; you don't attach it to pods yourself, EKS does it for you." Aim for one or two-sentence insight callouts, not paragraphs.
 - **Use `> **Note:**` / `> **Why this matters:**` blockquotes to teach cloud concepts inline** — placed AT the step where the concept first bites, not lumped into a background section they'll skip. In Full Lab mode this pairs naturally with the existing `> **What & Why:**` block (What & Why = purpose of this step; Note/Why this matters = the cloud concept the step exposes).
 - **Name the cloud-provider term the same way the console does.** If AWS calls it a "trust relationship", don't rename it "trust policy" mid-lab. Consistency with the console reduces the cognitive load of translating.
@@ -128,7 +140,7 @@ Brief explanation of key ideas and architecture.
 ### Quick Deploy mode rules
 
 - Use as few H3 numbered steps as the method allows — the goal is the simplest path to get a customer up and running fast. More than 5 steps is fine when the method genuinely needs them (don't artificially merge or omit steps).
-- Console-first: describe the UI navigation, then collapse CLI into `<details><summary>CLI equivalent</summary>`
+- Console-first is optional here: CLI-only is fine for the fastest path. When a console step is included, collapse the CLI into `<details><summary>CLI equivalent</summary>`
 - No checkboxes, no time/difficulty markers, no `> **What & Why:**` blocks
 - Minimal prose — get to the point
 
@@ -148,7 +160,7 @@ Brief explanation of key ideas and architecture.
 - Keep steps as copy-paste-able commands
 - Use environment variables for user-specific values
 - No emojis in content
-- Console-first applies to BOTH modes (UI navigation as primary, CLI in collapsible details)
+- Console-first is required in Full Lab (UI navigation as primary, CLI in collapsible details); Quick Deploy may be CLI-only
 
 ## Stubs
 
