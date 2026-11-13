@@ -1,8 +1,9 @@
-import { useRef, useMemo, useContext } from 'react'
+import { useRef, useMemo, useContext, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import { getLabContent, getLabMeta } from '../content/manifest'
+import { getLabContent, getLabMeta, getStatusKey } from '../content/manifest'
 import { useProgress } from '../hooks/useProgress'
 import { useHeadings } from '../hooks/useHeadings'
 import { useLabVariables } from '../hooks/useLabVariables'
@@ -12,7 +13,7 @@ import TableOfContents from './TableOfContents'
 import CodeBlock from './CodeBlock'
 import FlowDiagram, { isAsciiDiagram } from './FlowDiagram'
 import StatusBadge from './StatusBadge'
-import ModeToggle, { useModeToggle, contentHasMode } from './ModeToggle'
+import ModeToggle, { useModeToggle, contentHasMode, contentHasLabMode, resolveMode } from './ModeToggle'
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
 import FillFields from './FillFields'
@@ -117,12 +118,16 @@ function RegistryFilteredCodeBlock({ language, hasVariables, children }) {
   return <Block language={language}>{filtered}</Block>
 }
 
-export default function LabRenderer({ labKey }) {
-  const rawContent = getLabContent(labKey)
-  const meta = getLabMeta(labKey)
+export default function LabRenderer({ labKey: route }) {
+  const rawContent = getLabContent(route)
+  const meta = getLabMeta(route)
+  // Progress, variables and placeholders are keyed by the canonical lab id so
+  // every nav placement of the same lab (e.g. AWS/Azure/GCP -> Standard) shares state.
+  const labKey = meta?.id || route
   const contentRef = useRef(null)
   const { isChecked, toggleCheckbox } = useProgress()
-  const [activeMode, setActiveMode] = useModeToggle()
+  const [storedMode, setActiveMode] = useModeToggle()
+  const activeMode = resolveMode(rawContent, storedMode)
   const varsConfig = meta?.variables || NO_VARIABLES
   const { values: varValues, setValue: setVarValue, resetToDefaults: resetVars } =
     useLabVariables(labKey, varsConfig)
@@ -134,6 +139,17 @@ export default function LabRenderer({ labKey }) {
   const headings = useHeadings(contentRef, content, activeMode)
   const checkboxIndex = useRef(0)
   const hasMode = contentHasMode(content)
+  const hasLabMode = contentHasLabMode(content)
+
+  // Landing on a cloud-specific placement (AWS -> EKS -> Standard) pre-selects that cloud
+  // once per visit, without overriding a manual change made afterwards.
+  const presetApplied = useRef(null)
+  useEffect(() => {
+    if (!meta?.cloudPreset || !hasVariables) return
+    if (presetApplied.current === route) return
+    presetApplied.current = route
+    if (varValues.CLOUD !== meta.cloudPreset) setVarValue('CLOUD', meta.cloudPreset)
+  }, [route, meta?.cloudPreset, hasVariables, varValues.CLOUD, setVarValue])
 
   // Reset checkbox index on each render
   checkboxIndex.current = 0
@@ -284,7 +300,7 @@ export default function LabRenderer({ labKey }) {
       const id = slugify(children)
       const text = typeof children === 'string' ? children : Array.isArray(children)
         ? children.map(c => (typeof c === 'string' ? c : '')).join('') : ''
-      if (hasMode && /deployment steps/i.test(text)) {
+      if (hasMode && hasLabMode && /deployment steps/i.test(text)) {
         return (
           <>
             <ModeToggle activeMode={activeMode} setActiveMode={setActiveMode} />
@@ -301,6 +317,7 @@ export default function LabRenderer({ labKey }) {
   }), [
     activeMode,
     hasMode,
+    hasLabMode,
     hasVariables,
     showVariablesPanel,
     labKey,
@@ -314,7 +331,7 @@ export default function LabRenderer({ labKey }) {
       <>
         <main className="content-area" ref={contentRef}>
           <h1>{meta?.label || 'Lab'}</h1>
-          <StatusBadge status="empty" />
+          <StatusBadge meta={meta} />
           <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>
             This lab has not been written yet.
           </p>
@@ -324,11 +341,11 @@ export default function LabRenderer({ labKey }) {
     )
   }
 
-  if (meta?.status === 'stub') {
+  if (meta?.contentKind === 'stub') {
     return (
       <>
         <main className="content-area" ref={contentRef}>
-          <StatusBadge status="stub" />
+          <StatusBadge meta={meta} />
           <LabDisclaimer />
           <Markdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
             {content}
@@ -343,6 +360,14 @@ export default function LabRenderer({ labKey }) {
     <>
       <main className="content-area" ref={contentRef}>
         <LabDisclaimer />
+        {getStatusKey(meta) === 'legacy' && (
+          <blockquote className="callout callout--warning">
+            <p>
+              <strong>Legacy:</strong> this lab has not been updated to the current lab standard yet
+              and is queued on the <Link to="/roadmap">modernization roadmap</Link>. Steps may be out of date.
+            </p>
+          </blockquote>
+        )}
         <LabVarsContext.Provider value={labVarsContextValue}>
           <PlaceholderContext.Provider value={placeholders}>
             <Markdown

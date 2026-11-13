@@ -1,22 +1,24 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
+import CloudLogo from './CloudLogo'
+import { getStatusKey, getRoadmap } from '../content/manifest'
 
-function SidebarLeaf({ item, basePath }) {
-  const to = `/${item.fullRoute}`
+function SidebarLeaf({ item }) {
   return (
     <NavLink
-      to={to}
+      to={`/${item.fullRoute}`}
       className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
     >
-      <span className={`sidebar-link__dot sidebar-link__dot--${item.status}`} />
+      <span className={`sidebar-link__dot sidebar-link__dot--${getStatusKey(item)}`} />
       {item.label}
     </NavLink>
   )
 }
 
-function SidebarGroup({ item, parentRoute, currentPath }) {
-  const groupPath = `/${parentRoute}/${item.route}`
-  const isInGroup = currentPath.startsWith(groupPath)
+// Cloud, service, and OS/variant groups all render through this one recursive node.
+function SidebarGroup({ item, currentPath, isCloud = false }) {
+  const groupPath = `/${item.path}`
+  const isInGroup = currentPath === groupPath || currentPath.startsWith(`${groupPath}/`)
   const [expanded, setExpanded] = useState(isInGroup)
 
   useEffect(() => {
@@ -26,48 +28,17 @@ function SidebarGroup({ item, parentRoute, currentPath }) {
   return (
     <div className="sidebar-section">
       <button
-        className="sidebar-section__toggle"
+        className={`sidebar-section__toggle ${isCloud ? '' : 'sidebar-section__toggle--group'}`}
         onClick={() => setExpanded(!expanded)}
       >
         <span className={`sidebar-section__arrow ${expanded ? 'expanded' : ''}`} />
+        {item.logo && <CloudLogo name={item.logo} className="sidebar-section__logo" />}
         {item.label}
       </button>
       <div className={`sidebar-section__children ${expanded ? '' : 'collapsed'}`}>
-        {item.children.map((leaf) => (
-          <SidebarLeaf key={leaf.route} item={leaf} basePath={groupPath} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SidebarSection({ section, currentPath }) {
-  const sectionPath = `/${section.route}`
-  const isInSection = currentPath.startsWith(sectionPath)
-  const [expanded, setExpanded] = useState(isInSection)
-
-  useEffect(() => {
-    if (isInSection) setExpanded(true)
-  }, [isInSection])
-
-  return (
-    <div className="sidebar-section">
-      <button
-        className="sidebar-section__toggle"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className={`sidebar-section__arrow ${expanded ? 'expanded' : ''}`} />
-        {section.label}
-      </button>
-      <div className={`sidebar-section__children ${expanded ? '' : 'collapsed'}`}>
-        {section.children.map((child) =>
+        {item.children.map((child) =>
           child.children ? (
-            <SidebarGroup
-              key={child.route}
-              item={child}
-              parentRoute={section.route}
-              currentPath={currentPath}
-            />
+            <SidebarGroup key={child.route} item={child} currentPath={currentPath} />
           ) : (
             <SidebarLeaf key={child.route} item={child} />
           )
@@ -78,16 +49,20 @@ function SidebarSection({ section, currentPath }) {
 }
 
 export default function Sidebar({ manifest, isOpen, onClose, currentPath }) {
+  const { modernized, total } = getRoadmap()
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <nav className="sidebar-nav">
-        {manifest.map((section) => (
-          <SidebarSection
-            key={section.route}
-            section={section}
-            currentPath={currentPath}
-          />
+      <nav className="sidebar-nav" onClick={(e) => e.target.closest('a') && onClose?.()}>
+        {manifest.map((cloud) => (
+          <SidebarGroup key={cloud.route} item={cloud} currentPath={currentPath} isCloud />
         ))}
+        <NavLink
+          to="/roadmap"
+          className={({ isActive }) => `sidebar-roadmap ${isActive ? 'active' : ''}`}
+        >
+          <span>Modernization Roadmap</span>
+          <span className="sidebar-roadmap__count">{modernized}/{total}</span>
+        </NavLink>
       </nav>
     </aside>
   )

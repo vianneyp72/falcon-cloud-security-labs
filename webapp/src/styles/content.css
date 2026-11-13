@@ -1,4 +1,5 @@
 .content-area {
+  min-width: 0;
   grid-column: 2;
   grid-row: 2;
   padding: 2rem 3rem;
@@ -448,7 +449,7 @@
 }
 
 /* -----------------------------------------------------------------------------
-   Status badges — semantic colors (green / yellow / neutral).
+   Status badges — modern (green), legacy / roadmap (yellow).
 ----------------------------------------------------------------------------- */
 .status-badge {
   display: inline-flex;
@@ -462,19 +463,15 @@
   letter-spacing: 0.04em;
 }
 
-.status-badge--complete {
+.status-badge--modern {
   background: color-mix(in oklab, var(--accent-green) 15%, transparent);
   color: var(--accent-green);
 }
 
-.status-badge--stub {
+.status-badge--legacy,
+.status-badge--roadmap {
   background: color-mix(in oklab, var(--accent-yellow) 15%, transparent);
   color: var(--accent-yellow);
-}
-
-.status-badge--empty {
-  background: color-mix(in oklab, var(--text-muted) 15%, transparent);
-  color: var(--text-muted);
 }
 
 /* -----------------------------------------------------------------------------
@@ -542,10 +539,12 @@
   gap: 0.5rem;
   font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .progress-bar__track {
   flex: 1;
+  min-width: 2.5rem;
   height: 4px;
   background: var(--border);
   border-radius: 2px;
@@ -761,17 +760,6 @@
   display: none;
 }
 
-@media (max-width: 900px) {
-  .content-area {
-    padding: 1.5rem 1rem;
-    padding-right: 1rem;
-  }
-
-  .toc-aside {
-    display: none;
-  }
-}
-
 @media (max-width: 1200px) {
   .toc-aside {
     display: none;
@@ -779,6 +767,12 @@
 
   .content-area {
     padding-right: 3rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .content-area {
+    padding: 1.5rem 1rem;
   }
 }
 
@@ -905,4 +899,64 @@
 
 .lab-variables select {
   cursor: pointer;
+}
+
+/* -----------------------------------------------------------------------------
+   Cloud logos + roadmap page.
+----------------------------------------------------------------------------- */
+.overview-card__heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.overview-card__logo {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.content-area .overview-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.overview-title__logo {
+  width: 2rem;
+  height: 2rem;
+}
+
+.roadmap-summary {
+  margin: 1.5rem 0;
+}
+
+.roadmap-summary__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.roadmap-summary__fill {
+  height: 100%;
+  background: var(--accent-green);
+}
+
+.roadmap-summary__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.cloud-logo--aws   { color: var(--brand-aws); }
+.cloud-logo--azure { color: var(--brand-azure); }
+.cloud-logo--any   { color: var(--text-bright); }
+
+@media (max-width: 640px) {
+  .progress-bar > span {
+    display: none;
+  }
 }

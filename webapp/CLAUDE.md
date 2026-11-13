@@ -22,7 +22,7 @@ src/
 ├── main.jsx              ← Entry, HashRouter wrap
 ├── App.jsx               ← Routes (sections/groups/leaves from manifest)
 ├── content/
-│   └── manifest.js       ← Central registry: imports, tree structure, status detection
+│   └── manifest.js       ← Central registry: imports, LABS, cloud-first nav placements, status + roadmap
 ├── components/
 │   ├── Layout.jsx        ← Grid shell: header + sidebar + content + TOC + ThemeToggle
 │   ├── Sidebar.jsx       ← Collapsible tree nav (recursive)
@@ -34,7 +34,9 @@ src/
 │   ├── ReadingProgress.jsx ← Scroll progress bar under header
 │   ├── OverviewPage.jsx  ← Category landing pages with card grid
 │   ├── ProgressBar.jsx   ← Global completion bar
-│   ├── StatusBadge.jsx   ← Complete/Stub/Empty indicators
+│   ├── StatusBadge.jsx   ← Modernized / Legacy / Roadmap indicators
+│   ├── CloudLogo.jsx     ← AWS / Azure / Google Cloud marks (brand-color tokens in global.css)
+│   ├── RoadmapPage.jsx   ← Modernization tracker, generated from the manifest
 │   └── LabDisclaimer.jsx ← Maintainer disclaimer auto-rendered on every lab
 ├── hooks/
 │   ├── useProgress.js    ← localStorage checkbox persistence
@@ -47,7 +49,7 @@ src/
     └── code-blocks.css   ← Terminal blocks, syntax colors, React Flow diagram styles + [data-theme="light"] diagram overrides
 ```
 
-Fonts live in `public/fonts/` (7 Sharp Sans WOFF2 weights). Brand logos live in `public/logos/` (Red Falcon for dark theme, Black Falcon for light).
+Fonts live in `public/fonts/` (7 Sharp Sans WOFF2 weights). Brand logos live in `public/logos/` (Red Falcon is used in both themes).
 
 ## Content Loading
 
@@ -63,10 +65,11 @@ The `@content` alias resolves to the repo root (`..`). Vite's `server.fs.allow` 
 
 1. Create `lab.md` in the appropriate repo folder
 2. In `src/content/manifest.js`:
-   - Add the import: `import newLab from '@content/category/method/lab.md?raw'`
-   - Add to `labs` map: `'category/method': newLab`
-   - Add to the tree in `manifest`: `lab('method', 'Friendly Name', 'category/method')`
-3. The status (complete/stub/empty) is auto-detected from content
+   - Add the import and a `labs` map entry (`'category/method/lab.md': newLab`)
+   - Add an entry to `LABS` (`id` = stable route, `label`, `area`, `md`). Set `modernized: true` only once the lab meets the current standard; `reference: true` for non-lab docs
+   - Add a placement in the cloud-first `manifest` tree with `l(id, 'route')`. A lab can be placed under several clouds (e.g. `K8S` under AWS, Azure, GCP); `cloudPreset` pre-selects the CLOUD picker. The build throws if a lab has no placement
+3. Status is derived: `modernized` flag + content (`written` / `stub`) -> Modernized (green), Legacy (yellow), or Roadmap (yellow, hollow). `/roadmap` is generated from `LABS`
+4. Progress, variables, and placeholders key on the canonical `id`, so every placement of a lab shares state. Old compute-first URLs redirect to the lab's primary placement
 
 Do NOT paste the maintainer disclaimer into `lab.md` — `LabRenderer` auto-injects `<LabDisclaimer />` at the top of the content area (above the H1 title, and below the status badge on stubs). Edit `LabDisclaimer.jsx` to change the wording.
 

@@ -5,22 +5,24 @@ import ProgressBar from "./ProgressBar";
 import ReadingProgress from "./ReadingProgress";
 import ThemeToggle from "./ThemeToggle";
 import { useProgress } from "../hooks/useProgress";
-import { useModeToggle, contentHasMode } from "./ModeToggle";
+import { useModeToggle, contentHasMode, resolveMode } from "./ModeToggle";
 import { getLabContent, getLabMeta } from "../content/manifest";
 
 export default function Layout({ manifest }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { getPageProgress } = useProgress();
-  const [activeMode] = useModeToggle();
+  const [storedMode] = useModeToggle();
   const base = import.meta.env.BASE_URL;
 
-  // Derive labKey from route ("/kubernetes/.../lab" → "kubernetes/.../lab").
+  // Nav route → canonical lab id, so every placement of a lab shares one progress key.
   // If the route matches a real lab, show its progress; otherwise skip.
-  const labKey = location.pathname.replace(/^\//, "");
-  const labMeta = getLabMeta(labKey);
-  const labContent = labMeta ? getLabContent(labKey) : "";
+  const route = location.pathname.replace(/^\//, "");
+  const labMeta = getLabMeta(route);
+  const labKey = labMeta?.id || route;
+  const labContent = labMeta ? getLabContent(route) : "";
   const hasMode = contentHasMode(labContent);
+  const activeMode = resolveMode(labContent, storedMode);
   const pageProgress = labMeta ? getPageProgress(labKey, activeMode, hasMode) : null;
 
   return (
@@ -38,12 +40,7 @@ export default function Layout({ manifest }) {
           <img
             src={`${base}logos/Red Falcon logo.svg`}
             alt="CrowdStrike Falcon"
-            className="app-header__logo-mark app-header__logo-mark--dark"
-          />
-          <img
-            src={`${base}logos/Black Falcon logo.svg`}
-            alt="CrowdStrike Falcon"
-            className="app-header__logo-mark app-header__logo-mark--light"
+            className="app-header__logo-mark"
           />
           Falcon Cloud Security Labs
         </Link>

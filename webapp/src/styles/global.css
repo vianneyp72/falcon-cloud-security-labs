@@ -75,6 +75,14 @@
   --accent-yellow: #f0a830;
   --accent-teal: #3ecfba;
 
+  /* Cloud provider brand colors (logos) */
+  --brand-aws: #ff9900;
+  --brand-azure: #0078d4;
+  --brand-gcp-red: #ea4535;
+  --brand-gcp-blue: #557ebf;
+  --brand-gcp-green: #36a852;
+  --brand-gcp-yellow: #f9bc15;
+
   /* Text */
   --text-primary: #dcd8e8;
   --text-bright: #f0ecfa;
@@ -197,7 +205,7 @@ code {
 
 .app-layout {
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   grid-template-rows: var(--nav-height) 1fr;
   min-height: 100vh;
 }
@@ -239,16 +247,12 @@ code {
 .app-header__logo-mark {
   height: 28px;
   width: auto;
-  display: none;
-}
-
-[data-theme="light"] .app-header__logo-mark--light,
-:root:not([data-theme="light"]) .app-header__logo-mark--dark {
   display: block;
 }
 
 .app-header__progress {
   flex: 1;
+  min-width: 0;
   max-width: 300px;
   margin-left: auto;
 }
@@ -300,7 +304,7 @@ code {
 
 @media (max-width: 900px) {
   .app-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .hamburger {
