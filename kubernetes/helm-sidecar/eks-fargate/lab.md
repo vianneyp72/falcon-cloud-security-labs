@@ -23,7 +23,7 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 > - **Quick Deploy path:** an existing EKS cluster with Fargate enabled and `kubectl` pointed at it (`kubectl get pods -A` works)
 > - **Full Lab path:** an AWS account and credentials; Section 1 provisions the Fargate-only cluster for you
 >
-> **Image hosting:** This lab hosts all three Falcon images in **same-account ECR**. On Fargate, image pulls are authenticated by the **Fargate pod execution role**, so no image pull secret is used.
+> **Note:** This lab hosts all three Falcon images in **same-account ECR**. On Fargate, image pulls are authenticated by the **Fargate pod execution role**, so no image pull secret is used.
 
 ## Reference Docs
 

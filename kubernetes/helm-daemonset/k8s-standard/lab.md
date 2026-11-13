@@ -301,6 +301,8 @@ echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo ✅ || echo ❌) ($KAC_R
 echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo ✅ || echo ❌) ($IAR_REGISTRY:$IAR_IMAGE_TAG)"  #@opt=iar
 ```
 
+> **Verify:** Every line above the Helm install should show ✅. A ❌ means that image variable is empty, so re-run the step that sets it before deploying.
+
 ### 3. Add Helm repo
 
 ```bash
@@ -454,7 +456,7 @@ kubectl get pods -A | grep falcon
 kubectl get ds -n falcon-system
 ```
 
-Every Falcon pod should be `Running`. The DaemonSet should show `DESIRED` = `CURRENT` = number of nodes.
+> **Verify:** Every Falcon pod shows `STATUS` `Running` with `READY` at full (for example `1/1`). The DaemonSet shows `DESIRED` = `CURRENT` = `READY` = the number of nodes in your cluster.
 
 > **Note:** If your nodes have taints (common on dedicated or GPU node pools), the sensor DaemonSet will skip them unless you add tolerations via `falcon-sensor.node.daemonset.tolerations`. Most lab clusters have no taints, so you can ignore this.
 
