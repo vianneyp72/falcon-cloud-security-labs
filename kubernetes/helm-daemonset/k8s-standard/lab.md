@@ -4,7 +4,9 @@ Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, 
 
 > **Prerequisites:**
 >
-> - Helm 3 installed (`helm version` shows v3.x)
+> - Helm 3 or later installed (`helm version` prints a version)
+> - `kubectl` installed and configured
+> - Docker, Podman, or Skopeo installed **and running**, only if you copy the images to your own registry (`docker info` should print server details, not an error. Start Docker Desktop if it fails)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required scopes to pull the images (sensor, KAC, IAR):
 >     - **Sensor Download** (Read)
@@ -55,9 +57,9 @@ CrowdStrike Cloud — Telemetry
 
 ### 1. Set credentials
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:Cluster name"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,CLUSTER_NAME:Cluster name"></div>
 
-Export the API client secret:
+Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
@@ -688,9 +690,9 @@ There is no CLI for creating API clients — this must be done in the console.
 
 - [ ] Enter your values:
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret"></div>
 
-- [ ] Export the API client secret:
+- [ ] Export the API client secret (the only value kept as a shell variable):
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"

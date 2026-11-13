@@ -884,6 +884,7 @@
 }
 
 .lab-variables input[type="text"],
+.lab-variables input[type="password"],
 .lab-variables select {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -897,6 +898,7 @@
 }
 
 .lab-variables input[type="text"]:focus,
+.lab-variables input[type="password"]:focus,
 .lab-variables select:focus {
   border-color: var(--cs-red);
 }

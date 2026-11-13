@@ -18,6 +18,7 @@ import LabVariables from './LabVariables'
 import FillFields from './FillFields'
 import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
 import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
+import ProfileMethod, { useProfileMethod, profileMatches } from './ProfileMethod'
 import { LabVarsContext } from './labVarsContext'
 
 // Noop config passed to the hook when a lab has no variables — keeps hook order stable.
@@ -77,6 +78,15 @@ function RegistryBlockGate({ registry, children, ...props }) {
 function OptBlockGate({ opt, children, ...props }) {
   const deploy = useDeployOptions()
   if (!markerMatches('opt', opt, deploy)) {
+    return <div className="mode-content--hidden" />
+  }
+  return <div {...props}>{children}</div>
+}
+
+// Shows its children only when the reader's ProfileMethod choice (console | eksctl) matches.
+function ProfileBlockGate({ profile, children, ...props }) {
+  const [method] = useProfileMethod()
+  if (!profileMatches(profile, method)) {
     return <div className="mode-content--hidden" />
   }
   return <div {...props}>{children}</div>
@@ -193,6 +203,9 @@ export default function LabRenderer({ labKey }) {
       if (node?.properties?.dataDeployOptions !== undefined) {
         return <DeployOptions />
       }
+      if (node?.properties?.dataProfilePicker !== undefined) {
+        return <ProfileMethod />
+      }
       if (node?.properties?.dataFillFields) {
         return <FillFields spec={node.properties.dataFillFields} derive={node.properties.dataFillDerive} />
       }
@@ -202,6 +215,10 @@ export default function LabRenderer({ labKey }) {
       const dataRegistry = node?.properties?.dataRegistry
       if (dataRegistry) {
         return <RegistryBlockGate registry={dataRegistry} {...props}>{children}</RegistryBlockGate>
+      }
+      const dataProfile = node?.properties?.dataProfile
+      if (dataProfile) {
+        return <ProfileBlockGate profile={dataProfile} {...props}>{children}</ProfileBlockGate>
       }
       const dataOpt = node?.properties?.dataOpt
       if (dataOpt) {

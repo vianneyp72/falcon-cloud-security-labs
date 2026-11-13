@@ -6,8 +6,8 @@ Deploy CrowdStrike Falcon on an EKS cluster running both EC2 nodes and Fargate p
 >
 > - EKS cluster with both EC2 managed node groups and Fargate enabled
 > - `eksctl`, `aws` CLI, and `kubectl` installed and configured (`kubectl get nodes` returns EC2 nodes)
-> - Helm 3 installed (`helm version` shows v3.x)
-> - Docker, Podman, or Skopeo installed and running (to copy the images to ECR)
+> - Helm 3 or later installed (`helm version` prints a version)
+> - Docker, Podman, or Skopeo installed **and running** (to copy the images to ECR; `docker info` should print server details, not an error. Start Docker Desktop if it fails)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required API scopes to pull the images (sensor, sidecar, KAC, IAR):
 >     - **Falcon Images Download** (Read)
@@ -84,18 +84,16 @@ CrowdStrike Cloud: sidecar + DaemonSet telemetry over TLS 443
 
 <div data-mode="guide">
 
-### 1. Set credentials and context
+### 1. Enter your values
 
-Set your API credentials, CID, existing cluster name, and derive the ECR registry for your account:
+Enter your values once; every command below fills them in. Get your AWS account ID with `aws sts get-caller-identity --query Account --output text`:
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,CLUSTER_NAME:EKS cluster name,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
+
+Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
-export FALCON_CID=<YOUR_FALCON_CID>
-export FALCON_CLIENT_ID=<YOUR_CLIENT_ID>
-export FALCON_CLIENT_SECRET=<YOUR_CLIENT_SECRET>
-export CLUSTER_NAME=<YOUR_CLUSTER_NAME>
-export AWS_REGION=<YOUR_AWS_REGION>
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ### 2. Create the Fargate profile for the injector namespace
@@ -105,7 +103,7 @@ The DaemonSet sensor, KAC, and IAR land on EC2 nodes (no profile needed), but th
 > **Tip:** A Fargate profile is what tells EKS which pods to schedule on Fargate instead of EC2 nodes — matched by namespace (plus optional pod label selectors). Any pod created in a namespace listed here lands on a serverless Fargate micro-VM; pods in other namespaces land on your EC2 node group.
 
 ```bash
-eksctl create fargateprofile --cluster $CLUSTER_NAME --region $AWS_REGION \
+eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
   --name falcon-injector \
   --namespace falcon-container-injector
 ```
@@ -116,23 +114,23 @@ Create the four ECR repos (skips any that already exist). The repo names must be
 
 ```bash
 for repo in falcon-sensor falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr describe-repositories --repository-names $repo --region $AWS_REGION >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region $AWS_REGION
+  aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1 \
+    || aws ecr create-repository --repository-name $repo --region <AWS_REGION>
 done
 ```
 
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 
 ```bash
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 ```
 
-Copy each image from the CrowdStrike registry into ECR (`--copy` pushes to `$ECR_REGISTRY/<image-name>:<tag>`):
+Copy each image from the CrowdStrike registry into ECR (`--copy` pushes to `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<image-name>:<tag>`):
 
 ```bash
 for t in falcon-sensor falcon-container falcon-kac falcon-imageanalyzer; do
   curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-    --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type $t --copy $ECR_REGISTRY
+    --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type $t --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 done
 ```
 
@@ -141,22 +139,20 @@ done
 `--copy` preserves each image's tag, so read it straight back from ECR — no need to invoke the pull script again just to learn the tag. These feed the Helm `image.tag` values. Note the two sensor types: `falcon-sensor` is the **DaemonSet Sensor** (node/kernel) for EC2; `falcon-container` is the **Container Sensor** (sidecar) injected into Fargate pods.
 
 ```bash
-export DAEMONSET_SENSOR_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
-export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region $AWS_REGION --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export DAEMONSET_SENSOR_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-container --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
+export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region <AWS_REGION> --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
 ```
 
 Validate every variable the Helm installs need was populated:
 
 ```bash
-echo "CID              : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING)"
-echo "Cluster          : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
-echo "ECR Registry     : $([ -n "$ECR_REGISTRY" ] && echo SET || echo MISSING) ($ECR_REGISTRY)"
-echo "DaemonSet Sensor : $([ -n "$DAEMONSET_SENSOR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-sensor:$DAEMONSET_SENSOR_TAG)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-container:$CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-kac:$KAC_TAG)"
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-imageanalyzer:$IAR_TAG)"
+echo "Client secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING)"
+echo "DaemonSet Sensor : $([ -n "$DAEMONSET_SENSOR_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor:$DAEMONSET_SENSOR_TAG)"
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container:$CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac:$KAC_TAG)"
+echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-imageanalyzer:$IAR_TAG)"
 ```
 
 ### 5. Add Helm repo and deploy
@@ -176,16 +172,16 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --create-namespace \
   --set falcon-sensor.falcon.tags="<NODE_SENSOR_TAGS:eks-ec2-node>" \
   --set createComponentNamespaces=true \
-  --set global.falcon.cid=$FALCON_CID \
-  --set falcon-sensor.node.image.repository=$ECR_REGISTRY/falcon-sensor \
+  --set global.falcon.cid=<FALCON_CID> \
+  --set falcon-sensor.node.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_TAG \
-  --set falcon-kac.image.repository=$ECR_REGISTRY/falcon-kac \
+  --set falcon-kac.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac \
   --set falcon-kac.image.tag=$KAC_TAG \
   --set falcon-image-analyzer.deployment.enabled=true \
-  --set falcon-image-analyzer.image.repository=$ECR_REGISTRY/falcon-imageanalyzer \
+  --set falcon-image-analyzer.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-imageanalyzer \
   --set falcon-image-analyzer.image.tag=$IAR_TAG \
-  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=$CLUSTER_NAME \
-  --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=<CLUSTER_NAME> \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
@@ -196,10 +192,10 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
   --set falcon.tags="<FARGATE_SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
   --set node.enabled=false \
   --set container.enabled=true \
-  --set container.image.repository=$ECR_REGISTRY/falcon-container \
+  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
@@ -226,7 +222,7 @@ Expected: pods across four namespaces all `Running` — `falcon-system` (one Dae
 Create a Fargate profile for the app namespace so its pods schedule on Fargate (where the sidecar gets injected):
 
 ```bash
-eksctl create fargateprofile --cluster $CLUSTER_NAME --region $AWS_REGION \
+eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
   --name app-workloads \
   --namespace detection-vulnapp
 ```
@@ -342,16 +338,16 @@ You should see `falcon-injector` and `app-workloads` profiles.
 
 > **What & Why:** Hosting all four Falcon images in same-account ECR is what removes the registry pull token from this deployment. EC2 pods pull with the node instance role and Fargate pods pull with the pod execution role — both IAM-authenticated, so there's no token to mint, no secret to propagate, and no namespace-ordering caveat. IAR still needs API credentials at runtime for vulnerability reporting; that's unrelated to image pulls.
 
-### Step 1: Set API credentials and context
+### Step 1: Enter your values and export the secret
 
-- [ ] Export your Falcon API credentials, CID, and derive the ECR registry for your account:
+- [ ] Enter your values. Get your AWS account ID with `aws sts get-caller-identity --query Account --output text`:
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID"></div>
+
+- [ ] Copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
-export FALCON_CID=<YOUR_FALCON_CID>
-export FALCON_CLIENT_ID=<YOUR_CLIENT_ID>
-export FALCON_CLIENT_SECRET=<YOUR_CLIENT_SECRET>
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.{{REGION}}.amazonaws.com
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ### Step 2: Create the ECR repositories
@@ -374,17 +370,17 @@ done
 - [ ] Authenticate to your ECR registry:
 
 ```bash
-aws ecr get-login-password --region {{REGION}} | docker login --username AWS --password-stdin $ECR_REGISTRY
+aws ecr get-login-password --region {{REGION}} | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
 ```
 
 ### Step 4: Copy the images into ECR
 
-- [ ] Copy each image from the CrowdStrike registry to ECR (`--copy` pushes to `$ECR_REGISTRY/<image-name>:<tag>`):
+- [ ] Copy each image from the CrowdStrike registry to ECR (`--copy` pushes to `<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/<image-name>:<tag>`):
 
 ```bash
 for t in falcon-sensor falcon-container falcon-kac falcon-imageanalyzer; do
   curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-    --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type $t --copy $ECR_REGISTRY
+    --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type $t --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
 done
 ```
 
@@ -400,13 +396,11 @@ export CONTAINER_TAG=$(aws ecr describe-images --repository-name falcon-containe
 export KAC_TAG=$(aws ecr describe-images --repository-name falcon-kac --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
 export IAR_TAG=$(aws ecr describe-images --repository-name falcon-imageanalyzer --region {{REGION}} --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageTags[0]' --output text)
 
-echo "CID              : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING)"
-echo "Cluster          : SET ({{CLUSTER_NAME}})"
-echo "ECR Registry     : $([ -n "$ECR_REGISTRY" ] && echo SET || echo MISSING) ($ECR_REGISTRY)"
-echo "DaemonSet Sensor : $([ -n "$DAEMONSET_SENSOR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-sensor:$DAEMONSET_SENSOR_TAG)"
-echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-container:$CONTAINER_TAG)"
-echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-kac:$KAC_TAG)"
-echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) ($ECR_REGISTRY/falcon-imageanalyzer:$IAR_TAG)"
+echo "Client secret    : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING)"
+echo "DaemonSet Sensor : $([ -n "$DAEMONSET_SENSOR_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-sensor:$DAEMONSET_SENSOR_TAG)"
+echo "Container Sensor : $([ -n "$CONTAINER_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container:$CONTAINER_TAG)"
+echo "KAC              : $([ -n "$KAC_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-kac:$KAC_TAG)"
+echo "IAR              : $([ -n "$IAR_TAG" ] && echo SET || echo MISSING) (<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-imageanalyzer:$IAR_TAG)"
 ```
 
 ---
@@ -447,16 +441,16 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --create-namespace \
   --set falcon-sensor.falcon.tags="<NODE_SENSOR_TAGS:eks-ec2-node>" \
   --set createComponentNamespaces=true \
-  --set global.falcon.cid=$FALCON_CID \
-  --set falcon-sensor.node.image.repository=$ECR_REGISTRY/falcon-sensor \
+  --set global.falcon.cid=<FALCON_CID> \
+  --set falcon-sensor.node.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-sensor \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_TAG \
-  --set falcon-kac.image.repository=$ECR_REGISTRY/falcon-kac \
+  --set falcon-kac.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-kac \
   --set falcon-kac.image.tag=$KAC_TAG \
   --set falcon-image-analyzer.deployment.enabled=true \
-  --set falcon-image-analyzer.image.repository=$ECR_REGISTRY/falcon-imageanalyzer \
+  --set falcon-image-analyzer.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-imageanalyzer \
   --set falcon-image-analyzer.image.tag=$IAR_TAG \
   --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
-  --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
@@ -492,10 +486,10 @@ helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
   --namespace falcon-container-injector \
   --create-namespace \
   --set falcon.tags="<FARGATE_SENSOR_TAGS:eks-fargate>" \
-  --set falcon.cid=$FALCON_CID \
+  --set falcon.cid=<FALCON_CID> \
   --set node.enabled=false \
   --set container.enabled=true \
-  --set container.image.repository=$ECR_REGISTRY/falcon-container \
+  --set container.image.repository=<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-container \
   --set container.image.tag=$CONTAINER_TAG
 ```
 
@@ -676,6 +670,6 @@ Your organization hosts golden images in a central "shared services" AWS account
 | Enable injector              | `--set container.enabled=true`                                             |
 | Opt-in injection             | `--set container.disableNSInjection=true` + namespace label                |
 | Injected container name      | `crowdstrike-falcon-container`                                             |
-| Copy image to ECR            | `... --type <t> --copy $ECR_REGISTRY`                                      |
+| Copy image to ECR            | `... --type <t> --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com`                                      |
 
 </div>

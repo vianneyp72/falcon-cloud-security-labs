@@ -14,7 +14,9 @@ TODO One-line description: what gets deployed, to what compute type, pulling fro
      No time estimates. Split Quick Deploy vs Full Lab prerequisites when they differ. -->
 > **Prerequisites:**
 >
-> - TODO Tool and version (`tool version` shows vX.Y)
+> - TODO Tool and version (`tool version` prints a version). Say "X or later", not "X.y only", so newer majors are not turned away
+> - TODO CLI the steps call (`kubectl`, `aws`, ...) installed and configured. Mark a tool optional if a console or alternate route exists
+> - TODO Docker, Podman, or Skopeo installed **and running**, only if the lab copies images to the reader's registry (`docker info` should print server details, not an error. Start Docker Desktop if it fails)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required scopes:
 >     - **Sensor Download** (Read)
@@ -79,17 +81,18 @@ CrowdStrike Cloud — Telemetry
 <!-- AUTHOR: VARIABLE METHODOLOGY. Values the reader types (CID, client ID, cluster name, account,
      region, registry host) are shared <PLACEHOLDERS> entered ONCE in a data-fill-fields panel and
      written inline in every command. Never `export` them. Only two things get `export`:
-       1. Secrets (FALCON_CLIENT_SECRET): a secret placeholder is never saved, and the shell
-          still needs the value.
+       1. Secrets (FALCON_CLIENT_SECRET): list the secret in the SAME panel as a field so the reader
+          cannot miss it (secret names render as password inputs and are never saved), then give it
+          one `export` block below the panel because the shell still needs the value.
        2. Runtime-discovered values (image tags, image paths, pull tokens): the page cannot know
           them in advance.
      Registry addresses built from pieces use data-fill-derive (see step 2). -->
 
 ### 1. Set credentials
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:Cluster name"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,CLUSTER_NAME:Cluster name"></div>
 
-Export the API client secret:
+Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
@@ -383,9 +386,9 @@ There is no CLI for creating API clients; this must be done in the console.
 
 - [ ] Enter your values:
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret"></div>
 
-- [ ] Export the API client secret:
+- [ ] Export the API client secret (the only value kept as a shell variable):
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"

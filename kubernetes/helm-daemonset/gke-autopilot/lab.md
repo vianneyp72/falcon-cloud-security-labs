@@ -6,7 +6,8 @@ Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE 
 
 > **Prerequisites:**
 >
-> - Helm 3 installed (`helm version` shows v3.x)
+> - Helm 3 or later installed (`helm version` prints a version)
+> - `kubectl` installed and configured
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required scopes to pull the images (sensor, KAC, IAR):
 >     - **Sensor Download** (Read)
@@ -56,18 +57,19 @@ CrowdStrike Cloud — Telemetry
 
 ### 1. Set credentials and get pull token + image paths
 
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,CLUSTER_NAME:Cluster name"></div>
+
+Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
+
 ```bash
-export FALCON_CLIENT_ID="<YOUR_FALCON_CLIENT_ID>"
-export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
-export FALCON_CID="<YOUR_CID_WITH_CHECKSUM>"
-export CLUSTER_NAME="<YOUR_CLUSTER_NAME>"
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 Generate the registry pull token:
 
 ```bash
 export FALCON_PULL_TOKEN=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-sensor \
   --get-pull-token)
@@ -77,13 +79,13 @@ Get image paths for all three components (they resolve to `registry.crowdstrike.
 
 ```bash
 export SENSOR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --get-image-path)
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --get-image-path)
 
 export KAC_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-kac --get-image-path)
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-kac --get-image-path)
 
 export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID --client-secret $FALCON_CLIENT_SECRET --type falcon-imageanalyzer --get-image-path)
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-imageanalyzer --get-image-path)
 ```
 
 > **Note:** `--get-image-path` returns the image location in CrowdStrike's registry, so Kubernetes pulls all three components directly from CrowdStrike at runtime — the recommended path on Autopilot. The **falcon-sensor image must stay on `registry.crowdstrike.com`**: the WorkloadAllowlist regex only vouches for CrowdStrike's registry, so a relocated sensor image is rejected with `denied by autogke-disallow-privilege`.
@@ -102,10 +104,7 @@ export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 Validate every variable the Helm install needs was populated:
 
 ```bash
-echo "CID            : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster        : $([ -n "$CLUSTER_NAME" ] && echo SET || echo MISSING) ($CLUSTER_NAME)"
-echo "Client ID      : $([ -n "$FALCON_CLIENT_ID" ] && echo SET || echo MISSING) ($FALCON_CLIENT_ID)"
-echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING) ($FALCON_CLIENT_SECRET)"
+echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING)"
 echo "Pull Token     : $([ -n "$FALCON_PULL_TOKEN" ] && echo SET || echo MISSING) ($FALCON_PULL_TOKEN)"
 echo "Sensor         : $([ -n "$DAEMONSET_SENSOR_REGISTRY" ] && echo SET || echo MISSING) ($DAEMONSET_SENSOR_REGISTRY:$DAEMONSET_SENSOR_IMAGE_TAG)"
 echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($KAC_REGISTRY:$KAC_IMAGE_TAG)"
@@ -160,7 +159,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --create-namespace \
   --set falcon-sensor.falcon.tags="<SENSOR_TAGS:gke-autopilot>" \
   --set createComponentNamespaces=true \
-  --set global.falcon.cid=$FALCON_CID \
+  --set global.falcon.cid=<FALCON_CID> \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
   --set falcon-sensor.node.image.repository=$DAEMONSET_SENSOR_REGISTRY \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_IMAGE_TAG \
@@ -171,8 +170,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.deployment.enabled=true \
   --set falcon-image-analyzer.image.repository=$IAR_REGISTRY \
   --set falcon-image-analyzer.image.tag=$IAR_IMAGE_TAG \
-  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=$CLUSTER_NAME \
-  --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
+  --set falcon-image-analyzer.crowdstrikeConfig.clusterName=<CLUSTER_NAME> \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
@@ -284,12 +283,14 @@ There is no CLI for creating API clients — this must be done in the console.
 
 ### Step 2: Export credentials
 
-- [ ] Set your credentials as environment variables:
+- [ ] Enter your values:
+
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret"></div>
+
+- [ ] Export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
-export FALCON_CLIENT_ID="<YOUR_FALCON_CLIENT_ID>"
-export FALCON_CLIENT_SECRET="<YOUR_FALCON_CLIENT_SECRET>"
-export FALCON_CID="<YOUR_CID_WITH_CHECKSUM>"
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
 ---
@@ -353,7 +354,7 @@ crowdstrike-falconsensor-falconctl-allowlist-v1.0.0   1m
 
 ```bash
 export FALCON_PULL_TOKEN=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-sensor \
   --get-pull-token)
@@ -365,7 +366,7 @@ export FALCON_PULL_TOKEN=$(curl -sSL https://raw.githubusercontent.com/CrowdStri
 
 ```bash
 export SENSOR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-sensor \
   --get-image-path)
@@ -375,7 +376,7 @@ export SENSOR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStri
 
 ```bash
 export KAC_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-kac \
   --get-image-path)
@@ -385,7 +386,7 @@ export KAC_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/
 
 ```bash
 export IAR_IMAGE_PATH=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id $FALCON_CLIENT_ID \
+  --client-id <FALCON_CLIENT_ID> \
   --client-secret $FALCON_CLIENT_SECRET \
   --type falcon-imageanalyzer \
   --get-image-path)
@@ -417,10 +418,7 @@ export IAR_IMAGE_TAG=$(echo $IAR_IMAGE_PATH | cut -d: -f2)
 - [ ] Print every value the Helm install needs:
 
 ```bash
-echo "CID            : $([ -n "$FALCON_CID" ] && echo SET || echo MISSING) ($FALCON_CID)"
-echo "Cluster        : SET ({{CLUSTER_NAME}})"
-echo "Client ID      : $([ -n "$FALCON_CLIENT_ID" ] && echo SET || echo MISSING) ($FALCON_CLIENT_ID)"
-echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING) ($FALCON_CLIENT_SECRET)"
+echo "Client Secret  : $([ -n "$FALCON_CLIENT_SECRET" ] && echo SET || echo MISSING)"
 echo "Pull Token     : $([ -n "$FALCON_PULL_TOKEN" ] && echo SET || echo MISSING) ($FALCON_PULL_TOKEN)"
 echo "Sensor         : $([ -n "$DAEMONSET_SENSOR_REGISTRY" ] && echo SET || echo MISSING) ($DAEMONSET_SENSOR_REGISTRY:$DAEMONSET_SENSOR_IMAGE_TAG)"
 echo "KAC            : $([ -n "$KAC_REGISTRY" ] && echo SET || echo MISSING) ($KAC_REGISTRY:$KAC_IMAGE_TAG)"
@@ -464,7 +462,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --create-namespace \
   --set falcon-sensor.falcon.tags="<SENSOR_TAGS:gke-autopilot>" \
   --set createComponentNamespaces=true \
-  --set global.falcon.cid=$FALCON_CID \
+  --set global.falcon.cid=<FALCON_CID> \
   --set global.containerRegistry.configJSON=$FALCON_PULL_TOKEN \
   --set falcon-sensor.node.image.repository=$DAEMONSET_SENSOR_REGISTRY \
   --set falcon-sensor.node.image.tag=$DAEMONSET_SENSOR_IMAGE_TAG \
@@ -476,7 +474,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.image.repository=$IAR_REGISTRY \
   --set falcon-image-analyzer.image.tag=$IAR_IMAGE_TAG \
   --set falcon-image-analyzer.crowdstrikeConfig.clusterName={{CLUSTER_NAME}} \
-  --set falcon-image-analyzer.crowdstrikeConfig.clientID=$FALCON_CLIENT_ID \
+  --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
 
@@ -686,13 +684,13 @@ The `cloud.google.com/matching-allowlist` label pins a pod to one specific Workl
 
 ## Quick Reference
 
-| Variable                     | Value                                                   | Where Used                                 |
+| Value                        | Where set                                               | Where Used                                 |
 | ---------------------------- | ------------------------------------------------------- | ------------------------------------------ |
-| `FALCON_CLIENT_ID`           | Your API client ID                                      | Pull token, image paths, IAR config        |
-| `FALCON_CLIENT_SECRET`       | Your API client secret                                  | Pull token, image paths, IAR config        |
-| `FALCON_CID`                 | CID with checksum (e.g., `ABCD1234-AB`)                 | Helm `global.falcon.cid`                   |
-| `FALCON_PULL_TOKEN`          | Base64 registry auth                                    | Helm `global.containerRegistry.configJSON` |
-| `CLUSTER_NAME`               | Your cluster name                                       | IAR cluster identification                 |
+| `<FALCON_CLIENT_ID>`         | Fill-in panel (Section 2)                               | Pull token, image paths, IAR config        |
+| `FALCON_CLIENT_SECRET`       | Fill-in panel, then exported (never saved)              | Pull token, image paths, IAR config        |
+| `<FALCON_CID>`               | Fill-in panel (CID with checksum, e.g. `ABCD1234-AB`)   | Helm `global.falcon.cid`                   |
+| `FALCON_PULL_TOKEN`          | Exported from pull script                               | Helm `global.containerRegistry.configJSON` |
+| `{{CLUSTER_NAME}}`           | Lab Variables panel                                     | IAR cluster identification                 |
 | `DAEMONSET_SENSOR_REGISTRY`  | `registry.crowdstrike.com/falcon-sensor/...` (required) | Helm sensor image repo                     |
 | `DAEMONSET_SENSOR_IMAGE_TAG` | Sensor version tag                                      | Helm sensor image tag                      |
 | `KAC_REGISTRY`               | CrowdStrike registry                                    | Helm KAC image repo                        |

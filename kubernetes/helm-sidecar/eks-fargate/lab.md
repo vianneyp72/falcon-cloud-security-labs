@@ -9,9 +9,9 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 
 > **Prerequisites:**
 >
-> - Helm 3 installed (`helm version` shows v3.x)
-> - `aws` CLI, `eksctl`, and `kubectl` installed and configured
-> - Docker, Podman, or Skopeo installed and running (to copy the images to ECR)
+> - Helm 3 or later installed (`helm version` prints a version)
+> - `aws` CLI and `kubectl` installed and configured (`eksctl` is optional: Quick Deploy creates the Fargate profiles with the AWS CLI by default, or the AWS Console, and only the Full Lab needs `eksctl` to provision the cluster)
+> - Docker, Podman, or Skopeo installed **and running** (to copy the images to ECR; `docker info` should print server details, not an error. Start Docker Desktop if it fails)
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required API scopes to pull the images (injector, KAC, IAR):
 >     - **Falcon Images Download** (Read)
@@ -76,25 +76,117 @@ CrowdStrike Cloud: sidecar telemetry over TLS 443
 
 ### 1. Set credentials and context
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,CLUSTER_NAME:EKS cluster name,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,CLUSTER_NAME:EKS cluster name,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
 
-Export the API client secret:
+Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
-### 2. Create Fargate profiles for the Falcon namespaces
+### 2. Create the Fargate profile for the Falcon namespaces
 
-On a Fargate-only cluster a pod only schedules if its namespace matches a Fargate profile. Create a profile covering the Falcon namespaces (skip this if your cluster already has matching profiles):
+On a Fargate-only cluster a pod only schedules if its namespace matches a Fargate profile. Create one that covers the Falcon namespaces (skip this if your cluster already has matching profiles).
+
+<div data-profile-picker></div>
+
+<div data-profile="console">
+
+1. In the AWS Console, open **EKS** > **Clusters** > your cluster > **Compute** tab, and under **Fargate profiles** choose **Add Fargate profile**.
+2. **Name:** `falcon`. **Pod execution role:** pick the role your existing Fargate profile uses (for example the one on the `system` profile). Choose **Next**.
+3. **Subnets:** keep the cluster's private subnets. Choose **Next**.
+4. Under **Pod selectors**, choose **Add selector** once per namespace below, leaving **Match labels** empty:
+
+```text
+falcon-system
+falcon-kac #@opt=kac
+falcon-image-analyzer #@opt=iar
+```
+
+5. Choose **Next**, then **Create**. The profile shows **Creating** for a minute or two; wait until it is **Active**.
+
+> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. Reusing the role from your existing profile is fine.
+
+> **Verify:** Open the new profile. **Pod selectors** should list every namespace above. A missing namespace means its pods stay `Pending` later.
+
+</div>
+
+<div data-profile="awscli">
+
+A Fargate profile needs a pod execution role and private subnets. Reuse the ones from a profile your cluster already has. List the existing profile names:
 
 ```bash
-eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
-  --namespace falcon-system \
-  --namespace falcon-kac \ #@opt=kac
-  --namespace falcon-image-analyzer \ #@opt=iar
-  --name falcon
+aws eks list-fargate-profiles --cluster-name <CLUSTER_NAME> --region <AWS_REGION> --query fargateProfileNames --output text
 ```
+
+Create the `falcon` profile with one selector per Falcon namespace. It copies the pod execution role and subnets from an existing profile (replace `<EXISTING_PROFILE>` with a name from the list above):
+
+```bash
+aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
+  --fargate-profile-name falcon \
+  --pod-execution-role-arn $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.podExecutionRoleArn --output text) \
+  --subnets $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.subnets --output text) \
+  --selectors namespace=falcon-system \
+  namespace=falcon-kac \ #@opt=kac
+  namespace=falcon-image-analyzer \ #@opt=iar
+  --region <AWS_REGION>
+```
+
+> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. Reusing the role from your existing profile is fine.
+
+The profile takes a minute or two to create. Wait for it to become active:
+
+```bash
+aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon --region <AWS_REGION>
+```
+
+Confirm all the namespaces were registered:
+
+```bash
+aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon --region <AWS_REGION> --query 'fargateProfile.selectors[].namespace' --output text
+```
+
+> **Verify:** The output should list every Falcon namespace. A missing namespace means its pods stay `Pending` later. If `create-fargate-profile` returns `ResourceInUseException`, a profile named `falcon` already exists; use `describe-fargate-profile` above to check its namespaces.
+
+</div>
+
+<div data-profile="eksctl">
+
+Write a profile that covers the Falcon namespaces:
+
+```bash
+cat <<'EOF' > falcon-fargate-profile.yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: <CLUSTER_NAME>
+  region: <AWS_REGION>
+fargateProfiles:
+  - name: falcon
+    selectors:
+      - namespace: falcon-system
+      - namespace: falcon-kac #@opt=kac
+      - namespace: falcon-image-analyzer #@opt=iar
+EOF
+```
+
+Create it:
+
+```bash
+eksctl create fargateprofile -f falcon-fargate-profile.yaml
+```
+
+> **Heads-up:** Use a config file because `eksctl create fargateprofile --namespace` accepts only one namespace. Repeating the flag does not error, it silently keeps just the last one.
+
+Confirm all the namespaces were registered:
+
+```bash
+eksctl get fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> --name falcon -o yaml
+```
+
+> **Verify:** The output should list every Falcon namespace under `selectors`. If a namespace is missing, its pods will stay `Pending` later.
+
+</div>
 
 ### 3. Create ECR repos and copy the images
 
@@ -106,9 +198,11 @@ for repo in falcon-container falcon-kac; do #@opt=kac #@opt=noiar
 for repo in falcon-container falcon-imageanalyzer; do #@opt=nokac #@opt=iar
 for repo in falcon-container; do #@opt=nokac #@opt=noiar
   aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region <AWS_REGION>
+    || aws ecr create-repository --repository-name $repo --region <AWS_REGION> --query repository.repositoryUri --output text
 done
 ```
+
+> **Verify:** Each new repo prints its address (for example `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac`). Nothing prints for a repo that already exists.
 
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 
@@ -200,7 +294,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 
 ### 6. Verify deployment
 
-Wait for every Falcon pod to reach `Ready`. Each namespace is checked in parallel and prints ✅ when ready or ❌ if not within 5 minutes:
+Wait for every Falcon deployment to become available. Each namespace is checked in parallel and prints ✅ when ready or ❌ if not within 5 minutes:
 
 ```bash
 (
@@ -208,7 +302,7 @@ for ns in falcon-system falcon-kac falcon-image-analyzer; do #@opt=kac #@opt=iar
 for ns in falcon-system falcon-kac; do #@opt=kac #@opt=noiar
 for ns in falcon-system falcon-image-analyzer; do #@opt=nokac #@opt=iar
 for ns in falcon-system; do #@opt=nokac #@opt=noiar
-  (kubectl wait --for=condition=Ready pods --all -n $ns --timeout=300s >/dev/null 2>&1 \
+  (kubectl wait --for=condition=Available deployment --all -n $ns --timeout=300s >/dev/null 2>&1 \
     && echo "✅ $ns: Ready" \
     || echo "❌ $ns: not Ready (run: kubectl get pods -n $ns)") &
 done
@@ -216,7 +310,7 @@ wait
 )
 ```
 
-> **Heads-up:** Fargate starts a separate micro-VM for every pod, so the first pods take about a minute to come up. If you see ❌ right away, the pods may not have been created yet; wait a few seconds and re-run. A pod stuck in `Pending` almost always means its namespace has no matching Fargate profile (step 2), and `ImagePullBackOff` means the image pull is failing (repo, tag, or pod execution role), so don't wait out the timeout.
+> **Heads-up:** Fargate starts a separate micro-VM for every pod, so the first pods take about a minute to come up. A pod stuck in `Pending` almost always means its namespace has no matching Fargate profile (step 2), and `ImagePullBackOff` means the image pull is failing (repo, tag, or pod execution role), so don't wait out the timeout.
 
 Then list the Falcon pods:
 
@@ -228,13 +322,44 @@ Every pod should show `STATUS` `Running`, and the `NODE` column should start wit
 
 ### 7. Test a detection (optional)
 
-Create a Fargate profile for the app namespace so its pods can schedule (this is what puts the app on Fargate, where the sidecar gets injected):
+Create a Fargate profile for the app namespace so its pods can schedule (this is what puts the app on Fargate, where the sidecar gets injected). This can take a couple of minutes. Use the same method you picked in step 2:
+
+<div data-profile="console">
+
+In **EKS** > **Clusters** > your cluster > **Compute** > **Add Fargate profile**: **Name** `app-workloads`, the same **Pod execution role** and subnets as before, and one **Pod selector** with namespace `detection-vulnapp`. Choose **Create** and wait for **Active**.
+
+</div>
+
+<div data-profile="awscli">
+
+Same role and subnets as step 2 (replace `<EXISTING_PROFILE>` with the same existing profile name):
+
+```bash
+aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
+  --fargate-profile-name app-workloads \
+  --pod-execution-role-arn $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.podExecutionRoleArn --output text) \
+  --subnets $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.subnets --output text) \
+  --selectors namespace=detection-vulnapp \
+  --region <AWS_REGION>
+```
+
+Wait for it to become active:
+
+```bash
+aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name app-workloads --region <AWS_REGION>
+```
+
+</div>
+
+<div data-profile="eksctl">
 
 ```bash
 eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
   --name app-workloads \
   --namespace detection-vulnapp
 ```
+
+</div>
 
 Create the app namespace:
 
@@ -270,7 +395,9 @@ kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 
 Open [http://localhost:8060](http://localhost:8060) in your browser and click any attack simulation (e.g. **Access sensitive files**, **Kill process**) to generate activity the injected sensor will detect.
 
-Check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, then filter **Source product** = **Cloud**. A new detection should appear within a few minutes. Then stop the port-forward (Ctrl+C) and remove the app:
+First confirm the pod registered: in **Falcon Console** > **Host setup and management** > **Host management**, filter **Grouping Tags** for `eks-fargate`. The vulnapp pod should be listed as a host.
+
+Then check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, and filter **Source product** = **Cloud**. A detection can take several minutes to appear, and some simulations are blocked by prevention policy and show as a prevention alert instead. Stop the port-forward (Ctrl+C) and remove the app:
 
 ```bash
 kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
@@ -315,7 +442,7 @@ helm list -A | grep falcon
 
 > **Verify:** Both commands should print nothing. A pod still listed as `Terminating` is fine; it disappears within a minute.
 
-> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them with `eksctl delete fargateprofile --cluster <CLUSTER_NAME> --name <profile>` if you no longer need them.
+> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them in the console (**EKS** > your cluster > **Compute** > select the profile > **Delete**) or with `aws eks delete-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <profile> --region <AWS_REGION>` if you no longer need them.
 
 </div>
 
@@ -455,9 +582,9 @@ There is no CLI for creating API clients; this must be done in the console.
 
 - [ ] Enter your values. Use the `Account` value from `aws sts get-caller-identity` in Section 1 for the account ID:
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_ACCOUNT_ID:AWS account ID"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID"></div>
 
-- [ ] Export the API client secret:
+- [ ] Copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
 ```bash
 export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
@@ -477,7 +604,7 @@ Idempotent, so it is safe to re-run or to use after the Terraform project alread
 ```bash
 for repo in falcon-container falcon-kac falcon-imageanalyzer; do
   aws ecr describe-repositories --repository-names $repo --region {{REGION}} >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region {{REGION}}
+    || aws ecr create-repository --repository-name $repo --region {{REGION}} --query repository.repositoryUri --output text
 done
 ```
 

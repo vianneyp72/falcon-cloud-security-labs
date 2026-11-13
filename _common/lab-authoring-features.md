@@ -12,6 +12,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Deploy options picker | `<div data-deploy-options></div>` | Guide mode | `DeployOptions.jsx` |
 | Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` | Code blocks | `LabRenderer.jsx` |
 | Option block gate | `<div data-opt="kac">` | Anywhere | `LabRenderer.jsx` |
+| Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Guide mode | `ProfileMethod.jsx` |
 | Fill-in panel | `<div data-fill-fields="NAME:Label,...">` | Anywhere | `FillFields.jsx` |
 | Lab Variables panel | `<div data-lab-variables></div>` + manifest `variables` | Lab mode | `LabVariables.jsx` |
 | Cloud block gate | `<div data-cloud="gke">` | Lab mode | `LabRenderer.jsx` |
@@ -72,9 +73,13 @@ Gotchas:
 
 `<div data-opt="kac">` shows its contents only when that Additional-settings option is active (same values as `#@opt=`: `kac`, `nokac`, `iar`, `noiar`, `proxy`; comma list means any match). Use it to hide a whole install step, intro line and code block together, when a component is unchecked. Blank lines after the opening tag and before `</div>` are required. See the KAC and Image Analyzer installs in `kubernetes/helm-sidecar/eks-fargate/lab.md`.
 
+## Method picker (Fargate profile)
+
+`<div data-profile-picker></div>` renders an "AWS Console / AWS CLI / eksctl" toggle (default AWS CLI, stored in localStorage). Wrap each variant in `<div data-profile="console">`, `"awscli"` or `"eksctl"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Used in `kubernetes/helm-sidecar/eks-fargate/lab.md` so Quick Deploy does not require installing `eksctl`. The method names are hardcoded in `ProfileMethod.jsx`; extend that file to reuse the pattern for another choice.
+
 ## Fill-in panel
 
-`<div data-fill-fields="FALCON_CID:CID (with checksum),AWS_REGION:AWS region"></div>` renders a labeled form for shared `<NAME>` placeholders so the reader enters them once, outside any copy block. Format is `NAME:Label` pairs separated by commas (no commas inside a label). The inputs read and write the same values as inline `<NAME>` fields, so every code block using that name updates live. Names containing `SECRET`, `PASSWORD`, `TOKEN`, or `PRIVATE` render as password inputs and are never saved. Keep secrets in an `export` line below the panel, since a secret placeholder still needs to land in a shell variable.
+`<div data-fill-fields="FALCON_CID:CID (with checksum),AWS_REGION:AWS region"></div>` renders a labeled form for shared `<NAME>` placeholders so the reader enters them once, outside any copy block. Format is `NAME:Label` pairs separated by commas (no commas inside a label). The inputs read and write the same values as inline `<NAME>` fields, so every code block using that name updates live. Names containing `SECRET`, `PASSWORD`, `TOKEN`, or `PRIVATE` render as password inputs and are never saved. Keep secrets in an `export` line below the panel, since a secret placeholder still needs to land in a shell variable. Also list the secret as a field in the panel (`FALCON_CLIENT_SECRET:API client secret`) so the reader enters every credential in one place and cannot miss it; the `export` block below then picks up what they typed.
 
 **Derived placeholders.** Add `data-fill-derive="NAME=<A>.suffix.<B>"` (several allowed, separated by `;`) to compose one placeholder from others. `REGISTRY` below is rebuilt live as the reader types and is empty until every piece is filled:
 
@@ -89,7 +94,7 @@ Gotchas:
 |---|---|---|
 | Reader-supplied (CID, client ID, cluster name, account, region, registry host) | Shared `<NAME>` placeholder, entered once in a `data-fill-fields` panel, written inline in every command | One entry, no re-exporting, nothing to forget after a shell restart |
 | Built from other reader values (registry address) | `data-fill-derive` | Reader never assembles the string |
-| Secrets (`*SECRET*`, `*PASSWORD*`, `*TOKEN*`, `*PRIVATE*`) | `export X="<X>"` in its own block, secret placeholder in the panel only if the command needs the literal | Secret placeholders are never saved to localStorage, and the shell needs the value |
+| Secrets (`*SECRET*`, `*PASSWORD*`, `*TOKEN*`, `*PRIVATE*`) | A field in the `data-fill-fields` panel (password input) AND `export X="<X>"` in its own block below | Reader enters every credential in one place; secret placeholders are never saved to localStorage; the shell needs the value |
 | Discovered at run time (image tags, image paths, pull tokens) | `export`, computed by a command | The page cannot know them in advance |
 | Full Lab cluster name and region | `{{CLUSTER_NAME}}` / `{{REGION}}` from the Lab Variables panel | Already shared across the lab |
 
