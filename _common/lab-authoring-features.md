@@ -12,7 +12,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Deploy options picker | `<div data-deploy-options></div>` | Guide mode | `DeployOptions.jsx` |
 | Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` | Code blocks | `LabRenderer.jsx` |
 | Option block gate | `<div data-opt="kac">` | Anywhere | `LabRenderer.jsx` |
-| Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Guide mode | `ProfileMethod.jsx` |
+| Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Both modes | `ProfileMethod.jsx` |
 | Fill-in panel | `<div data-fill-fields="NAME:Label,...">` | Anywhere | `FillFields.jsx` |
 | Lab Variables panel | `<div data-lab-variables></div>` + manifest `variables` | Lab mode | `LabVariables.jsx` |
 | Cloud block gate | `<div data-cloud="gke">` | Lab mode | `LabRenderer.jsx` |
@@ -75,7 +75,7 @@ Gotchas:
 
 ## Method picker (Fargate profile)
 
-`<div data-profile-picker></div>` renders an "AWS Console / AWS CLI / eksctl" toggle (default AWS CLI, stored in localStorage). Wrap each variant in `<div data-profile="console">`, `"awscli"` or `"eksctl"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Used in `kubernetes/helm-sidecar/eks-fargate/lab.md` so Quick Deploy does not require installing `eksctl`. The method names are hardcoded in `ProfileMethod.jsx`; extend that file to reuse the pattern for another choice.
+`<div data-profile-picker></div>` renders an "AWS Console / AWS CLI / eksctl" toggle (default AWS CLI, stored in localStorage). Wrap each variant in `<div data-profile="console">`, `"awscli"` or `"eksctl"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Used in `kubernetes/helm-sidecar/eks-fargate/lab.md` and `kubernetes/helm-daemonset/eks-hybrid/lab.md` (Quick Deploy and Full Lab) so Quick Deploy does not require installing `eksctl`. The method names are hardcoded in `ProfileMethod.jsx`; extend that file to reuse the pattern for another choice.
 
 ## Fill-in panel
 
