@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import CloudLogo from './CloudLogo'
+import SidebarSearch from './SidebarSearch'
 import { getStatusKey, getRoadmap } from '../content/manifest'
 
 function SidebarLeaf({ item }) {
@@ -52,6 +53,7 @@ export default function Sidebar({ manifest, isOpen, onClose, currentPath }) {
   const { modernized, total } = getRoadmap()
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <SidebarSearch onNavigate={onClose} />
       <nav className="sidebar-nav" onClick={(e) => e.target.closest('a') && onClose?.()}>
         {manifest.map((cloud) => (
           <SidebarGroup key={cloud.route} item={cloud} currentPath={currentPath} isCloud />

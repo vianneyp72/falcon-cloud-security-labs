@@ -243,7 +243,8 @@ function desc(content) {
 const labById = Object.fromEntries(LABS.map(def => {
   const content = labs[def.md] || ''
   const state = def.reference ? 'reference' : def.modernized ? 'modern' : 'legacy'
-  return [def.id, { ...def, contentKind: getContentKind(content), state, description: desc(content) }]
+  const title = (content.match(/^# (.+)$/m) || [])[1] || ''
+  return [def.id, { ...def, contentKind: getContentKind(content), state, description: desc(content), title }]
 }))
 
 // -----------------------------------------------------------------------------
@@ -252,6 +253,7 @@ const labById = Object.fromEntries(LABS.map(def => {
 // placement that old bookmarks redirect to (defaults to the first one).
 // -----------------------------------------------------------------------------
 const placements = []
+const groups = []
 const placementByRoute = {}
 
 const l = (id, route, extra = {}) => ({ id, route, ...extra })
@@ -262,7 +264,7 @@ const g = (label, route, children, overviewMd) => ({
   overview: overviewMd ? overviews[overviewMd] || '' : '',
 })
 
-function buildLeaf(spec, base, cloudRoute) {
+function buildLeaf(spec, base, cloudRoute, trail) {
   const lab = labById[spec.id]
   if (!lab) throw new Error(`manifest: unknown lab id "${spec.id}"`)
   const fullRoute = `${base}/${spec.route}`
@@ -276,6 +278,7 @@ function buildLeaf(spec, base, cloudRoute) {
     cloudPreset: spec.cloudPreset,
     primary: !!spec.primary,
     category: spec.category,
+    breadcrumb: trail,
   }
   placements.push(placement)
   placementByRoute[fullRoute] = placement
@@ -283,20 +286,23 @@ function buildLeaf(spec, base, cloudRoute) {
 }
 
 // Groups nest to any depth (cloud -> service -> OS/variant -> lab).
-function build(spec, base, cloudRoute) {
-  if (!spec.children) return buildLeaf(spec, base, cloudRoute)
+function build(spec, base, cloudRoute, trail) {
+  if (!spec.children) return buildLeaf(spec, base, cloudRoute, trail)
   const path = `${base}/${spec.route}`
-  return { ...spec, path, children: spec.children.map(c => build(c, path, cloudRoute)) }
+  groups.push({ label: spec.label, path, breadcrumb: trail })
+  const next = [...trail, spec.label]
+  return { ...spec, path, children: spec.children.map(c => build(c, path, cloudRoute, next)) }
 }
 
 function cloud(label, route, logo, description, children) {
+  groups.push({ label, path: route, breadcrumb: [] })
   return {
     label,
     route,
     path: route,
     logo,
     description,
-    children: children.map(c => build(c, route, route)),
+    children: children.map(c => build(c, route, route, [label])),
   }
 }
 
@@ -525,4 +531,28 @@ export function getRoadmap() {
     total: rows.length,
     modernized: rows.filter(r => r.state === 'modern').length,
   }
+}
+
+// Flat list for the sidebar search: every lab placement (so "aks" finds Azure > AKS) plus every
+// cloud/service section. `extra` is searched by substring only so long text can't fuzzy-match noise.
+let searchIndex
+export function getSearchIndex() {
+  searchIndex ??= [
+    ...placements.map(p => ({
+      kind: 'lab',
+      label: p.label,
+      breadcrumb: p.breadcrumb,
+      to: `/${p.fullRoute}`,
+      meta: p,
+      extra: `${p.title} ${p.area}`,
+    })),
+    ...groups.map(g => ({
+      kind: 'group',
+      label: g.label,
+      breadcrumb: g.breadcrumb,
+      to: `/${g.path}`,
+      extra: '',
+    })),
+  ]
+  return searchIndex
 }

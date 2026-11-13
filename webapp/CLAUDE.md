@@ -26,6 +26,7 @@ src/
 ├── components/
 │   ├── Layout.jsx        ← Grid shell: header + sidebar + content + TOC + ThemeToggle
 │   ├── Sidebar.jsx       ← Collapsible cloud > service > OS tree nav (one recursive group node)
+│   ├── SidebarSearch.jsx ← Fuzzy lab search at the top of the sidebar (arrows/Enter/Esc, `/` to focus)
 │   ├── LabRenderer.jsx   ← Markdown → interactive page (custom renderers)
 │   ├── CodeBlock.jsx     ← Terminal dots + copy button + highlight.js
 │   ├── FlowDiagram.jsx   ← ASCII art → React Flow diagrams (with built-in expand button)
@@ -38,6 +39,8 @@ src/
 │   ├── CloudLogo.jsx     ← AWS / Azure / Google Cloud marks (brand-color tokens in global.css)
 │   ├── RoadmapPage.jsx   ← Modernization tracker, generated from the manifest
 │   └── LabDisclaimer.jsx ← Maintainer disclaimer auto-rendered on every lab
+├── lib/
+│   └── fuzzy.js          ← Dependency-free fuzzy matcher + ranked search over the manifest index
 ├── hooks/
 │   ├── useProgress.js    ← localStorage checkbox persistence
 │   ├── useTheme.js       ← Theme state: localStorage.theme + prefers-color-scheme fallback, applies data-theme to <html>
@@ -70,6 +73,7 @@ The `@content` alias resolves to the repo root (`..`). Vite's `server.fs.allow` 
    - Add a placement in the cloud-first `manifest` tree with `l(id, 'route')`. A lab can be placed under several clouds (e.g. `K8S` under AWS, Azure, GCP); `cloudPreset` pre-selects the CLOUD picker. The build throws if a lab has no placement
 3. Status is derived: `modernized` flag + content (`written` / `stub`) -> Modernized (green), Legacy (yellow), or Roadmap (yellow, hollow). `/roadmap` is generated from `LABS`
 4. Progress, variables, and placeholders key on the canonical `id`, so every placement of a lab shares state. Old compute-first URLs redirect to the lab's primary placement
+5. Search is automatic: `getSearchIndex()` indexes every placement (label, breadcrumb, lab H1) and every cloud/service section. Only the label is matched fuzzily (typos like "terrafrm" work); the breadcrumb and title are substring-only to avoid noise. Give nav entries clear `label`s since that is what people type
 
 Do NOT paste the maintainer disclaimer into `lab.md` — `LabRenderer` auto-injects `<LabDisclaimer />` at the top of the content area (above the H1 title, and below the status badge on stubs). Edit `LabDisclaimer.jsx` to change the wording.
 
