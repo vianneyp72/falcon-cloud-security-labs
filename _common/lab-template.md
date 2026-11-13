@@ -229,7 +229,7 @@ Then confirm what's running:
 TODO get command
 ```
 
-TODO Annotate the output: which column, which value means healthy.
+> **Verify:** TODO say what healthy looks like: which column, which value (for example `STATUS` `Running`, `READY` full). Add a `> **Verify:**` or `> **Look for:**` callout after every command whose output the reader has to judge.
 
 ### 6. Test a detection (optional)
 
