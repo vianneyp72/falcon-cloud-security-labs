@@ -64,7 +64,7 @@ Every `> **Bold-lede:**` blockquote is auto-classified into a color-coded callou
 
 Every deployment method is a folder with `lab.md` as the primary document. All labs use a **dual-mode structure** with two views:
 
-- `<div data-mode="guide">` — **Quick Deploy** (fast path, max 5 steps)
+- `<div data-mode="guide">` — **Quick Deploy** (fast path, as few steps as the method allows)
 - `<div data-mode="lab">` — **Full Lab** (comprehensive walkthrough)
 
 The webapp's mode toggle switches between these views. Reference lab: `serverless-containers/cloud-run/lab.md`.
