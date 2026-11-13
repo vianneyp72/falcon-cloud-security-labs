@@ -27,6 +27,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 - The toggle is injected automatically above the H2 whose text matches `deployment steps` (case-insensitive). Keep that heading.
 - Leave a blank line after each opening `<div ...>` and before each closing `</div>`, or markdown inside will not render.
 - Checkbox progress is stored per mode, so Quick Deploy and Full Lab track separately.
+- **Quick Deploy only:** omit the `data-mode="lab"` block entirely. The webapp then hides the toggle and always shows the guide half, even if the reader's stored mode is Full Lab (`contentHasLabMode` / `resolveMode` in `ModeToggle.jsx`). Example: `ecs/fargate-terraform-module/lab.md`.
 
 ## Pickers (Quick Deploy)
 

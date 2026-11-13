@@ -8,10 +8,11 @@ The deployment method depends on the ECS launch type:
 
 ### ECS on Fargate
 
-Fargate tasks do not have access to the underlying host, so the sensor must be injected into the task itself. Two approaches:
+Fargate tasks do not have access to the underlying host, so the sensor must be injected into the task itself. Three approaches:
 
 1. **Task definition patching** -- Modify the task definition to include the falcon-sensor container and shared volumes. This is the most common approach.
-2. **falcon-utility sidecar** -- Add the `falcon-utility` init container to copy the sensor binary into the application container's filesystem at startup.
+2. **Terraform module** -- CrowdStrike's official `terraform-aws-ecs-fargate` module builds the patched task definition for you. Best when you already manage ECS with Terraform.
+3. **falcon-utility sidecar** -- Add the `falcon-utility` init container to copy the sensor binary into the application container's filesystem at startup.
 
 ### ECS on EC2
 

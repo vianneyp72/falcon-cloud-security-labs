@@ -61,3 +61,12 @@ export function useModeToggle() {
 export function contentHasMode(content) {
   return content && /data-mode=/.test(content)
 }
+
+export function contentHasLabMode(content) {
+  return !!content && /data-mode=["']lab["']/.test(content)
+}
+
+// Guide-only pages have no Full Lab half, so a stored "lab" choice must not blank them out.
+export function resolveMode(content, mode) {
+  return contentHasMode(content) && !contentHasLabMode(content) ? 'guide' : mode
+}

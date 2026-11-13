@@ -1624,8 +1624,93 @@ function buildAciEmbeddedDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEcsFargateTerraformDiagram(text) {
+  const nodes = [
+    // Image path: CrowdStrike registry -> your ECR
+    {
+      id: 'cs-registry',
+      position: { x: 0, y: 0 },
+      data: { label: 'CrowdStrike Registry', sublabel: 'falcon-container image', isCloud: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+    {
+      id: 'ecr',
+      position: { x: 0, y: 130 },
+      data: { label: 'Your ECR', sublabel: 'falcon-container:<tag>', isCloud: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+    // Terraform module builds the task definition
+    {
+      id: 'tf-module',
+      position: { x: 600, y: 0 },
+      data: { label: 'Terraform Module', sublabel: 'task definition + execution role + log group', isApi: true },
+      type: 'custom',
+      style: { width: 290, height: 60 },
+    },
+    // ECS Fargate task
+    {
+      id: 'task',
+      position: { x: 330, y: 120 },
+      data: { label: 'ECS Fargate Task', isContainer: true },
+      type: 'custom',
+      style: { width: 700, height: 160 },
+    },
+    {
+      id: 'init',
+      position: { x: 20, y: 60 },
+      data: { label: 'crowdstrike-falcon-init-container', sublabel: 'copies sensor files, then exits' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 200, height: 70 },
+    },
+    {
+      id: 'volume',
+      position: { x: 255, y: 60 },
+      data: { label: 'Shared volume', sublabel: 'sensor binaries' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 170, height: 70 },
+    },
+    {
+      id: 'app',
+      position: { x: 460, y: 60 },
+      data: { label: 'Application container', sublabel: 'falcon-entrypoint → your app' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 220, height: 70 },
+    },
+    // CrowdStrike cloud
+    {
+      id: 'cs-cloud',
+      position: { x: 560, y: 360 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 240, height: 60 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-reg-ecr', source: 'cs-registry', target: 'ecr', label: 'pull script --copy', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-ecr-task', source: 'ecr', sourceHandle: 'right-source', target: 'task', targetHandle: 'left-target', label: 'image pull', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-tf-task', source: 'tf-module', target: 'task', targetHandle: 'top-target', label: 'registers task definition', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-init-vol', source: 'init', sourceHandle: 'right-source', target: 'volume', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-vol-app', source: 'volume', sourceHandle: 'right-source', target: 'app', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-app-cloud', source: 'app', target: 'cs-cloud', targetHandle: 'top-target', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
+  if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) {
+    return buildEcsFargateTerraformDiagram(text)
+  }
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) {
     return buildAciEmbeddedDiagram(text)
   }
@@ -2060,6 +2145,7 @@ function buildDockerPatchDiagram(text) {
 
 export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
+  if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) return true
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) return true
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('Container Sensor Image')) return true
