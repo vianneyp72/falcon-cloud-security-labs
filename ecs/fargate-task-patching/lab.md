@@ -47,6 +47,11 @@ These images can live in **different registries**. The recommended setup for mos
 - A container registry for hosting the sensor image (ECR recommended, or any OCI-compliant registry)
 - **ECS task execution role** with permissions to pull images at runtime (see below)
 
+> **Tip:** Where to find your Falcon credentials:
+>
+> - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ### ECS Task Execution Role
 
 Your ECS task definition must reference an execution role that allows ECS to pull container images on your behalf. If you already have tasks pulling from ECR, this is likely already set up.

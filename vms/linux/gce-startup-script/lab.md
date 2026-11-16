@@ -16,6 +16,10 @@ https://github.com/CrowdStrike/falcon-scripts/blob/main/bash/install/falcon-linu
 - VM service account with `roles/secretmanager.secretAccessor` on the secrets
 - Firewall rule allowing SSH from your IP (for verification)
 
+> **Tip:** Where to find your Falcon API client:
+>
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Deployment Steps
 
 ### 1. Create firewall rule for SSH access

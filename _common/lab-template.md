@@ -25,6 +25,15 @@ TODO One-line description: what gets deployed, to what compute type, pulling fro
 > - **Quick Deploy path:** an existing TODO compute target with TODO CLI configured (`TODO check command` works)
 > - **Full Lab path:** TODO cloud CLI for your provider; Section 1 Step 1 covers install and auth
 
+<!-- AUTHOR: REQUIRED credentials callout, directly under Prerequisites, in every lab that uses a CID or
+     an API client. Keep the wording and console paths exactly as below so all labs match. Drop the CID
+     bullet (and say "API client" in the lede) only if the lab never uses a CID. Do not repeat these
+     console paths elsewhere as prose; later steps just link back by naming the value. -->
+> **Tip:** Where to find your Falcon credentials:
+>
+> - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source | Link |
@@ -371,7 +380,7 @@ TODO sample output
 
 ### Step 1: Create an API client
 
-- [ ] Navigate to **Falcon Console** > **Support and resources** > **API clients and keys** > **Create API client**
+- [ ] Navigate to **Falcon Console** > **Support and resources** > **Client Management** > **API Clients** > **Create API client**
 - [ ] Set the following OAuth 2.0 scopes:
   - TODO Scope: **Read**
 

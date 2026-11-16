@@ -8,6 +8,10 @@
 > - CrowdStrike Falcon console access (API client creation + Sensor Downloads)
 > - Terraform >= 1.0 installed
 
+> **Tip:** Where to find your Falcon API client:
+>
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source                                | Link                                                                                                |
@@ -101,7 +105,7 @@ ansible-galaxy collection install crowdstrike.falcon
 
 > **What & Why:** The collection authenticates to the Falcon API to download the sensor installer and fetch your CID. You need an API client with the right scopes.
 
-- [ ] **Console:** Navigate to **Support and resources** → **Resources and tools** → **API clients and keys** → Click **Create API client**
+- [ ] **Console:** Navigate to **Support and resources** → **Client Management** → **API Clients** → **Create API client**
   - Client name: `ansible-lab`
   - Scope: Check **Sensor Download** [read] and **Sensor update policies** [read]
   - Click **Create**
@@ -794,7 +798,7 @@ rm -rf group_vars/ inventory.ini deploy-falcon.yml
 
 | Action                 | Path                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------ |
-| Create API client      | **Support and resources** → **Resources and tools** → **API clients and keys** |
+| Create API client      | **Support and resources** → **Client Management** → **API Clients** → **Create API client** |
 | Create VM              | **Compute Engine** → **VM Instances** → **Create Instance**                    |
 | Verify hosts           | **Host setup and management** → **Manage endpoints** → **Host management**     |
 | Sensor update policies | **Host setup and management** → **Sensor update policy**                       |

@@ -11,6 +11,10 @@ Deploy CrowdStrike Falcon Cloud Security to an AWS Organization using the offici
 > - CrowdStrike API client with **CSPM Registration: Read + Write** scope
 > - GitHub repository (for Section 8: CI/CD promotion)
 
+> **Tip:** Where to find your Falcon API client:
+>
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source | Link |
@@ -118,7 +122,7 @@ Navigate to **Falcon Console** > **Cloud security** > **Registration** and confi
 
 > **What & Why:** The CrowdStrike Terraform provider authenticates via OAuth2 API credentials. These credentials allow Terraform to look up your account's registration details (external ID, intermediate role ARN) and configure the module automatically.
 
-- [ ] **Console:** Navigate to **Falcon Console** > **Support and resources** > **Resources and tools** > **API clients and keys**
+- [ ] **Console:** Navigate to **Falcon Console** > **Support and resources** > **Client Management** > **API Clients** > **Create API client**
 
 - [ ] Click **Create API client** and configure:
   - Client name: `terraform-cspm-registration`

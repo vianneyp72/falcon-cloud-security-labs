@@ -25,6 +25,11 @@ Deploy CrowdStrike Falcon on an EKS **Fargate-only** cluster (no EC2 nodes) usin
 >
 > **Note:** This lab hosts all three Falcon images in **same-account ECR**. On Fargate, image pulls are authenticated by the **Fargate pod execution role**, so no image pull secret is used.
 
+> **Tip:** Where to find your Falcon credentials:
+>
+> - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source                                                  | Link                                                                            |
@@ -564,7 +569,7 @@ kubectl get pods -n kube-system -o wide -l k8s-app=kube-dns
 
 ### Step 1: Create an API client
 
-- [ ] Navigate to **Falcon Console** > **Support and resources** > **API clients and keys** > **Create API client**
+- [ ] Navigate to **Falcon Console** > **Support and resources** > **Client Management** > **API Clients** > **Create API client**
 - [ ] Set the following OAuth 2.0 scopes:
   - Sensor Download: **Read**
   - Falcon Images Download: **Read**

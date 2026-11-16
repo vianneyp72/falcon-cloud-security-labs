@@ -13,6 +13,10 @@ Official Docs: https://docs.crowdstrike.com/r/en-US/qg0ygdwl/mac3b7b7
 > - API client credentials with scopes: **Falcon Container CLI (R/W)**, **Falcon Container Image (R/W)**, **Cloud Security Tools Download (R)**
 > - Docker installed locally (for testing the build)
 
+> **Tip:** Where to find your Falcon API client:
+>
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source | Link |

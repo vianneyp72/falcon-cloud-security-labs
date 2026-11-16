@@ -10,6 +10,10 @@
 > - `curl` >= 7.55.0 installed on the host
 > - Outbound HTTPS (443) to your CrowdStrike cloud domain
 
+> **Tip:** Where to find your Falcon API client:
+>
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source                             | Link                                                                                  |
@@ -49,7 +53,7 @@ The Falcon sensor for Linux is a lightweight agent that attaches eBPF probes int
 > **What this does:** Creates an OAuth2 API client in the Falcon console. The install script uses these credentials to authenticate, download the correct package, and configure the sensor automatically.
 
 1. Log in to the Falcon console at https://falcon.crowdstrike.com
-2. Navigate to **Support and resources** > **Resources and tools** > **API clients and keys**
+2. Navigate to **Support and resources** > **Client Management** > **API Clients** > **Create API client**
 3. Click **Create API client**
 4. Name it something descriptive (e.g., `linux-sensor-install`)
 5. Enable the required scopes:

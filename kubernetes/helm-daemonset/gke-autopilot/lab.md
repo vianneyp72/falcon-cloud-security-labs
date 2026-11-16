@@ -19,6 +19,11 @@ Deploy the CrowdStrike Falcon Platform (sensor + KAC + Image Analyzer) on a GKE 
 > - **Quick Deploy path:** an existing GKE Autopilot cluster with `kubectl` configured (`kubectl get nodes` works)
 > - **Full Lab path:** `gcloud` CLI — Section 1 Step 1 covers install and auth
 
+> **Tip:** Where to find your Falcon credentials:
+>
+> - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source                                         | Link                                                                                                 |
@@ -267,7 +272,7 @@ Nodes appear on-demand on Autopilot — an empty list here is fine until you sch
 
 ### Step 1: Create an API client
 
-- [ ] **Console:** Navigate to **Falcon Console** → **Support and resources** → **API clients and keys** → **Create API client**
+- [ ] **Console:** Navigate to **Falcon Console** → **Support and resources** → **Client Management** → **API Clients** → **Create API client**
 - [ ] Set these OAuth 2.0 scopes:
   - Falcon Images Download: **Read**
   - Sensor Download: **Read**

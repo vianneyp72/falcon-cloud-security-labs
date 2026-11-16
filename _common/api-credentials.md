@@ -5,7 +5,7 @@ This document covers how to create and configure API credentials for automated F
 ## Creating a Falcon API Client
 
 1. Log in to the Falcon Console at <https://falcon.crowdstrike.com>.
-2. Navigate to **Support and resources > API clients and keys**.
+2. Navigate to **Support and resources > Client Management > API Clients > Create API client**.
 3. Click **Create API client**.
 4. Give the client a descriptive name (e.g., `sensor-deploy-automation`).
 5. Select the required scopes listed below.

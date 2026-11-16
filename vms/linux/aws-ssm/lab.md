@@ -10,6 +10,11 @@
 > - CrowdStrike API client with **Sensor Download: Read** scope
 > - CrowdStrike CID with checksum
 
+> **Tip:** Where to find your Falcon credentials:
+>
+> - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
+> - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
+
 ## Reference Docs
 
 | Source                                    | Link                                                                                       |
@@ -56,7 +61,7 @@ For Falcon sensor deployment:
 > **What this does:** Creates an OAuth2 API client in the Falcon console for the SSM package to authenticate and download the sensor.
 
 1. Log in to the Falcon console at https://falcon.crowdstrike.com
-2. Navigate to **Support and resources** > **Resources and tools** > **API clients and keys**
+2. Navigate to **Support and resources** > **Client Management** > **API Clients** > **Create API client**
 3. Click **Create API client**
 4. Name: `ssm-distributor-install`
 5. Enable scopes:
