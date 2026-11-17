@@ -13,6 +13,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` | Code blocks | `LabRenderer.jsx` |
 | Option block gate | `<div data-opt="kac">` | Anywhere | `LabRenderer.jsx` |
 | Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Both modes | `ProfileMethod.jsx` |
+| Test-target picker + gate | `<div data-test-target-picker>` / `<div data-test-target="ec2">` | Both modes | `TestTarget.jsx` |
 | Fill-in panel | `<div data-fill-fields="NAME:Label,...">` | Anywhere | `FillFields.jsx` |
 | Lab Variables panel | `<div data-lab-variables></div>` + manifest `variables` | Lab mode | `LabVariables.jsx` |
 | Cloud block gate | `<div data-cloud="gke">` | Lab mode | `LabRenderer.jsx` |
@@ -77,6 +78,10 @@ Gotchas:
 ## Method picker (Fargate profile)
 
 `<div data-profile-picker></div>` renders an "AWS Console / AWS CLI / eksctl" toggle (default AWS CLI, stored in localStorage). Wrap each variant in `<div data-profile="console">`, `"awscli"` or `"eksctl"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Used in `kubernetes/helm-sidecar/eks-fargate/lab.md` and `kubernetes/helm-daemonset/eks-hybrid/lab.md` (Quick Deploy and Full Lab) so Quick Deploy does not require installing `eksctl`. The method names are hardcoded in `ProfileMethod.jsx`; extend that file to reuse the pattern for another choice.
+
+## Test-target picker (EC2 or Fargate)
+
+`<div data-test-target-picker></div>` renders a "Test the app on: Fargate (sidecar) / EC2 (DaemonSet)" toggle (default Fargate, stored in localStorage). Wrap each variant in `<div data-test-target="fargate">` or `"ec2"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Gates can nest inside `data-profile` blocks, so a cleanup step can vary by both. Used in `kubernetes/helm-daemonset/eks-hybrid/lab.md` (Quick Deploy step 7 and Full Lab section 6) because a hybrid cluster protects the same test app differently on each compute type. The two values are hardcoded in `TestTarget.jsx`; extend that file to reuse the pattern for another choice.
 
 ## Fill-in panel
 

@@ -20,6 +20,7 @@ import FillFields from './FillFields'
 import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
 import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
 import ProfileMethod, { useProfileMethod, profileMatches } from './ProfileMethod'
+import TestTarget, { useTestTarget, testTargetMatches } from './TestTarget'
 import { LabVarsContext } from './labVarsContext'
 
 // Noop config passed to the hook when a lab has no variables — keeps hook order stable.
@@ -84,10 +85,19 @@ function OptBlockGate({ opt, children, ...props }) {
   return <div {...props}>{children}</div>
 }
 
-// Shows its children only when the reader's ProfileMethod choice (console | eksctl) matches.
+// Shows its children only when the reader's ProfileMethod choice (console | awscli | eksctl) matches.
 function ProfileBlockGate({ profile, children, ...props }) {
   const [method] = useProfileMethod()
   if (!profileMatches(profile, method)) {
+    return <div className="mode-content--hidden" />
+  }
+  return <div {...props}>{children}</div>
+}
+
+// Shows its children only when the reader's TestTarget choice (ec2 | fargate) matches.
+function TestTargetBlockGate({ target, children, ...props }) {
+  const [current] = useTestTarget()
+  if (!testTargetMatches(target, current)) {
     return <div className="mode-content--hidden" />
   }
   return <div {...props}>{children}</div>
@@ -222,6 +232,9 @@ export default function LabRenderer({ labKey: route }) {
       if (node?.properties?.dataProfilePicker !== undefined) {
         return <ProfileMethod />
       }
+      if (node?.properties?.dataTestTargetPicker !== undefined) {
+        return <TestTarget />
+      }
       if (node?.properties?.dataFillFields) {
         return <FillFields spec={node.properties.dataFillFields} derive={node.properties.dataFillDerive} />
       }
@@ -235,6 +248,10 @@ export default function LabRenderer({ labKey: route }) {
       const dataProfile = node?.properties?.dataProfile
       if (dataProfile) {
         return <ProfileBlockGate profile={dataProfile} {...props}>{children}</ProfileBlockGate>
+      }
+      const dataTestTarget = node?.properties?.dataTestTarget
+      if (dataTestTarget) {
+        return <TestTargetBlockGate target={dataTestTarget} {...props}>{children}</TestTargetBlockGate>
       }
       const dataOpt = node?.properties?.dataOpt
       if (dataOpt) {
