@@ -953,6 +953,7 @@
 
 .cloud-logo--aws   { color: var(--brand-aws); }
 .cloud-logo--azure { color: var(--brand-azure); }
+.cloud-logo--oci   { color: var(--brand-oci); }
 .cloud-logo--any   { color: var(--text-bright); }
 
 @media (max-width: 640px) {

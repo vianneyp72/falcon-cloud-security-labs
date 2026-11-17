@@ -22,6 +22,7 @@ There are three primary deployment methods:
 | GKE Standard | Helm DaemonSet | Standard privileged workloads |
 | GKE Autopilot | Helm DaemonSet (bpf mode) | Requires allowlist-synchronizer |
 | AKS | Helm DaemonSet | Standard privileged workloads |
+| OKE (Oracle) | Helm DaemonSet | Guide on the roadmap; use the standard guide meanwhile |
 | AKS (virtual nodes) | Helm Sidecar | No DaemonSet on virtual nodes |
 | On-prem (kubeadm, Rancher, k3s) | Helm DaemonSet or Operator | Full node access available |
 | OpenShift | Operator | Best compatibility with SCCs |
@@ -35,6 +36,7 @@ There are three primary deployment methods:
 | [k8s-standard/](helm-daemonset/k8s-standard/) | Any standard cluster (EKS, GKE, AKS, on-prem) — pull from CrowdStrike registry |
 | [eks-hybrid/](helm-daemonset/eks-hybrid/) | EKS with both EC2 and Fargate in the same cluster |
 | [gke-autopilot/](helm-daemonset/gke-autopilot/) | GKE Autopilot (requires bpf backend + allowlist-synchronizer) |
+| [oke/](helm-daemonset/oke/) | Oracle Kubernetes Engine (roadmap) |
 
 ### Helm Sidecar
 

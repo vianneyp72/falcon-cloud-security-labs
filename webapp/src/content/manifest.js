@@ -37,6 +37,8 @@ import cspmAzureTerraform from '@content/cspm/account-registration/azure/terrafo
 import cspmAzureBicep from '@content/cspm/account-registration/azure/bicep/lab.md?raw'
 import cspmGcpTerraform from '@content/cspm/account-registration/gcp/terraform/lab.md?raw'
 import cspmGcpRm from '@content/cspm/account-registration/gcp/resource-manager/lab.md?raw'
+import cspmOciTerraform from '@content/cspm/account-registration/oci/terraform/lab.md?raw'
+import k8sOke from '@content/kubernetes/helm-daemonset/oke/lab.md?raw'
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
@@ -90,6 +92,8 @@ const labs = {
   'cspm/account-registration/azure/bicep/lab.md': cspmAzureBicep,
   'cspm/account-registration/gcp/terraform/lab.md': cspmGcpTerraform,
   'cspm/account-registration/gcp/resource-manager/lab.md': cspmGcpRm,
+  'cspm/account-registration/oci/terraform/lab.md': cspmOciTerraform,
+  'kubernetes/helm-daemonset/oke/lab.md': k8sOke,
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
@@ -153,6 +157,7 @@ const LABS = [
     label: 'EKS Hybrid Nodes',
     area: 'Kubernetes · Helm DaemonSet',
     md: 'kubernetes/helm-daemonset/eks-hybrid/lab.md',
+    modernized: true,
     variables: labVars('falcon-hybrid-lab', 'us-east-1'),
   },
   {
@@ -170,6 +175,7 @@ const LABS = [
     modernized: true,
     variables: labVars('falcon-fargate-lab', 'us-east-1'),
   },
+  { id: 'kubernetes/helm-daemonset/oke', label: 'OKE', area: 'Kubernetes · Helm DaemonSet', md: 'kubernetes/helm-daemonset/oke/lab.md' },
   { id: 'kubernetes/operator/generic',   label: 'Generic',   area: 'Kubernetes · Operator', md: 'kubernetes/operator/generic/lab.md' },
   { id: 'kubernetes/operator/openshift', label: 'OpenShift', area: 'Kubernetes · Operator', md: 'kubernetes/operator/openshift/lab.md' },
 
@@ -210,6 +216,7 @@ const LABS = [
   { id: 'cspm/account-registration/azure-bicep', label: 'Azure Bicep', area: 'Cloud Registration', md: 'cspm/account-registration/azure/bicep/lab.md' },
   { id: 'cspm/account-registration/gcp-terraform', label: 'GCP Terraform', area: 'Cloud Registration', md: 'cspm/account-registration/gcp/terraform/lab.md' },
   { id: 'cspm/account-registration/gcp-resource-manager', label: 'GCP Resource Manager', area: 'Cloud Registration', md: 'cspm/account-registration/gcp/resource-manager/lab.md' },
+  { id: 'cspm/account-registration/oci-terraform', label: 'OCI Terraform (Resource Manager)', area: 'Cloud Registration', md: 'cspm/account-registration/oci/terraform/lab.md' },
 
   { id: 'common/api-credentials',   label: 'API Credentials',   area: 'Reference', md: '_common/api-credentials.md',   reference: true },
   { id: 'common/pull-sensor-images', label: 'Pull Sensor Images', area: 'Reference', md: '_common/pull-sensor-images.md', reference: true },
@@ -403,6 +410,27 @@ export const manifest = [
       inline(g('Account Registration', 'registration', [
         l('cspm/account-registration/gcp-terraform', 'terraform', { label: 'Terraform' }),
         l('cspm/account-registration/gcp-resource-manager', 'resource-manager', { label: 'Resource Manager' }),
+      ])),
+    ]),
+  ]),
+
+  cloud('Oracle Cloud (OCI)', 'oci', 'oci', 'OKE, Compute, and OCI tenancy registration.', [
+    ...cat('Containers', [
+      g('OKE', 'oke', [
+        l('kubernetes/helm-daemonset/oke', 'standard', { label: 'Standard' }),
+      ]),
+    ]),
+    ...cat('Virtual Machines', [
+      g('Compute', 'compute', [
+        g('Linux', 'linux', [
+          l('vms/linux/ansible', 'ansible'),
+          l('vms/linux/manual-cli', 'manual-cli'),
+        ]),
+      ]),
+    ]),
+    ...cat('Account Registration', [
+      inline(g('Account Registration', 'registration', [
+        l('cspm/account-registration/oci-terraform', 'terraform', { label: 'Terraform (Resource Manager)' }),
       ])),
     ]),
   ]),

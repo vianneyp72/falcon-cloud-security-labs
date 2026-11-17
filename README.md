@@ -4,7 +4,7 @@ This repository contains step-by-step lab guides for CrowdStrike Falcon Cloud Se
 
 ## Browsing the site
 
-The lab site is organized **cloud first** (AWS, Azure, Google Cloud, Any Cloud / Tooling), then by service and OS, and every cloud has an Account Registration section. Generic guides such as the standard Kubernetes Helm lab appear under each cloud but are the same page. A **Modernization Roadmap** page tracks which labs meet the current lab standard (Modernized) and which are still Legacy or not yet written. The folders in this repo stay organized by compute type, as in the matrix below.
+The lab site is organized **cloud first** (AWS, Azure, Google Cloud, Any Cloud / Tooling), then by service and OS, and every cloud has an Account Registration section. Generic guides such as the standard Kubernetes Helm lab appear under each cloud but are the same page. A **Modernization Roadmap** page tracks which labs meet the current lab standard (Modernized) and which are still Legacy or not yet written. Clouds covered: AWS, Azure, Google Cloud, and Oracle Cloud (OCI). The folders in this repo stay organized by compute type, as in the matrix below.
 
 ## Decision Matrix
 
@@ -16,6 +16,7 @@ Find the right guide: "I have X compute type" → follow the link.
 | **EKS (EC2 + Fargate hybrid)** | DaemonSet + Sidecar Injector | [kubernetes/helm-daemonset/eks-hybrid/](kubernetes/helm-daemonset/eks-hybrid/) |
 | **EKS (Fargate only)** | Helm Sidecar Injection | [kubernetes/helm-sidecar/eks-fargate/](kubernetes/helm-sidecar/eks-fargate/) |
 | **GKE Autopilot** | Helm DaemonSet (bpf + allowlists) | [kubernetes/helm-daemonset/gke-autopilot/](kubernetes/helm-daemonset/gke-autopilot/) |
+| **OKE** (Oracle Kubernetes Engine) | Helm DaemonSet (roadmap) | [kubernetes/helm-daemonset/oke/](kubernetes/helm-daemonset/oke/) |
 | **Any K8s** (CRD-based) | Falcon Operator | [kubernetes/operator/](kubernetes/operator/) |
 | **ECS Fargate** | Task definition patching | [ecs/fargate-task-patching/](ecs/fargate-task-patching/) |
 | **ECS Fargate** (falcon-utility) | Falcon utility sidecar | [ecs/fargate-falcon-utility/](ecs/fargate-falcon-utility/) |
@@ -26,7 +27,7 @@ Find the right guide: "I have X compute type" → follow the link.
 | **Serverless containers** (Cloud Run, ACI, Container Apps) | Container image patching | [serverless-containers/](serverless-containers/) |
 | **Container images** (build-time) | falconutil patch-image | [container-image-patching/](container-image-patching/) |
 | **FCS CLI** (CI image scanning) | GitHub Actions | [fcs-cli/](fcs-cli/) |
-| **Cloud account registration** (AWS, Azure, GCP) | Terraform, CloudFormation, Bicep, Resource Manager | [cspm/account-registration/](cspm/account-registration/) |
+| **Cloud account registration** (AWS, Azure, GCP, OCI) | Terraform, CloudFormation, Bicep, Resource Manager | [cspm/account-registration/](cspm/account-registration/) |
 
 ## Shared Prerequisites
 
@@ -49,7 +50,7 @@ falcon-cloud-security-labs/
 │   └── lab-authoring-features.md     # Interactive markers the webapp understands
 ├── kubernetes/                       # All K8s deployments
 │   ├── helm-daemonset/               # Node-level sensor via Helm
-│   │   ├── k8s-standard/, eks-hybrid/, gke-autopilot/
+│   │   ├── k8s-standard/, eks-hybrid/, gke-autopilot/, oke/
 │   ├── helm-sidecar/                 # Container sensor via sidecar injection
 │   │   ├── eks-fargate/
 │   └── operator/                     # Falcon Operator (CRD-based)
@@ -74,7 +75,8 @@ falcon-cloud-security-labs/
 ├── cspm/account-registration/        # Cloud account registration
 │   ├── aws/ (terraform, cloudformation)
 │   ├── azure/ (terraform, bicep)
-│   └── gcp/ (terraform, resource-manager)
+│   ├── gcp/ (terraform, resource-manager)
+│   └── oci/ (terraform)
 ├── se-built/                         # SE-built tools and references
 └── webapp/                           # React site that renders the labs
 ```

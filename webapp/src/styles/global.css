@@ -77,6 +77,7 @@
 
   /* Cloud provider brand colors (logos) */
   --brand-aws: #ff9900;
+  --brand-oci: #f80000;
   --brand-azure: #0078d4;
   --brand-gcp-red: #ea4535;
   --brand-gcp-blue: #557ebf;
