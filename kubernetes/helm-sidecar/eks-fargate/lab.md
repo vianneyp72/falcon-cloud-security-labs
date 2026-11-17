@@ -98,7 +98,7 @@ On a Fargate-only cluster a pod only schedules if its namespace matches a Fargat
 <div data-profile="console">
 
 1. In the AWS Console, open **EKS** > **Clusters** > your cluster > **Compute** tab, and under **Fargate profiles** choose **Add Fargate profile**.
-2. **Name:** `falcon`. **Pod execution role:** pick the role your existing Fargate profile uses (for example the one on the `system` profile). Choose **Next**.
+2. **Name:** `falcon-injector`. **Pod execution role:** choose **Create recommended role** (it opens IAM with the trust policy and `AmazonEKSFargatePodExecutionRolePolicy` pre-filled; choose **Create role**, return to the tab, refresh the dropdown, and select it). If you already created a pod execution role, select that one instead. Choose **Next**.
 3. **Subnets:** keep the cluster's private subnets. Choose **Next**.
 4. Under **Pod selectors**, choose **Add selector** once per namespace below, leaving **Match labels** empty:
 
@@ -110,7 +110,7 @@ falcon-image-analyzer #@opt=iar
 
 5. Choose **Next**, then **Create**. The profile shows **Creating** for a minute or two; wait until it is **Active**.
 
-> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. Reusing the role from your existing profile is fine.
+> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. The same role can serve every profile on the cluster.
 
 > **Verify:** Open the new profile. **Pod selectors** should list every namespace above. A missing namespace means its pods stay `Pending` later.
 
@@ -118,40 +118,59 @@ falcon-image-analyzer #@opt=iar
 
 <div data-profile="awscli">
 
-A Fargate profile needs a pod execution role and private subnets. Reuse the ones from a profile your cluster already has. List the existing profile names:
+A Fargate profile needs a pod execution role and private subnets. Create a dedicated role for the Falcon pods first. The trust policy lets only Fargate pods from this cluster's profiles assume it:
 
 ```bash
-aws eks list-fargate-profiles --cluster-name <CLUSTER_NAME> --region <AWS_REGION> --query fargateProfileNames --output text
+cat <<'EOF' > falcon-pod-exec-trust.json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "eks-fargate-pods.amazonaws.com" },
+    "Action": "sts:AssumeRole",
+    "Condition": { "ArnLike": { "aws:SourceArn": "arn:aws:eks:<AWS_REGION>:<AWS_ACCOUNT_ID>:fargateprofile/<CLUSTER_NAME>/*" } }
+  }]
+}
+EOF
+aws iam create-role --role-name <CLUSTER_NAME>-falcon-pod-exec \
+  --assume-role-policy-document file://falcon-pod-exec-trust.json \
+  --query Role.Arn --output text
+aws iam attach-role-policy --role-name <CLUSTER_NAME>-falcon-pod-exec \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy
 ```
 
-Create the `falcon` profile with one selector per Falcon namespace. It copies the pod execution role and subnets from an existing profile (replace `<EXISTING_PROFILE>` with a name from the list above):
+> **Verify:** `create-role` prints the new role ARN. If it returns `EntityAlreadyExists`, the role is already there from an earlier run; skip to the next command.
+
+Create the `falcon-injector` profile with one selector per Falcon namespace. It uses the new role and the cluster's private subnets (Fargate pods cannot run in public subnets):
 
 ```bash
 aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
-  --fargate-profile-name falcon \
-  --pod-execution-role-arn $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.podExecutionRoleArn --output text) \
-  --subnets $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.subnets --output text) \
+  --fargate-profile-name falcon-injector \
+  --pod-execution-role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<CLUSTER_NAME>-falcon-pod-exec \
+  --subnets $(aws ec2 describe-subnets --subnet-ids $(aws eks describe-cluster --name <CLUSTER_NAME> --region <AWS_REGION> --query 'cluster.resourcesVpcConfig.subnetIds' --output text) --region <AWS_REGION> --query 'Subnets[?MapPublicIpOnLaunch==`false`].SubnetId' --output text) \
   --selectors namespace=falcon-system \
   namespace=falcon-kac \ #@opt=kac
   namespace=falcon-image-analyzer \ #@opt=iar
   --region <AWS_REGION>
 ```
 
-> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. Reusing the role from your existing profile is fine.
+> **Why this matters:** The pod execution role is what lets Fargate pull your ECR images and write logs on behalf of the pods. EKS attaches it to every pod that matches a profile, so you never set it on pods yourself. `AmazonEKSFargatePodExecutionRolePolicy` is why same-account ECR pulls need no pull secret.
+
+> **Heads-up:** Fargate only runs pods in private subnets. The `--subnets` lookup keeps the cluster subnets that do not auto-assign public IPs. If `create-fargate-profile` rejects the subnets, or the lookup prints nothing, your cluster has no private subnets; add them before continuing.
 
 The profile takes a minute or two to create. Wait for it to become active:
 
 ```bash
-aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon --region <AWS_REGION>
+aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-injector --region <AWS_REGION>
 ```
 
 Confirm all the namespaces were registered:
 
 ```bash
-aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon --region <AWS_REGION> --query 'fargateProfile.selectors[].namespace' --output text
+aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-injector --region <AWS_REGION> --query 'fargateProfile.selectors[].namespace' --output text
 ```
 
-> **Verify:** The output should list every Falcon namespace. A missing namespace means its pods stay `Pending` later. If `create-fargate-profile` returns `ResourceInUseException`, a profile named `falcon` already exists; use `describe-fargate-profile` above to check its namespaces.
+> **Verify:** The output should list every Falcon namespace. A missing namespace means its pods stay `Pending` later. If `create-fargate-profile` returns `ResourceInUseException`, a profile named `falcon-injector` already exists; use `describe-fargate-profile` above to check its namespaces.
 
 </div>
 
@@ -167,7 +186,7 @@ metadata:
   name: <CLUSTER_NAME>
   region: <AWS_REGION>
 fargateProfiles:
-  - name: falcon
+  - name: falcon-injector
     selectors:
       - namespace: falcon-system
       - namespace: falcon-kac #@opt=kac
@@ -186,7 +205,7 @@ eksctl create fargateprofile -f falcon-fargate-profile.yaml
 Confirm all the namespaces were registered:
 
 ```bash
-eksctl get fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> --name falcon -o yaml
+eksctl get fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> --name falcon-injector -o yaml
 ```
 
 > **Verify:** The output should list every Falcon namespace under `selectors`. If a namespace is missing, its pods will stay `Pending` later.
@@ -337,13 +356,13 @@ In **EKS** > **Clusters** > your cluster > **Compute** > **Add Fargate profile**
 
 <div data-profile="awscli">
 
-Same role and subnets as step 2 (replace `<EXISTING_PROFILE>` with the same existing profile name):
+Same role and subnets as step 2:
 
 ```bash
 aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
   --fargate-profile-name app-workloads \
-  --pod-execution-role-arn $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.podExecutionRoleArn --output text) \
-  --subnets $(aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <EXISTING_PROFILE> --region <AWS_REGION> --query fargateProfile.subnets --output text) \
+  --pod-execution-role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<CLUSTER_NAME>-falcon-pod-exec \
+  --subnets $(aws ec2 describe-subnets --subnet-ids $(aws eks describe-cluster --name <CLUSTER_NAME> --region <AWS_REGION> --query 'cluster.resourcesVpcConfig.subnetIds' --output text) --region <AWS_REGION> --query 'Subnets[?MapPublicIpOnLaunch==`false`].SubnetId' --output text) \
   --selectors namespace=detection-vulnapp \
   --region <AWS_REGION>
 ```
@@ -447,7 +466,7 @@ helm list -A | grep falcon
 
 > **Verify:** Both commands should print nothing. A pod still listed as `Terminating` is fine; it disappears within a minute.
 
-> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon` and `app-workloads` Fargate profiles remain on the cluster; delete them in the console (**EKS** > your cluster > **Compute** > select the profile > **Delete**) or with `aws eks delete-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <profile> --region <AWS_REGION>` if you no longer need them.
+> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon-injector` and `app-workloads` Fargate profiles remain on the cluster; delete them in the console (**EKS** > your cluster > **Compute** > select the profile > **Delete**) or with `aws eks delete-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <profile> --region <AWS_REGION>` if you no longer need them. Once both profiles are gone, remove the pod execution role from step 2 (AWS CLI path) with `aws iam detach-role-policy --role-name <CLUSTER_NAME>-falcon-pod-exec --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy && aws iam delete-role --role-name <CLUSTER_NAME>-falcon-pod-exec`.
 
 </div>
 
@@ -485,7 +504,7 @@ The `Account` value is where the cluster and ECR repos will be created. Your IAM
 
 - [ ] **Console:** Navigate to **EKS** → **Clusters** → **Create cluster** → set name `{{CLUSTER_NAME}}` and a cluster service role (create one if you do not have `AmazonEKSClusterRole`) → accept the default VPC and subnets → **Create**
 - [ ] When the cluster shows **Active**, open it → **Compute** tab → **Add Fargate profile** and create three profiles, each with its own pod execution role (create `AmazonEKSFargatePodExecutionRole` once, then reuse it):
-  - `falcon`: namespaces `falcon-system`, `falcon-kac`, `falcon-image-analyzer`
+  - `falcon-injector`: namespaces `falcon-system`, `falcon-kac`, `falcon-image-analyzer`
   - `app-workloads`: namespace `detection-vulnapp`
   - `default`: namespaces `default`, `kube-system`
 - [ ] Open **Add-ons** → **CoreDNS** → **Edit** → set **Compute type** to **Fargate** (a nodeless cluster has nowhere else to run it)
@@ -512,7 +531,7 @@ fargateProfiles:
     selectors:
       - namespace: default
       - namespace: kube-system
-  - name: falcon
+  - name: falcon-injector
     selectors:
       - namespace: falcon-system
       - namespace: falcon-kac
@@ -551,7 +570,7 @@ kubectl get nodes
 eksctl get fargateprofile --cluster {{CLUSTER_NAME}} --region {{REGION}}
 ```
 
-You should see `default`, `falcon`, and `app-workloads`.
+You should see `default`, `falcon-injector`, and `app-workloads`.
 
 - [ ] Confirm CoreDNS is running on Fargate:
 
@@ -728,7 +747,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 kubectl get pods -n falcon-system -o wide
 ```
 
-> **Look for:** `STATUS` `Running`, `READY` `1/1` (or `2/2`), and a `NODE` value starting with `fargate-ip-`. The injector pods themselves run on Fargate, so the `falcon` profile from Section 1 must cover this namespace or they stay `Pending`.
+> **Look for:** `STATUS` `Running`, `READY` `1/1` (or `2/2`), and a `NODE` value starting with `fargate-ip-`. The injector pods themselves run on Fargate, so the `falcon-injector` profile from Section 1 must cover this namespace or they stay `Pending`.
 
 - [ ] Confirm the mutating webhook is registered:
 
