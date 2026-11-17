@@ -161,7 +161,9 @@ aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
 The profile takes a minute or two to create. Wait for it to become active:
 
 ```bash
-aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-injector --region <AWS_REGION>
+aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-injector --region <AWS_REGION> \
+  && echo "✅ falcon-injector profile is ACTIVE. Fargate can now schedule the Falcon namespaces; move on to the next step." \
+  || echo "❌ falcon-injector profile is not ACTIVE yet. Check its status with: aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-injector --region <AWS_REGION> --query fargateProfile.status"
 ```
 
 Confirm all the namespaces were registered:
@@ -350,7 +352,7 @@ Create a Fargate profile for the app namespace so its pods can schedule (this is
 
 <div data-profile="console">
 
-In **EKS** > **Clusters** > your cluster > **Compute** > **Add Fargate profile**: **Name** `app-workloads`, the same **Pod execution role** and subnets as before, and one **Pod selector** with namespace `detection-vulnapp`. Choose **Create** and wait for **Active**.
+In **EKS** > **Clusters** > your cluster > **Compute** > **Add Fargate profile**: **Name** `falcon-test-detection`, the same **Pod execution role** and subnets as before, and one **Pod selector** with namespace `detection-vulnapp`. Choose **Create** and wait for **Active**.
 
 </div>
 
@@ -360,7 +362,7 @@ Same role and subnets as step 2:
 
 ```bash
 aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
-  --fargate-profile-name app-workloads \
+  --fargate-profile-name falcon-test-detection \
   --pod-execution-role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<CLUSTER_NAME>-falcon-pod-exec \
   --subnets $(aws ec2 describe-subnets --subnet-ids $(aws eks describe-cluster --name <CLUSTER_NAME> --region <AWS_REGION> --query 'cluster.resourcesVpcConfig.subnetIds' --output text) --region <AWS_REGION> --query 'Subnets[?MapPublicIpOnLaunch==`false`].SubnetId' --output text) \
   --selectors namespace=detection-vulnapp \
@@ -370,7 +372,9 @@ aws eks create-fargate-profile --cluster-name <CLUSTER_NAME> \
 Wait for it to become active:
 
 ```bash
-aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name app-workloads --region <AWS_REGION>
+aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-test-detection --region <AWS_REGION> \
+  && echo "✅ falcon-test-detection profile is ACTIVE. Fargate can now schedule the test app; move on to deploying it." \
+  || echo "❌ falcon-test-detection profile is not ACTIVE yet. Check its status with: aws eks describe-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name falcon-test-detection --region <AWS_REGION> --query fargateProfile.status"
 ```
 
 </div>
@@ -379,7 +383,7 @@ aws eks wait fargate-profile-active --cluster-name <CLUSTER_NAME> --fargate-prof
 
 ```bash
 eksctl create fargateprofile --cluster <CLUSTER_NAME> --region <AWS_REGION> \
-  --name app-workloads \
+  --name falcon-test-detection \
   --namespace detection-vulnapp
 ```
 
@@ -400,7 +404,9 @@ kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstr
 Wait for the pod to be Ready (Fargate starts a micro-VM for it, so expect about a minute):
 
 ```bash
-kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s
+kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s \
+  && echo "✅ detection-vulnapp pod is Ready. Next, confirm the Falcon sidecar was injected." \
+  || echo "❌ detection-vulnapp pod is not Ready yet. Check it with: kubectl describe pods -n detection-vulnapp"
 ```
 
 Confirm the Falcon sidecar was injected:
@@ -420,8 +426,6 @@ kubectl port-forward -n detection-vulnapp svc/vulnerable-example-com 8060:80
 Open [http://localhost:8060](http://localhost:8060) in your browser and click any attack simulation (e.g. **Access sensitive files**, **Kill process**) to generate activity the injected sensor will detect.
 
 First confirm the pod registered: in **Falcon Console** > **Host setup and management** > **Host management**, filter **Grouping Tags** for `eks-fargate`. The vulnapp pod should be listed as a host.
-
-Then check **Falcon Console** > **Next-Gen SIEM** > **Monitor and investigate** > **Detections**, and filter **Source product** = **Cloud**. A detection can take several minutes to appear, and some simulations are blocked by prevention policy and show as a prevention alert instead. Stop the port-forward (Ctrl+C) and remove the app:
 
 ```bash
 kubectl delete -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstrike/vulnapp/main/vulnerable.example.yaml
@@ -466,7 +470,7 @@ helm list -A | grep falcon
 
 > **Verify:** Both commands should print nothing. A pod still listed as `Terminating` is fine; it disappears within a minute.
 
-> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon-injector` and `app-workloads` Fargate profiles remain on the cluster; delete them in the console (**EKS** > your cluster > **Compute** > select the profile > **Delete**) or with `aws eks delete-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <profile> --region <AWS_REGION>` if you no longer need them. Once both profiles are gone, remove the pod execution role from step 2 (AWS CLI path) with `aws iam detach-role-policy --role-name <CLUSTER_NAME>-falcon-pod-exec --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy && aws iam delete-role --role-name <CLUSTER_NAME>-falcon-pod-exec`.
+> **Note:** The host entries stay in the Falcon console for a while after the sidecars are gone. The `falcon-injector` and `falcon-test-detection` Fargate profiles remain on the cluster; delete them in the console (**EKS** > your cluster > **Compute** > select the profile > **Delete**) or with `aws eks delete-fargate-profile --cluster-name <CLUSTER_NAME> --fargate-profile-name <profile> --region <AWS_REGION>` if you no longer need them. Once both profiles are gone, remove the pod execution role from step 2 (AWS CLI path) with `aws iam detach-role-policy --role-name <CLUSTER_NAME>-falcon-pod-exec --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy && aws iam delete-role --role-name <CLUSTER_NAME>-falcon-pod-exec`.
 
 </div>
 
@@ -505,7 +509,7 @@ The `Account` value is where the cluster and ECR repos will be created. Your IAM
 - [ ] **Console:** Navigate to **EKS** → **Clusters** → **Create cluster** → set name `{{CLUSTER_NAME}}` and a cluster service role (create one if you do not have `AmazonEKSClusterRole`) → accept the default VPC and subnets → **Create**
 - [ ] When the cluster shows **Active**, open it → **Compute** tab → **Add Fargate profile** and create three profiles, each with its own pod execution role (create `AmazonEKSFargatePodExecutionRole` once, then reuse it):
   - `falcon-injector`: namespaces `falcon-system`, `falcon-kac`, `falcon-image-analyzer`
-  - `app-workloads`: namespace `detection-vulnapp`
+  - `falcon-test-detection`: namespace `detection-vulnapp`
   - `default`: namespaces `default`, `kube-system`
 - [ ] Open **Add-ons** → **CoreDNS** → **Edit** → set **Compute type** to **Fargate** (a nodeless cluster has nowhere else to run it)
 
@@ -536,7 +540,7 @@ fargateProfiles:
       - namespace: falcon-system
       - namespace: falcon-kac
       - namespace: falcon-image-analyzer
-  - name: app-workloads
+  - name: falcon-test-detection
     selectors:
       - namespace: detection-vulnapp
 EOF
@@ -570,7 +574,7 @@ kubectl get nodes
 eksctl get fargateprofile --cluster {{CLUSTER_NAME}} --region {{REGION}}
 ```
 
-You should see `default`, `falcon-injector`, and `app-workloads`.
+You should see `default`, `falcon-injector`, and `falcon-test-detection`.
 
 - [ ] Confirm CoreDNS is running on Fargate:
 
@@ -796,7 +800,7 @@ kubectl get pods -A -o wide | grep falcon
 
 ### Step 2: Deploy the vulnapp into a Fargate-profiled namespace
 
-> **Why this matters:** The `detection-vulnapp` namespace is covered by the `app-workloads` Fargate profile from Section 1. Because Fargate pulls with the pod execution role, you can create this namespace at any time; there is no pull secret to seed ahead of the injector.
+> **Why this matters:** The `detection-vulnapp` namespace is covered by the `falcon-test-detection` Fargate profile from Section 1. Because Fargate pulls with the pod execution role, you can create this namespace at any time; there is no pull secret to seed ahead of the injector.
 
 - [ ] Create the namespace:
 
@@ -813,7 +817,9 @@ kubectl apply -n detection-vulnapp -f https://raw.githubusercontent.com/crowdstr
 - [ ] Wait for the pod to become Ready (Fargate starts a separate micro-VM per pod, so expect about a minute):
 
 ```bash
-kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s
+kubectl wait --for=condition=Ready pods --all -n detection-vulnapp --timeout=300s \
+  && echo "✅ detection-vulnapp pod is Ready. Next, confirm the Falcon sidecar was injected." \
+  || echo "❌ detection-vulnapp pod is not Ready yet. Check it with: kubectl describe pods -n detection-vulnapp"
 ```
 
 ### Step 3: Verify sidecar injection
@@ -1036,7 +1042,7 @@ aws ecr set-repository-policy --repository-name falcon-container --region {{REGI
 **2. In the consumer (cluster) account**, make sure the Fargate pod execution role can call ECR in the other account. `AmazonEKSFargatePodExecutionRolePolicy` already covers this, but if you use a trimmed custom role, attach `AmazonEC2ContainerRegistryReadOnly`:
 
 ```bash
-POD_EXEC_ROLE=$(aws eks describe-fargate-profile --cluster-name {{CLUSTER_NAME}} --fargate-profile-name app-workloads \
+POD_EXEC_ROLE=$(aws eks describe-fargate-profile --cluster-name {{CLUSTER_NAME}} --fargate-profile-name falcon-test-detection \
   --query 'fargateProfile.podExecutionRoleArn' --output text | awk -F/ '{print $NF}')
 aws iam attach-role-policy --role-name $POD_EXEC_ROLE \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
