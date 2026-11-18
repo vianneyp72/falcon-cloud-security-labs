@@ -1,13 +1,14 @@
 # Falcon Container Sensor on ECS Fargate — CrowdStrike Terraform Module
 
-Deploy a sample app on ECS Fargate protected by the Falcon Container Sensor, using CrowdStrike's official `terraform-aws-ecs-fargate` module, with the sensor image hosted in your own ECR.
+Deploy a sample app on your existing ECS cluster, protected by the Falcon Container Sensor on Fargate, using CrowdStrike's official `terraform-aws-ecs-fargate` module, with the sensor image hosted in your own ECR.
 
 > **Prerequisites:**
 >
 > - An AWS account and the `aws` CLI configured (`aws sts get-caller-identity` prints your account)
 > - Terraform 1.0 or later installed (`terraform version` prints a version) and `git`
 > - Docker, Podman, or Skopeo installed **and running** (to copy the sensor image to ECR; `docker info` should print server details, not an error. Start Docker Desktop if it fails)
-> - A default VPC with public subnets in your region (most accounts have one; if yours was deleted, `aws ec2 create-default-vpc` recreates it)
+> - An existing ECS cluster (`aws ecs list-clusters` lists it). It can be empty or already running services
+> - Permission to create ECS services, IAM roles, and CloudWatch log groups in that account
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
 >   - Required scopes to pull the sensor image:
 >     - **Falcon Images Download** (Read)
@@ -37,13 +38,14 @@ On Fargate there is no host to install an agent on, so the sensor travels inside
 - **Init container** (`crowdstrike-falcon-init-container`) — runs first, copies the sensor files into a volume shared with your app, then exits.
 - **Application container** — your app, started through the Falcon entrypoint so the sensor launches before it. The module adds the `SYS_PTRACE` capability the sensor needs.
 
-The module also creates the task **execution role** (the IAM role ECS uses to pull images from ECR and write logs, not something your app code uses) and a CloudWatch log group. It does not create a cluster or service, so this guide adds those.
+The module also creates the task **execution role** (the IAM role ECS uses to pull images from ECR and write logs, not something your app code uses) and a CloudWatch log group. It does not create a cluster or service. This guide adds one **service** to the cluster you already have; Terraform only reads the cluster and never changes or deletes it.
 
 You copy the sensor image into your own ECR because Fargate pulls images with the execution role. Same-account ECR needs no pull secret.
 
 ```
 ECS FARGATE TERRAFORM MODULE — ARCHITECTURE
 CrowdStrike Registry | Your ECR | Terraform Module
+Your existing ECS cluster | falcon-demo-service
 ECS Fargate Task — crowdstrike-falcon-init-container | Shared volume | Application container
 Execution role pulls the image from ECR
 CrowdStrike Cloud — Telemetry
@@ -57,7 +59,7 @@ CrowdStrike Cloud — Telemetry
 
 ### 1. Set credentials
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region,CLUSTER_NAME:Existing ECS cluster name"></div>
 
 Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
@@ -119,9 +121,44 @@ cd terraform-aws-ecs-fargate/examples/basic
 
 > **Why this matters:** The example already sets `app_entrypoint` for nginx. The module only wraps your app with the Falcon entrypoint when this is set, so for your own images always set it to your container's entrypoint. Without it the app runs normally but the sensor never starts.
 
-### 5. Add an ECS cluster and service
+### 5. Connect to your existing cluster
 
-The module only creates the task definition. Add a cluster and a service to run it, in the default VPC. The service uses the VPC's default security group, which allows no inbound traffic, and a public IP so the task can reach ECR and the Falcon cloud over the internet:
+Confirm Terraform can find your cluster. The status should be `ACTIVE`:
+
+```bash
+aws ecs describe-clusters --clusters <CLUSTER_NAME> --region <AWS_REGION> --query 'clusters[0].{Name:clusterName,Status:status,Services:activeServicesCount}' --output table
+```
+
+> **Verify:** `Status` is `ACTIVE`. An empty result or `MISSING` means the name or region is wrong; list your clusters with `aws ecs list-clusters --region <AWS_REGION>`.
+
+A cluster only groups services. It does not say which network a task runs in. That comes from the **service**, so you also pick the **subnets** (which part of your VPC the task lives in) and **security groups** (the firewall around it). The task must reach ECR and the Falcon cloud over the internet. Use public subnets with a public IP, or private subnets that have a NAT gateway.
+
+If the cluster already runs a Fargate service, copy its network settings:
+
+```bash
+aws ecs describe-services --region <AWS_REGION> --cluster <CLUSTER_NAME> \
+  --services $(aws ecs list-services --cluster <CLUSTER_NAME> --region <AWS_REGION> --query 'serviceArns[0]' --output text) \
+  --query 'services[0].networkConfiguration.awsvpcConfiguration'
+```
+
+> **Verify:** Prints `subnets`, `securityGroups`, and `assignPublicIp`. Use those values below. `ENABLED` means the task gets a public IP, so keep `true`; `DISABLED` means a private subnet, so set it to `false`.
+
+If the cluster has no services yet, list the subnets and security groups in your VPC and pick ones that fit:
+
+```bash
+aws ec2 describe-subnets --region <AWS_REGION> --query 'Subnets[].{Subnet:SubnetId,VPC:VpcId,AZ:AvailabilityZone,PublicIP:MapPublicIpOnLaunch}' --output table
+aws ec2 describe-security-groups --region <AWS_REGION> --query 'SecurityGroups[].{Group:GroupId,VPC:VpcId,Name:GroupName}' --output table
+```
+
+> **Tip:** Pick subnets and a security group from the same VPC. `PublicIP` `True` marks a public subnet. The VPC's `default` security group allows no inbound traffic, which is all this sample needs.
+
+Enter the network values (separate several subnets with commas, no spaces):
+
+<div data-fill-fields="SUBNET_IDS:Subnet IDs,SECURITY_GROUP_IDS:Security group IDs"></div>
+
+### 6. Write the Terraform files
+
+Add the service. It reads your cluster (Terraform never changes or deletes it) and starts one task from the module's task definition:
 
 ```bash
 cat > lab.tf <<'EOF'
@@ -129,70 +166,61 @@ variable "aws_region" {
   type = string
 }
 
+variable "cluster_name" {
+  type = string
+}
+
+variable "subnet_ids" {
+  type = string
+}
+
+variable "security_group_ids" {
+  type = string
+}
+
+variable "assign_public_ip" {
+  type = bool
+}
+
 provider "aws" {
   region = var.aws_region
-
-  default_tags {
-    tags = {
-      "cstag-accounting" = "dev"
-      "cstag-department" = "Sales - 310000"
-      "cstag-business"   = "Sales"
-      "cstag-owner"      = "ali.zia"
-      "cstag-user"       = "minh.pham"
-      "cstag-purpose"    = "SE Labs ECS Fargate Falcon TF"
-    }
-  }
 }
 
-data "aws_vpc" "default" {
-  default = true
+data "aws_ecs_cluster" "existing" {
+  cluster_name = var.cluster_name
 }
 
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
-
-data "aws_security_group" "default" {
-  vpc_id = data.aws_vpc.default.id
-  name   = "default"
-}
-
-resource "aws_ecs_cluster" "demo" {
-  name = "falcon-demo-cluster"
-}
-
-resource "aws_ecs_service" "demo" {
+resource "aws_ecs_service" "falcon_demo" {
   name            = "falcon-demo-service"
-  cluster         = aws_ecs_cluster.demo.id
+  cluster         = data.aws_ecs_cluster.existing.arn
   task_definition = module.falcon_ecs_task.task_definition_arn
   desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
-    security_groups  = [data.aws_security_group.default.id]
-    assign_public_ip = true
+    subnets          = [for s in split(",", var.subnet_ids) : trimspace(s)]
+    security_groups  = [for s in split(",", var.security_group_ids) : trimspace(s)]
+    assign_public_ip = var.assign_public_ip
   }
 }
 EOF
 ```
 
-> **Why this matters:** An ECS **cluster** is just a logical grouping, and a **service** keeps the desired number of tasks running (it restarts them if they stop). Fargate means AWS supplies the compute, so there are no instances to manage.
+> **Why this matters:** A **service** keeps the desired number of tasks running and restarts them if they stop. Fargate means AWS supplies the compute, so there are no instances to manage. This service joins your cluster beside whatever already runs there.
 
-### 6. Write your values
-
-Point the module at your sensor image and CID. The sample app is nginx from Amazon's public registry, which Fargate can pull without credentials:
+Point the module at your sensor image and CID, and the service at your cluster and network. The sample app is nginx from Amazon's public registry, which Fargate can pull without credentials:
 
 ```bash
 cat > terraform.tfvars <<EOF
-aws_region   = "<AWS_REGION>"
-app_image    = "public.ecr.aws/nginx/nginx:stable"
-falcon_image = "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container:$FALCON_IMAGE_TAG"
-falcon_cid   = "<FALCON_CID>"
-app_port     = 80
+aws_region         = "<AWS_REGION>"
+cluster_name       = "<CLUSTER_NAME>"
+subnet_ids         = "<SUBNET_IDS>"
+security_group_ids = "<SECURITY_GROUP_IDS>"
+assign_public_ip   = <ASSIGN_PUBLIC_IP:true>
+app_image          = "public.ecr.aws/nginx/nginx:stable"
+falcon_image       = "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container:$FALCON_IMAGE_TAG"
+falcon_cid         = "<FALCON_CID>"
+app_port           = 80
 EOF
 ```
 
@@ -206,30 +234,30 @@ Download the AWS provider and the module:
 terraform init
 ```
 
-Create the task definition, execution role, log group, cluster, and service. Review the plan, then type `yes`:
+Create the task definition, execution role, log group, and service. Review the plan, then type `yes`:
 
 ```bash
 terraform apply
 ```
 
-> **Verify:** The apply ends with `Apply complete! Resources: 6 added` (task definition, execution role and its policy attachment, log group, cluster, service). If it fails with `AccessDenied`, your AWS identity lacks ECS or IAM permissions.
+> **Verify:** The apply ends with `Apply complete! Resources: 5 added` (task definition, execution role and its policy attachment, log group, service). If it fails with `AccessDenied`, your AWS identity lacks ECS or IAM permissions.
 
 ### 8. Verify
 
 Wait for the service to start its task. Fargate takes about a minute to provision and pull images, and this command returns when the service is stable:
 
 ```bash
-aws ecs wait services-stable --cluster falcon-demo-cluster --services falcon-demo-service --region <AWS_REGION>
+aws ecs wait services-stable --cluster <CLUSTER_NAME> --services falcon-demo-service --region <AWS_REGION>
 ```
 
 Capture the task ID and list its containers:
 
 ```bash
-export TASK_ID=$(aws ecs list-tasks --cluster falcon-demo-cluster --service-name falcon-demo-service --region <AWS_REGION> --query 'taskArns[0]' --output text | awk -F/ '{print $NF}')
-aws ecs describe-tasks --cluster falcon-demo-cluster --tasks $TASK_ID --region <AWS_REGION> --query 'tasks[0].containers[].{Name:name,Status:lastStatus,Exit:exitCode}' --output table
+export TASK_ID=$(aws ecs list-tasks --cluster <CLUSTER_NAME> --service-name falcon-demo-service --region <AWS_REGION> --query 'taskArns[0]' --output text | awk -F/ '{print $NF}')
+aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region <AWS_REGION> --query 'tasks[0].containers[].{Name:name,Status:lastStatus,Exit:exitCode}' --output table
 ```
 
-> **Verify:** `crowdstrike-falcon-init-container` should be `STOPPED` with `Exit` `0` (it copies the sensor files and exits), and `falcon-demo-app` should be `RUNNING`. If the task never appears, run `aws ecs describe-services --cluster falcon-demo-cluster --services falcon-demo-service --query 'services[0].events[:3]'`; `CannotPullContainerError` means the image URI or tag in `terraform.tfvars` is wrong.
+> **Verify:** `crowdstrike-falcon-init-container` should be `STOPPED` with `Exit` `0` (it copies the sensor files and exits), and `demo-app` should be `RUNNING`. If the task never appears, run `aws ecs describe-services --cluster <CLUSTER_NAME> --services falcon-demo-service --query 'services[0].events[:3]'`; `CannotPullContainerError` means the image URI or tag in `terraform.tfvars` is wrong.
 
 Confirm the sensor registered in the Falcon console: go to **Host setup and management** > **Host management**, add a **Pod ID** filter set to your `$TASK_ID` (print it with `echo $TASK_ID`), and open the row.
 
@@ -237,7 +265,7 @@ Confirm the sensor registered in the Falcon console: go to **Host setup and mana
 
 ### 9. Clean up (optional)
 
-Removes everything Terraform created. Run it from `terraform-aws-ecs-fargate/examples/basic`; type `yes` when prompted:
+Removes the service, task definition, execution role, and log group. Your cluster and everything else in it is not touched. Run it from `terraform-aws-ecs-fargate/examples/basic`; type `yes` when prompted:
 
 ```bash
 terraform destroy

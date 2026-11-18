@@ -1641,7 +1641,7 @@ function buildEcsFargateTerraformDiagram(text) {
       type: 'custom',
       style: { width: 230, height: 60 },
     },
-    // Terraform module builds the task definition
+    // Terraform module builds the task definition; lab.tf adds a service to the existing cluster
     {
       id: 'tf-module',
       position: { x: 600, y: 0 },
@@ -1649,12 +1649,32 @@ function buildEcsFargateTerraformDiagram(text) {
       type: 'custom',
       style: { width: 290, height: 60 },
     },
+    // Customer's existing ECS cluster (Terraform only reads it)
+    {
+      id: 'cluster',
+      position: { x: 300, y: 100 },
+      data: { label: 'Your existing ECS cluster', sublabel: 'Terraform reads it, never changes it', isContainer: true },
+      type: 'custom',
+      style: { width: 760, height: 320 },
+    },
+    {
+      id: 'service',
+      position: { x: 30, y: 60 },
+      data: { label: 'falcon-demo-service', sublabel: 'new service — keeps 1 task running in your subnets', isPhase: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 20,
+      style: { width: 700, height: 56 },
+    },
     // ECS Fargate task
     {
       id: 'task',
-      position: { x: 330, y: 120 },
+      position: { x: 30, y: 140 },
       data: { label: 'ECS Fargate Task', isContainer: true },
       type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
       style: { width: 700, height: 160 },
     },
     {
@@ -1687,7 +1707,7 @@ function buildEcsFargateTerraformDiagram(text) {
     // CrowdStrike cloud
     {
       id: 'cs-cloud',
-      position: { x: 560, y: 360 },
+      position: { x: 560, y: 490 },
       data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
       type: 'custom',
       style: { width: 240, height: 60 },
@@ -1697,7 +1717,8 @@ function buildEcsFargateTerraformDiagram(text) {
   const edges = [
     { id: 'e-reg-ecr', source: 'cs-registry', target: 'ecr', label: 'pull script --copy', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
     { id: 'e-ecr-task', source: 'ecr', sourceHandle: 'right-source', target: 'task', targetHandle: 'left-target', label: 'image pull', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
-    { id: 'e-tf-task', source: 'tf-module', target: 'task', targetHandle: 'top-target', label: 'registers task definition', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-tf-service', source: 'tf-module', target: 'service', targetHandle: 'top-target', label: 'task definition', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-service-task', source: 'service', target: 'task', targetHandle: 'top-target', label: 'starts 1 task', type: 'smoothstep', zIndex: 20, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
     { id: 'e-init-vol', source: 'init', sourceHandle: 'right-source', target: 'volume', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
     { id: 'e-vol-app', source: 'volume', sourceHandle: 'right-source', target: 'app', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
     { id: 'e-app-cloud', source: 'app', target: 'cs-cloud', targetHandle: 'top-target', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
