@@ -17,11 +17,16 @@ import ModeToggle, { useModeToggle, contentHasMode, contentHasLabMode, resolveMo
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
 import FillFields from './FillFields'
+import DetectionMatrix from './DetectionMatrix'
+import ArgoMockup from './ArgoMockup'
+import Expandable from './Expandable'
+import ChoicePicker, { ChoiceBlockGate } from './ChoicePicker'
 import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
 import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
 import ProfileMethod, { useProfileMethod, profileMatches } from './ProfileMethod'
 import TestTarget, { useTestTarget, testTargetMatches } from './TestTarget'
 import { LabVarsContext } from './labVarsContext'
+import { scrollToId } from '../lib/scrollToId'
 
 // Noop config passed to the hook when a lab has no variables — keeps hook order stable.
 const NO_VARIABLES = { fields: [] }
@@ -235,6 +240,18 @@ export default function LabRenderer({ labKey: route }) {
       if (node?.properties?.dataTestTargetPicker !== undefined) {
         return <TestTarget />
       }
+      if (node?.properties?.dataChoicePicker) {
+        return <ChoicePicker choiceKey={node.properties.dataChoicePicker} />
+      }
+      if (node?.properties?.dataChoice) {
+        return <ChoiceBlockGate gate={node.properties.dataChoice} {...props}>{children}</ChoiceBlockGate>
+      }
+      if (node?.properties?.dataDetectionMatrix !== undefined) {
+        return <DetectionMatrix node={node} chips={node.properties.dataDetectionMatrix} />
+      }
+      if (node?.properties?.dataArgoMock) {
+        return <ArgoMockup name={node.properties.dataArgoMock} />
+      }
       if (node?.properties?.dataFillFields) {
         return <FillFields spec={node.properties.dataFillFields} derive={node.properties.dataFillDerive} />
       }
@@ -330,6 +347,29 @@ export default function LabRenderer({ labKey: route }) {
     h3({ children, ...props }) {
       const id = slugify(children)
       return <h3 id={id} {...props}>{children}</h3>
+    },
+    // In-page links (`[text](#heading-slug)`): HashRouter owns the URL hash, so scroll instead of navigating.
+    a({ node, href, children, ...props }) {
+      if (href && href.startsWith('#') && !href.startsWith('#/')) {
+        return (
+          <a
+            href={href}
+            onClick={(e) => {
+              e.preventDefault()
+              scrollToId(href.slice(1))
+            }}
+            {...props}
+          >
+            {children}
+          </a>
+        )
+      }
+      return <a href={href} {...props}>{children}</a>
+    },
+    // Screenshots: `![alt](/images/...)` resolves to webapp/public/images under the GitHub Pages base path.
+    img({ node, src, alt, ...props }) {
+      const resolved = src && src.startsWith('/images/') ? import.meta.env.BASE_URL + src.slice(1) : src
+      return <Expandable label={alt}><img src={resolved} alt={alt} loading="lazy" {...props} /></Expandable>
     },
   }), [
     activeMode,

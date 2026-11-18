@@ -1645,7 +1645,7 @@ function buildEcsFargateTerraformDiagram(text) {
     {
       id: 'tf-module',
       position: { x: 600, y: 0 },
-      data: { label: 'Terraform Module', sublabel: 'task definition + execution role + log group', isApi: true },
+      data: { label: 'Terraform Module', sublabel: 'builds the task definition (replaces yours)', isApi: true },
       type: 'custom',
       style: { width: 290, height: 60 },
     },
@@ -1653,14 +1653,14 @@ function buildEcsFargateTerraformDiagram(text) {
     {
       id: 'cluster',
       position: { x: 300, y: 100 },
-      data: { label: 'Your existing ECS cluster', sublabel: 'Terraform reads it, never changes it', isContainer: true },
+      data: { label: 'Your existing ECS cluster', sublabel: 'unchanged', isContainer: true },
       type: 'custom',
       style: { width: 760, height: 320 },
     },
     {
       id: 'service',
       position: { x: 30, y: 60 },
-      data: { label: 'falcon-demo-service', sublabel: 'new service — keeps 1 task running in your subnets', isPhase: true },
+      data: { label: 'Your existing service', sublabel: 'same network and settings — only its task definition changes', isPhase: true },
       type: 'custom',
       parentId: 'cluster',
       extent: 'parent',
@@ -1718,7 +1718,7 @@ function buildEcsFargateTerraformDiagram(text) {
     { id: 'e-reg-ecr', source: 'cs-registry', target: 'ecr', label: 'pull script --copy', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
     { id: 'e-ecr-task', source: 'ecr', sourceHandle: 'right-source', target: 'task', targetHandle: 'left-target', label: 'image pull', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
     { id: 'e-tf-service', source: 'tf-module', target: 'service', targetHandle: 'top-target', label: 'task definition', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
-    { id: 'e-service-task', source: 'service', target: 'task', targetHandle: 'top-target', label: 'starts 1 task', type: 'smoothstep', zIndex: 20, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-service-task', source: 'service', target: 'task', targetHandle: 'top-target', label: 'rolls to new task', type: 'smoothstep', zIndex: 20, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
     { id: 'e-init-vol', source: 'init', sourceHandle: 'right-source', target: 'volume', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
     { id: 'e-vol-app', source: 'volume', sourceHandle: 'right-source', target: 'app', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
     { id: 'e-app-cloud', source: 'app', target: 'cs-cloud', targetHandle: 'top-target', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
@@ -1727,8 +1727,83 @@ function buildEcsFargateTerraformDiagram(text) {
   return { nodes, edges }
 }
 
+function buildArgoHelmApplicationDiagram(text) {
+  const nodes = [
+    {
+      id: 'helm-repo',
+      position: { x: 20, y: 0 },
+      data: { label: 'CrowdStrike Helm repo', sublabel: 'falcon-platform chart' },
+      type: 'custom',
+      style: { width: 240, height: 58 },
+    },
+    {
+      id: 'cluster',
+      position: { x: 0, y: 130 },
+      data: { label: 'Kubernetes Cluster', isContainer: true },
+      type: 'custom',
+      style: { width: 780, height: 400 },
+    },
+    {
+      id: 'argo',
+      position: { x: 25, y: 50 },
+      data: { label: 'Argo CD (argocd namespace)', sublabel: 'Application falcon-platform', isPhase: true, items: ['inline helm values', 'repo-server: helm template', 'sync to cluster'] },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 730, height: 130 },
+    },
+    {
+      id: 'ns-sensor',
+      position: { x: 25, y: 230 },
+      data: { label: 'falcon-system', sublabel: 'Sensor DaemonSet' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 220, height: 70 },
+    },
+    {
+      id: 'ns-kac',
+      position: { x: 280, y: 230 },
+      data: { label: 'falcon-kac', sublabel: 'Admission Controller' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 220, height: 70 },
+    },
+    {
+      id: 'ns-iar',
+      position: { x: 535, y: 230 },
+      data: { label: 'falcon-image-analyzer', sublabel: 'Image Analyzer' },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 220, height: 70 },
+    },
+    {
+      id: 'cs-cloud',
+      position: { x: 270, y: 610 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 240, height: 60 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-repo-argo', source: 'helm-repo', target: 'argo', label: 'chart + version', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-argo-sensor', source: 'argo', target: 'ns-sensor', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-argo-kac', source: 'argo', target: 'ns-kac', label: 'sync', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-argo-iar', source: 'argo', target: 'ns-iar', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-kac-cloud', source: 'ns-kac', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
+  if (text.includes('ARGO CD — HELM CHART APPLICATION') && text.includes('falcon-platform')) {
+    return buildArgoHelmApplicationDiagram(text)
+  }
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) {
     return buildEcsFargateTerraformDiagram(text)
   }
@@ -2166,6 +2241,7 @@ function buildDockerPatchDiagram(text) {
 
 export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
+  if (text.includes('ARGO CD — HELM CHART APPLICATION') && text.includes('falcon-platform')) return true
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) return true
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) return true
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true

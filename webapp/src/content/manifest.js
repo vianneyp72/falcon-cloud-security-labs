@@ -3,6 +3,10 @@ import k8sStandard from '@content/kubernetes/helm-daemonset/k8s-standard/lab.md?
 import k8sEksHybrid from '@content/kubernetes/helm-daemonset/eks-hybrid/lab.md?raw'
 import k8sGkeAutopilot from '@content/kubernetes/helm-daemonset/gke-autopilot/lab.md?raw'
 import k8sSidecarFargate from '@content/kubernetes/helm-sidecar/eks-fargate/lab.md?raw'
+import argoHelmApp from '@content/kubernetes/argocd/helm-application/lab.md?raw'
+import argoAppOfApps from '@content/kubernetes/argocd/app-of-apps/lab.md?raw'
+import argoAppSet from '@content/kubernetes/argocd/applicationset/lab.md?raw'
+import argoMultiSource from '@content/kubernetes/argocd/multi-source/lab.md?raw'
 import k8sOpGeneric from '@content/kubernetes/operator/generic/lab.md?raw'
 import k8sOpOpenshift from '@content/kubernetes/operator/openshift/lab.md?raw'
 import ecsFargatePatch from '@content/ecs/fargate-task-patching/lab.md?raw'
@@ -46,6 +50,7 @@ import seYasi from '@content/se-built/yet-another-sensor-installer.md?raw'
 import seEcsFargate from '@content/se-built/ecs-fargate-sidecar-injector.md?raw'
 import seRegoExamples from '@content/se-built/simple-rego-examples.md?raw'
 import seAzurePreReqs from '@content/se-built/azure-fcs-prereqs-checker.md?raw'
+import toolQuickDetections from '@content/detections/quick-detection-samples.md?raw'
 
 // Overview READMEs
 import overviewK8s from '@content/kubernetes/README.md?raw'
@@ -55,6 +60,10 @@ import overviewCip from '@content/container-image-patching/README.md?raw'
 // Map paths to content
 const labs = {
   'kubernetes/helm-daemonset/k8s-standard/lab.md': k8sStandard,
+  'kubernetes/argocd/helm-application/lab.md': argoHelmApp,
+  'kubernetes/argocd/app-of-apps/lab.md': argoAppOfApps,
+  'kubernetes/argocd/applicationset/lab.md': argoAppSet,
+  'kubernetes/argocd/multi-source/lab.md': argoMultiSource,
   'kubernetes/helm-daemonset/eks-hybrid/lab.md': k8sEksHybrid,
   'kubernetes/helm-daemonset/gke-autopilot/lab.md': k8sGkeAutopilot,
   'kubernetes/helm-sidecar/eks-fargate/lab.md': k8sSidecarFargate,
@@ -101,6 +110,7 @@ const labs = {
   'se-built/ecs-fargate-sidecar-injector.md': seEcsFargate,
   'se-built/simple-rego-examples.md': seRegoExamples,
   'se-built/azure-fcs-prereqs-checker.md': seAzurePreReqs,
+  'detections/quick-detection-samples.md': toolQuickDetections,
 }
 
 const overviews = {
@@ -176,6 +186,10 @@ const LABS = [
     variables: labVars('falcon-fargate-lab', 'us-east-1'),
   },
   { id: 'kubernetes/helm-daemonset/oke', label: 'OKE', area: 'Kubernetes · Helm DaemonSet', md: 'kubernetes/helm-daemonset/oke/lab.md' },
+  { id: 'kubernetes/argocd/helm-application', label: 'Helm Chart Application', area: 'Kubernetes · Argo CD', md: 'kubernetes/argocd/helm-application/lab.md', modernized: true },
+  { id: 'kubernetes/argocd/app-of-apps',      label: 'App of Apps',            area: 'Kubernetes · Argo CD', md: 'kubernetes/argocd/app-of-apps/lab.md' },
+  { id: 'kubernetes/argocd/applicationset',   label: 'ApplicationSet',         area: 'Kubernetes · Argo CD', md: 'kubernetes/argocd/applicationset/lab.md' },
+  { id: 'kubernetes/argocd/multi-source',     label: 'Multi-Source (Chart + Git Values)', area: 'Kubernetes · Argo CD', md: 'kubernetes/argocd/multi-source/lab.md' },
   { id: 'kubernetes/operator/generic',   label: 'Generic',   area: 'Kubernetes · Operator', md: 'kubernetes/operator/generic/lab.md' },
   { id: 'kubernetes/operator/openshift', label: 'OpenShift', area: 'Kubernetes · Operator', md: 'kubernetes/operator/openshift/lab.md' },
 
@@ -226,6 +240,8 @@ const LABS = [
   { id: 'se-built/ecs-fargate-sidecar-injector', label: 'ECS Fargate Sidecar Injector', area: 'SE-Built', md: 'se-built/ecs-fargate-sidecar-injector.md', reference: true },
   { id: 'se-built/simple-rego-examples',         label: 'Simple Rego Examples',         area: 'SE-Built', md: 'se-built/simple-rego-examples.md',         reference: true },
   { id: 'se-built/azure-fcs-prereqs-checker',    label: 'Azure FCS Pre-Reqs Checker',    area: 'SE-Built', md: 'se-built/azure-fcs-prereqs-checker.md',    reference: true },
+
+  { id: 'detections/quick-detection-samples', label: 'Quick Detection Samples', area: 'Tooling', md: 'detections/quick-detection-samples.md', reference: true },
 ]
 
 // contentKind = what's actually in the file; state = where it sits on the modernization roadmap.
@@ -241,7 +257,7 @@ function desc(content) {
   for (let i = 1; i < lines.length && i < 5; i++) {
     const line = lines[i].trim()
     if (!line.startsWith('#') && !line.startsWith('>') && !line.startsWith('Official')) {
-      return line.slice(0, 120)
+      return line.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*`]/g, '').slice(0, 120)
     }
   }
   return ''
@@ -435,7 +451,7 @@ export const manifest = [
     ]),
   ]),
 
-  cloud('Any Cloud / Tooling', 'any-cloud', 'any', 'Cloud-agnostic tooling: any Kubernetes cluster, the Falcon Operator, image patching, FCS CLI, configuration management, and reference guides.', [
+  cloud('Any Cloud', 'any-cloud', 'any', 'Cloud-agnostic deployments: any Kubernetes cluster, the Falcon Operator, image patching, and configuration management.', [
     ...cat('Containers', [
       g('Kubernetes', 'kubernetes', [
         l(K8S, 'standard', { label: 'Standard (Any Cluster)', primary: true }),
@@ -461,6 +477,25 @@ export const manifest = [
         l('vms/windows/sccm', 'sccm'),
         l('vms/windows/manual-cli', 'manual-cli', { primary: true }),
       ]),
+    ]),
+  ]),
+
+  cloud('ArgoCD', 'argocd', 'argocd', 'Deploy Falcon to any cluster through Argo CD: direct Helm chart Applications, App of Apps, ApplicationSets, and multi-source Applications.', [
+    ...cat('Deployment Methods', [
+      inline(g('Deployment Methods', 'methods', [
+        l('kubernetes/argocd/helm-application', 'helm-application', { primary: true }),
+        l('kubernetes/argocd/app-of-apps', 'app-of-apps'),
+        l('kubernetes/argocd/applicationset', 'applicationset'),
+        l('kubernetes/argocd/multi-source', 'multi-source'),
+      ])),
+    ]),
+  ]),
+
+  cloud('Tooling', 'tooling', 'tooling', 'Detection samples for demos, FCS CLI, SE-built tools, and shared reference guides.', [
+    ...cat('Detections', [
+      inline(g('Detections', 'detections', [
+        l('detections/quick-detection-samples', 'quick-detection-samples'),
+      ])),
     ]),
     ...cat('CI/CD & Scanning', [
       g('FCS CLI', 'fcs-cli', [
@@ -533,7 +568,14 @@ export function getRedirects() {
       if (!ids.has(prefix)) prefixes.add(prefix)
     }
   }
-  return { labRedirects, prefixRedirects: [...prefixes].map(from => ({ from, to: '/' })) }
+  // FCS CLI, Reference, and SE-Built Tools moved from "Any Cloud / Tooling" to "Tooling".
+  const movedRedirects = placements
+    .filter(p => p.cloud === 'tooling')
+    .map(p => ({ from: p.fullRoute.replace(/^tooling\//, 'any-cloud/'), to: `/${p.fullRoute}` }))
+  return {
+    labRedirects: [...labRedirects, ...movedRedirects],
+    prefixRedirects: [...prefixes].map(from => ({ from, to: '/' })),
+  }
 }
 
 const cloudLabel = Object.fromEntries(manifest.map(c => [c.route, c.label]))

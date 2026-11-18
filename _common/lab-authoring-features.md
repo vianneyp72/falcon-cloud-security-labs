@@ -17,6 +17,12 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Fill-in panel | `<div data-fill-fields="NAME:Label,...">` | Anywhere | `FillFields.jsx` |
 | Lab Variables panel | `<div data-lab-variables></div>` + manifest `variables` | Lab mode | `LabVariables.jsx` |
 | Cloud block gate | `<div data-cloud="gke">` | Lab mode | `LabRenderer.jsx` |
+| Collapsible section | `<details class="lab-section">` + `## H2` in `<summary>` | Anywhere | `content.css` |
+| Choice picker + gate | `<div data-choice-picker="os">` / `<div data-choice="os:linux">` | Anywhere | `ChoicePicker.jsx` |
+| Detection matrix | `<div data-detection-matrix="Chip,Chip">` around a table | Anywhere | `DetectionMatrix.jsx` |
+| Argo CD UI mockup | `<div data-argo-mock="new-app"></div>`, `"yaml-editor"`, `"sync"`, or `"sync-panel"` | Anywhere | `ArgoMockup.jsx` |
+| Expandable image | Any markdown image (`![alt](/images/...)`) | Anywhere | `Expandable.jsx` |
+| In-page link | `[text](#heading-slug)` | Anywhere | `LabRenderer.jsx` + `lib/scrollToId.js` |
 | Variable substitution | `{{CLUSTER_NAME}}`, `{{REGION}}` | Code blocks | `LabRenderer.jsx` |
 | Editable placeholder | `<NAME>` or `<NAME:default>` | Code blocks | `CodeBlock.jsx` |
 | Checkboxes | `- [ ] text` | Lab mode | `useProgress.js` |
@@ -135,6 +141,60 @@ Do not `export` a value the reader typed unless it is a secret. Validate blocks 
 
 - Use for values the customer must supply (`<YOUR_CLUSTER_NAME>`, `<ACR_NAME>`).
 - Lowercase angle brackets (`<node-1>` in sample output) are not matched and stay literal.
+
+## Collapsible sections and in-page links
+
+Wrap a long H2 section so it starts closed:
+
+```markdown
+<details class="lab-section">
+<summary>
+
+## Linux
+
+</summary>
+
+### First sample
+...
+
+</details>
+```
+
+Blank lines around the `## H2` inside `<summary>` are required, so it still renders as a heading with an `id` and shows in the TOC. Link to any heading with `[text](#heading-slug)` (the slug is the lowercased heading text with punctuation removed and spaces turned into `-`). The router owns the URL hash, so these links scroll instead of navigating. Inside a section, wrap each item in `<details class="detection-card">` with its `### H3` in the `<summary>` (same blank-line rule) to get a collapsible card per item; an open card gets a red left border. Both in-page links and TOC clicks open every closed section and card that holds the target first. Example: `detections/quick-detection-samples.md`.
+
+## Choice picker (OS, Linux distribution)
+
+`<div data-choice-picker="KEY"></div>` renders a segmented toggle; `<div data-choice="KEY:option">` shows its contents only while that option is selected (comma list means any match). Blank lines after the opening tag and before `</div>` are required. Keys and options live in `CHOICES` in `ChoicePicker.jsx`:
+
+| Key | Options | Default |
+|-----|---------|---------|
+| `os` | `windows`, `linux` | `linux` |
+| `distro` | `debian` (Debian / Ubuntu), `rhel` (RHEL / Fedora), `amazon` (Amazon Linux) | `debian` |
+| `argo` | `ui` (Argo CD UI), `cli` (Argo CD CLI) | `ui` |
+| `falconcloud` | `commercial`, `govcloud-1`, `govcloud-2` | `commercial` |
+
+Every picker for a key shares one value, saved in localStorage, so the reader picks once and every gated block on the page (and on other pages) follows. Put one picker per key at the top of a section or card, not before every step. Gate shared steps with a comma list (`distro:rhel,amazon`). Once a step is gated, drop any prose that only explains another option ("on Linux use `-c`", "on Amazon Linux use dnf instead"); the reader never sees the other variant. Use it instead of stacking `Debian / Ubuntu:` / `RHEL:` labels over two blocks: each step then stays one visible block. Gates nest, so wrap the `distro` picker in `<div data-choice="os:linux">` when the card also has an `os` picker. Add a new key to `CHOICES` to reuse the pattern for another choice. Example: `detections/quick-detection-samples.md`.
+
+## Detection matrix
+
+Wrap a markdown table in `<div data-detection-matrix="Sensor health,Ransomware,...">` (blank lines inside the div are required) to render it as a filterable matrix: a search box, one-click use-case chips (the attribute value), Platform and Outcome toggles, and one dot column per platform. The table must have exactly these columns, in order:
+
+| Column | Format |
+|--------|--------|
+| Sample | `[Name](#heading-slug)` linking to the sample's `### H3` |
+| Platforms | Comma list of `Windows`, `Linux`, `macOS`, `Container` |
+| Severity | `Critical`, `High`, `Medium`, `Low`, `Informational`, or free text |
+| Result | `Detect`, `Blocked`, or `Killed` (Blocked/Killed count as Prevent) |
+| Tactic | Shown under the sample name |
+| Use cases | Comma list of use-case keywords, searched but not shown |
+
+Search matches every word: fuzzily against the sample name (typos work), and as a substring against tactic, use cases, platform, and result. Chips set the search to their text, so each chip should appear in the Use cases of the rows it should match. Example: `detections/quick-detection-samples.md`.
+
+## Argo CD UI mockups and expandable images
+
+`<div data-argo-mock="new-app"></div>` renders a vector replica of the real Argo CD v3.4.5 **+ NEW APP** panel with **EDIT AS YAML**; `"yaml-editor"` shows the YAML editor with **SAVE** / **CREATE**; `"sync"` shows the `falcon-platform` tile before and after sync; `"sync-panel"` shows the **SYNCHRONIZE** slide-in. Numbered badges mark click order. They are drawn in code (not screenshots), use fixed Argo colors in both site themes (the real product does not theme), and stay sharp at any size. Add another mock by adding an entry to `MOCKS` in `ArgoMockup.jsx`. Example: `kubernetes/argocd/helm-application/lab.md`.
+
+Every mockup, and every markdown image, gets an expand button (top right on hover) that opens a full-screen view; Esc, the close button, or a click outside closes it. Images whose path starts with `/images/` load from `webapp/public/images/`. Prefer a vector mockup over a raster screenshot for UI walkthroughs.
 
 ## Diagrams
 

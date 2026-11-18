@@ -18,21 +18,30 @@ export function fuzzyMatch(query, text, { substringOnly = false } = {}) {
   // Two-letter queries match too much as subsequences ("ec" -> "Falcon Cloud Run").
   if (substringOnly || q.length < 3) return null
 
-  const indices = []
-  let from = 0
-  let score = 0
-  let prev = -2
-  for (const ch of q) {
-    const found = t.indexOf(ch, from)
-    if (found === -1) return null
-    score += 1 + (found === prev + 1 ? 8 : 0) + (isBoundary(t, found) ? 6 : 0) - (prev >= 0 ? (found - prev - 1) * 0.5 : 0)
-    indices.push(found)
-    prev = found
-    from = found + 1
+  // Try every start position of the first character: a greedy scan from the first hit can latch
+  // onto an early letter ("r" in "container") and then be rejected as too spread out.
+  let best = null
+  for (let start = t.indexOf(q[0]); start !== -1; start = t.indexOf(q[0], start + 1)) {
+    const indices = [start]
+    let score = 1 + (isBoundary(t, start) ? 6 : 0)
+    let prev = start
+    let ok = true
+    for (const ch of q.slice(1)) {
+      const found = t.indexOf(ch, prev + 1)
+      if (found === -1) {
+        ok = false
+        break
+      }
+      score += 1 + (found === prev + 1 ? 8 : 0) + (isBoundary(t, found) ? 6 : 0) - (found - prev - 1) * 0.5
+      indices.push(found)
+      prev = found
+    }
+    if (!ok) break
+    // Reject matches smeared across the whole string.
+    if (prev - start + 1 > q.length + 2) continue
+    if (!best || score > best.score) best = { score, indices }
   }
-  // Reject matches smeared across the whole string.
-  if (indices[indices.length - 1] - indices[0] + 1 > q.length + 2) return null
-  return { score, indices }
+  return best
 }
 
 // Every whitespace-separated token must match. Only the lab label is matched fuzzily; the

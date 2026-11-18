@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { scrollToId } from '../lib/scrollToId'
 
 export default function TableOfContents({ headings }) {
   const [activeId, setActiveId] = useState('')
@@ -39,8 +40,7 @@ export default function TableOfContents({ headings }) {
             href={`#${id}`}
             onClick={(e) => {
               e.preventDefault()
-              const el = document.getElementById(id)
-              if (el) el.scrollIntoView({ behavior: 'smooth' })
+              scrollToId(id)
             }}
             className={`toc-link ${level === 3 ? 'toc-link--nested' : ''} ${activeId === id ? 'toc-link--active' : ''}`}
           >
