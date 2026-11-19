@@ -1357,7 +1357,7 @@
 .cloud-logo--oci   { color: var(--brand-oci); }
 .cloud-logo--any   { color: var(--text-bright); }
 .cloud-logo--tooling { color: var(--text-bright); }
-.cloud-logo--argocd { color: var(--text-bright); }
+.cloud-logo--argocd { object-fit: contain; }
 
 @media (max-width: 640px) {
   .progress-bar > span {
