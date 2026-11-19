@@ -6,8 +6,8 @@ Deploy the CrowdStrike Falcon sensor to Windows EC2 instances using AWS Systems 
 >
 > - AWS account with EC2 and Systems Manager access
 > - CrowdStrike Falcon console access with **Sensor Download: Read** API scope
-> - CrowdStrike CID with checksum
-> - AWS CLI v2 configured (`aws sts get-caller-identity` works)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
+> - AWS CLI v2 <span data-tip="aws sts get-caller-identity should work.">configured</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

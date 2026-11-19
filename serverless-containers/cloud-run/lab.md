@@ -4,13 +4,13 @@
 
 > **Prerequisites:**
 >
-> - GCP project with Artifact Registry, Cloud Run, and IAM APIs enabled
+> - GCP project with <span data-tip="Artifact Registry, Cloud Run, and IAM APIs must be enabled.">required APIs enabled</span>
 > - GitHub repository with Actions enabled
 > - Docker Desktop running locally
-> - `gcloud` CLI authenticated (`gcloud auth list` shows your account)
+> - `gcloud` CLI <span data-tip="gcloud auth list should show your account.">authenticated</span>
 > - CrowdStrike API client with **Falcon Images Download: Read** and **Sensor Download: Read** scopes
-> - CrowdStrike CID with checksum
-> - Cloud Run services must use **Second generation** execution environment (gen2) for patched images
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
+> - Cloud Run services on the <span data-tip="Patched images require the Second generation (gen2) execution environment.">gen2 execution environment</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

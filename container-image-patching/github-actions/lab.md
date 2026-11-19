@@ -1,12 +1,12 @@
 # Falcon Container Sensor Image Patching with GitHub Actions Lab
 
 > **Prerequisites:**
-> - AWS account with ECR access and permissions to create IAM roles
-> - GitHub repository (public or private) with Actions enabled
+> - AWS account with <span data-tip="Needs ECR access and permissions to create IAM roles.">ECR access</span>
+> - GitHub repository with <span data-tip="The repository can be public or private.">Actions enabled</span>
 > - Docker Desktop running locally
-> - AWS CLI v2 configured (`aws sts get-caller-identity` works)
+> - AWS CLI v2 <span data-tip="aws sts get-caller-identity should print your account.">configured</span>
 > - CrowdStrike API client with **Falcon Images Download: Read** and **Sensor Download: Read** scopes
-> - CrowdStrike CID with checksum
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
 
 > **Tip:** Where to find your Falcon credentials:
 >

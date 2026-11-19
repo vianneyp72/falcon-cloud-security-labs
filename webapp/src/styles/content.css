@@ -215,6 +215,46 @@
   background: linear-gradient(to right, var(--text-muted), transparent 60%);
 }
 
+/* Hover/focus tooltip: <span data-tip="details">text</span>. Dotted underline hints
+   at it; the bubble is pure CSS so it never changes the callout's classified text. */
+.content-area .tip-term {
+  position: relative;
+  cursor: help;
+  text-decoration: underline dotted var(--text-muted);
+  text-underline-offset: 3px;
+}
+.content-area .tip-term::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  width: max-content;
+  max-width: min(320px, 80vw);
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--motion-easing);
+}
+.content-area .tip-term:hover::after,
+.content-area .tip-term:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 .content-area blockquote p {
   margin-bottom: 0.4rem;
 }
@@ -1491,8 +1531,7 @@
 .argo-mock__mascot {
   width: 2em;
   height: 2.4em;
-  border-radius: 50% 50% 45% 45%;
-  background: radial-gradient(circle at 50% 35%, #ff8a5c 0 30%, #e96d3f 31% 55%, #3c5a6b 56%);
+  object-fit: contain;
 }
 .argo-mock__nav { display: flex; align-items: center; gap: 0.7em; padding: 0.55em 0.4em; font-size: 0.95em; color: #fff; }
 .argo-mock__nav--on { font-weight: 500; }

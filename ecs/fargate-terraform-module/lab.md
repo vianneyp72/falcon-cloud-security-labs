@@ -4,16 +4,16 @@ Add the Falcon Container Sensor to an ECS Fargate service you already manage wit
 
 > **Prerequisites:**
 >
-> - An ECS cluster and a Fargate service already managed by Terraform, and the folder that holds that Terraform. You will edit it, so run `terraform plan` there first and confirm it shows no changes
-> - An AWS account and the `aws` CLI configured (`aws sts get-caller-identity` prints your account)
-> - Terraform 1.0 or later installed (`terraform version` prints a version) and `git`
-> - Docker, Podman, or Skopeo installed **and running** (to copy the sensor image to ECR; `docker info` should print server details, not an error. Start Docker Desktop if it fails)
-> - Permission to register ECS task definitions and update the service in that account (and to create the extra service and security group if you run the optional detection test)
-> - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required scopes to pull the sensor image:
+> - An ECS cluster and Fargate service <span data-tip="Already managed by Terraform, and you need the folder that holds that Terraform because you will edit it. Run terraform plan there first and confirm it shows no changes.">managed by Terraform</span>
+> - AWS account with the `aws` CLI <span data-tip="aws sts get-caller-identity should print your account.">configured</span>
+> - Terraform 1.0 or later <span data-tip="terraform version should print a version.">installed</span>, plus `git`
+> - <span data-tip="Used to copy the sensor image to ECR. It must be running: docker info should print server details, not an error. Start Docker Desktop if it fails.">Docker, Podman, or Skopeo</span> installed **and running**
+> - Permission to <span data-tip="Register ECS task definitions and update the service in that account. If you run the optional detection test, you also need to create the extra service and security group.">update the ECS service</span>
+> - CrowdStrike Falcon API <span data-tip="Needed to pull the sensor image from the CrowdStrike registry.">credentials</span> (Client ID + Secret)
+>   - Scopes to pull the sensor image:
 >     - **Falcon Images Download** (Read)
 >     - **Sensor Download** (Read)
-> - CrowdStrike CID (with checksum)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
 
 > **Tip:** Where to find your Falcon credentials:
 >

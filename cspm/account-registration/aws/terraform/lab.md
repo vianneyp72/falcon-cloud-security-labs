@@ -4,12 +4,12 @@ Deploy CrowdStrike Falcon Cloud Security to an AWS Organization using the offici
 
 > **Prerequisites:**
 >
-> - AWS Organization with admin access to the management account
-> - AWS CLI configured with profiles for each member account (or cross-account role assumption)
-> - Terraform >= 1.5.0 installed
-> - CrowdStrike Falcon console access (Falcon Cloud Security subscription)
+> - AWS Organization with <span data-tip="Admin access to the management account.">admin access</span>
+> - AWS CLI <span data-tip="Configured with profiles for each member account, or set up for cross-account role assumption.">configured for member accounts</span>
+> - Terraform 1.5.0 or later installed
+> - CrowdStrike Falcon console access <span data-tip="Requires a Falcon Cloud Security subscription.">(Falcon Cloud Security)</span>
 > - CrowdStrike API client with **CSPM Registration: Read + Write** scope
-> - GitHub repository (for Section 8: CI/CD promotion)
+> - GitHub repository <span data-tip="Only needed for Section 8: CI/CD promotion.">(optional)</span>
 
 > **Tip:** Where to find your Falcon API client:
 >

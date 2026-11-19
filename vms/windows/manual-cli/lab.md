@@ -4,11 +4,11 @@
 
 > **Prerequisites:**
 >
-> - Windows host accessible via RDP or PowerShell remoting (Windows Server 2016+, Windows 10/11)
+> - <span data-tip="Windows Server 2016+ or Windows 10/11.">Windows host</span> accessible via RDP or PowerShell remoting
 > - Administrator access on the host
 > - CrowdStrike API client with **Sensor Download: Read** scope
-> - PowerShell 5.1+ (included in all modern Windows)
-> - Outbound HTTPS (443) to your CrowdStrike cloud domain
+> - PowerShell 5.1+ <span data-tip="Included in all modern Windows.">installed</span>
+> - Outbound HTTPS (443) to <span data-tip="Your CrowdStrike cloud domain.">CrowdStrike</span>
 
 > **Tip:** Where to find your Falcon API client:
 >

@@ -51,6 +51,12 @@ When you finish modernizing a lab, flip its `modernized` flag. Steps to add or p
 - [ ] Is every explanatory sentence earning its place, or is it filler?
 - [ ] Are teaching notes short and inline (at the step), not batched into a background wall?
 
+## Concise by default: terse prerequisites + tooltips
+
+Labs must be straight to the point, with only the important callouts. Do not add a callout or sentence just to be thorough; if it does not unblock the reader or teach a cloud concept they will hit right here, cut it.
+
+**Rule: every Prerequisites bullet is a short requirement (under ~10 words), with the extra detail in a hover tooltip.** Write `<span data-tip="detail">key term</span>` on the most informative word, one per bullet. Tooltip content is where verify commands (`helm version`, `docker info`), version nuance, optional-tool notes, and "why this scope" live. Plain text only (no markdown, backticks, or double quotes), 1-2 sentences. Never hide the requirement itself or a command the reader must run in a tooltip. No `> **Note:**` paragraph inside the Prerequisites block; fold it into a tooltip. Pattern in `_common/lab-template.md`; reference in `_common/lab-authoring-features.md`, "Hover tooltips".
+
 ## Callout Patterns
 
 Every `> **Bold-lede:**` blockquote is auto-classified into a color-coded callout by the webapp. **Pick the pattern that matches the intent** — the color reinforces the meaning at a glance and helps SEs new to cloud scan for the parts they need. Renderer + CSS details live in `webapp/CLAUDE.md`; this section is the authoring vocabulary.

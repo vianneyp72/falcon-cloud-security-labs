@@ -6,11 +6,11 @@ Embed the CrowdStrike Falcon Container Sensor into your application image with `
 
 > **Prerequisites:**
 >
-> - Azure subscription with the `az` CLI installed and logged in (`az login`)
-> - Docker engine running locally (you'll authenticate to ACR with `az acr login`)
+> - Azure subscription with the `az` CLI <span data-tip="Run az login to sign in.">logged in</span>
+> - Docker engine <span data-tip="Running locally. You authenticate to ACR with az acr login.">running</span>
 > - CrowdStrike API client with **Falcon Images Download: Read** and **Sensor Download: Read** scopes
-> - CrowdStrike CID with checksum
-> - Falcon Container Sensor **7.22+** (older versions use a different `patch-image aci` subcommand — see the note in Section 3)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
+> - Falcon Container Sensor <span data-tip="Sensor versions older than 7.22 use a different patch-image aci subcommand. See the note in Section 3.">7.22 or later</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

@@ -77,7 +77,7 @@ function Sidebar() {
   return (
     <div className="argo-mock__side">
       <div className="argo-mock__brand">
-        <span className="argo-mock__mascot" />
+        <img className="argo-mock__mascot" src={`${import.meta.env.BASE_URL}logos/Argo icon color.svg`} alt="" />
         <span>
           <b>argo</b>
           <small>v3.4.5</small>

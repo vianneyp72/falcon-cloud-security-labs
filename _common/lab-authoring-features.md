@@ -27,6 +27,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Editable placeholder | `<NAME>` or `<NAME:default>` | Code blocks | `CodeBlock.jsx` |
 | Checkboxes | `- [ ] text` | Lab mode | `useProgress.js` |
 | Callouts | `> **Lede:** text` | Anywhere | `LabRenderer.jsx` |
+| Hover tooltip | `<span data-tip="detail">term</span>` | Anywhere (Prerequisites especially) | `LabRenderer.jsx` + `content.css` |
 | Diagrams | ASCII trigger block | Core Concepts | `FlowDiagram.jsx` |
 
 ## Mode split
@@ -197,6 +198,16 @@ Search matches every word: fuzzily against the sample name (typos work), and as 
 `<div data-argo-mock="new-app"></div>` renders a vector replica of the real Argo CD v3.4.5 **+ NEW APP** panel with **EDIT AS YAML**; `"yaml-editor"` shows the YAML editor with **SAVE** / **CREATE**; `"sync"` shows the `falcon-platform` tile before and after sync; `"sync-panel"` shows the **SYNCHRONIZE** slide-in. Numbered badges mark click order. They are drawn in code (not screenshots), use fixed Argo colors in both site themes (the real product does not theme), and stay sharp at any size. Add another mock by adding an entry to `MOCKS` in `ArgoMockup.jsx`. Example: `kubernetes/argocd/helm-application/lab.md`.
 
 Every mockup, and every markdown image, gets an expand button (top right on hover) that opens a full-screen view; Esc, the close button, or a click outside closes it. Images whose path starts with `/images/` load from `webapp/public/images/`. Prefer a vector mockup over a raster screenshot for UI walkthroughs.
+
+## Hover tooltips (terse prerequisites)
+
+Keep visible text straight to the point and move the detail into a tooltip: `<span data-tip="detail text">key term</span>`. The reader sees a dotted underline; hover or keyboard focus shows the bubble. Required for every bullet in the **Prerequisites** blockquote; use it elsewhere for one-off definitions that would otherwise clutter a sentence.
+
+- Put it on the most informative word (tool name, scope group, credential), one per bullet, 1-2 short sentences.
+- Plain text only: no markdown, backticks, newlines, or double quotes (use single quotes; write `&amp;` for `&`). It is an HTML attribute, so none of it is rendered as markdown.
+- Never hide a hard requirement or a command the reader must run only in a tooltip. Tooltips are for "how to check" and "why", not the requirement itself.
+- Tooltip text is not part of the callout classifier's input, so it can safely contain words like "check" or "warning".
+- Touch devices have no hover; the span is focusable, so a tap shows it.
 
 ## Diagrams
 

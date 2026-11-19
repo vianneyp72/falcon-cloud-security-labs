@@ -105,6 +105,7 @@ Node data supports: `label`, `sublabel`, `isContainer`, `isCloud`, `isPhase`, `i
 | `li` (task list) | Styled with strikethrough on complete |
 | `blockquote` | Auto-classified into callout variants by content keywords |
 | `h1/h2/h3` | Get slugified `id` for TOC anchors |
+| `span[data-tip]` | Hover/focus tooltip: dotted underline + CSS bubble from the attribute (`.tip-term` in `content.css`). Attribute text is not seen by the callout classifier |
 
 ## Callout Variants
 

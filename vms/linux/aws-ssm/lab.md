@@ -5,10 +5,10 @@
 > **Prerequisites:**
 >
 > - AWS account with SSM permissions
-> - EC2 instances with the SSM Agent installed and running (Amazon Linux 2/2023 include it by default)
-> - IAM instance profile with `AmazonSSMManagedInstanceCore` policy attached
+> - EC2 instances with the <span data-tip="Must be installed and running. Amazon Linux 2/2023 include it by default.">SSM Agent</span>
+> - IAM instance profile with `AmazonSSMManagedInstanceCore` attached
 > - CrowdStrike API client with **Sensor Download: Read** scope
-> - CrowdStrike CID with checksum
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
 
 > **Tip:** Where to find your Falcon credentials:
 >

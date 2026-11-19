@@ -10,11 +10,11 @@ https://github.com/CrowdStrike/falcon-scripts/blob/main/bash/install/falcon-linu
 
 ## Prerequisites
 
-- GCE VM running a supported Linux distro
+- GCE VM running a <span data-tip="Any supported Linux distro.">supported Linux distro</span>
 - CrowdStrike Falcon API credentials (Client ID + Secret) stored in Secret Manager
   - Required API scope: **Sensor Download** (Read)
-- VM service account with `roles/secretmanager.secretAccessor` on the secrets
-- Firewall rule allowing SSH from your IP (for verification)
+- VM service account with <span data-tip="Needs roles/secretmanager.secretAccessor on the secrets.">Secret Manager access</span>
+- Firewall rule allowing <span data-tip="SSH from your IP, used for verification.">SSH</span>
 
 > **Tip:** Where to find your Falcon API client:
 >

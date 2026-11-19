@@ -4,19 +4,19 @@ Deploy the CrowdStrike Falcon Platform on any standard Kubernetes cluster (EKS, 
 
 > **Prerequisites:**
 >
-> - Helm 3 or later installed (`helm version` prints a version)
+> - Helm 3 or later <span data-tip="helm version should print a version.">installed</span>
 > - `kubectl` installed and configured
-> - Docker, Podman, or Skopeo installed **and running**, only if you copy the images to your own registry (`docker info` should print server details, not an error. Start Docker Desktop if it fails)
-> - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required scopes to pull the images (sensor, KAC, IAR):
+> - <span data-tip="Only needed if you copy the images to your own registry. It must be running: docker info should print server details, not an error. Start Docker Desktop if it fails.">Docker, Podman, or Skopeo</span> running (optional)
+> - CrowdStrike Falcon API <span data-tip="The pull scopes let you download the images from the CrowdStrike registry. The runtime scopes let IAR upload image assessments after it is running.">credentials</span> (Client ID + Secret)
+>   - Scopes to pull the images (sensor, KAC, IAR):
 >     - **Sensor Download** (Read)
 >     - **Falcon Images Download** (Read)
->   - Additional scopes IAR needs at runtime to upload image assessments:
+>   - Runtime scopes (IAR):
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
-> - CrowdStrike CID (with checksum)
-> - **Quick Deploy path:** an existing Kubernetes cluster with `kubectl` configured (`kubectl get nodes` returns nodes)
-> - **Full Lab path:** cloud CLI for your provider (`gcloud` / `aws` + `eksctl` / `az`) — Section 1 Step 1 covers install and auth
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
+> - **Quick Deploy path:** an existing Kubernetes cluster <span data-tip="kubectl must be configured for it. kubectl get nodes should return nodes.">with `kubectl` ready</span>
+> - **Full Lab path:** your cloud CLI <span data-tip="gcloud, or aws plus eksctl, or az. Section 1 Step 1 covers install and auth.">installed</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

@@ -39,13 +39,13 @@ These images can live in **different registries**. The recommended setup for mos
 
 ## Prerequisites
 
-- AWS CLI configured with ECS permissions
-- Docker installed locally (to run the patching utility)
-- CrowdStrike Falcon API credentials (CID, Client ID + Secret)
-  - Required API scopes: **Falcon Images Download** (Read), **Sensor Download** (Read)
+- AWS CLI configured with <span data-tip="Permissions to work with ECS.">ECS permissions</span>
+- Docker <span data-tip="Used to run the patching utility.">installed locally</span>
+- CrowdStrike Falcon API <span data-tip="Your CID plus the API client ID and secret.">credentials</span> (CID, Client ID + Secret)
+  - Scopes: **Falcon Images Download** (Read), **Sensor Download** (Read)
 - Existing ECS Fargate task definition JSON file
-- A container registry for hosting the sensor image (ECR recommended, or any OCI-compliant registry)
-- **ECS task execution role** with permissions to pull images at runtime (see below)
+- A container registry <span data-tip="Hosts the sensor image. ECR is recommended, or any OCI-compliant registry.">for the sensor image</span>
+- **ECS task execution role** <span data-tip="Needs permissions to pull images at runtime (see below).">with image pull access</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

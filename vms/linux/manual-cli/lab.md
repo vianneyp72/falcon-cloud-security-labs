@@ -4,11 +4,11 @@
 
 > **Prerequisites:**
 >
-> - Linux host accessible via SSH (Ubuntu/Debian, RHEL/CentOS/Amazon Linux, SLES)
+> - <span data-tip="Supported distros: Ubuntu/Debian, RHEL/CentOS/Amazon Linux, SLES.">Linux host</span> accessible via SSH
 > - Root or sudo access on the host
 > - CrowdStrike API client with **Sensor Download: Read** scope
-> - `curl` >= 7.55.0 installed on the host
-> - Outbound HTTPS (443) to your CrowdStrike cloud domain
+> - `curl` <span data-tip="Version 7.55.0 or later is required.">installed</span> on the host
+> - Outbound HTTPS (443) to <span data-tip="Your CrowdStrike cloud domain.">CrowdStrike</span>
 
 > **Tip:** Where to find your Falcon API client:
 >

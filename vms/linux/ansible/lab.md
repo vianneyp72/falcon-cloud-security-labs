@@ -2,11 +2,11 @@
 
 > **Prerequisites:**
 >
-> - GCP project with Compute Engine API enabled
+> - GCP project with the Compute Engine API enabled
 > - `gcloud` CLI installed and authenticated
 > - Python 3.7+ on your workstation
-> - CrowdStrike Falcon console access (API client creation + Sensor Downloads)
-> - Terraform >= 1.0 installed
+> - CrowdStrike Falcon console <span data-tip="Needed for API client creation and Sensor Downloads.">access</span>
+> - Terraform 1.0 or later installed
 
 > **Tip:** Where to find your Falcon API client:
 >

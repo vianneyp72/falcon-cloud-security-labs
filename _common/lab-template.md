@@ -9,21 +9,24 @@ Optional blocks are marked OPTIONAL: delete the ones your method does not need.
 
 TODO One-line description: what gets deployed, to what compute type, pulling from where.
 
-<!-- AUTHOR: One Prerequisites blockquote. Nested bullets for API scopes (never comma-separated).
-     Split scopes by purpose ("to pull the images" vs "needed at runtime") when they differ.
-     No time estimates. Split Quick Deploy vs Full Lab prerequisites when they differ. -->
+<!-- AUTHOR: One Prerequisites blockquote. TERSE bullets: the visible text is only the requirement
+     (aim for under ~10 words). Put every extra detail (version nuance, verify command, optional-tool
+     note, why a scope is needed) in a hover tooltip: <span data-tip="detail">key term</span> on the most
+     informative word. One tooltip per bullet, 1-2 short sentences, plain text only (no markdown,
+     backticks, or double quotes; use single quotes). Nested bullets for API scopes (never
+     comma-separated). No time estimates. Split Quick Deploy vs Full Lab bullets when they differ. -->
 > **Prerequisites:**
 >
-> - TODO Tool and version (`tool version` prints a version). Say "X or later", not "X.y only", so newer majors are not turned away
-> - TODO CLI the steps call (`kubectl`, `aws`, ...) installed and configured. Mark a tool optional if a console or alternate route exists
-> - TODO Docker, Podman, or Skopeo installed **and running**, only if the lab copies images to the reader's registry (`docker info` should print server details, not an error. Start Docker Desktop if it fails)
+> - TODO Tool 3 or later <span data-tip="Run TODO tool version; it should print a version. Say 'or later' so newer majors are not turned away.">installed</span>
+> - TODO `kubectl` <span data-tip="Any CLI the steps call. Mark it optional here if a console or alternate route exists.">installed and configured</span>
+> - TODO Docker, Podman, or Skopeo <span data-tip="Only needed to copy images to your own registry. docker info should print server details, not an error; start Docker Desktop if it fails.">running</span>
 > - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required scopes:
+>   - <span data-tip="Needed to pull the sensor, KAC, and IAR images from the CrowdStrike registry.">Scopes to pull images</span>:
 >     - **Sensor Download** (Read)
 >     - **Falcon Images Download** (Read)
 > - CrowdStrike CID (with checksum)
-> - **Quick Deploy path:** an existing TODO compute target with TODO CLI configured (`TODO check command` works)
-> - **Full Lab path:** TODO cloud CLI for your provider; Section 1 Step 1 covers install and auth
+> - **Quick Deploy:** existing TODO compute target <span data-tip="Run TODO check command; it should list your resources without errors.">with TODO CLI configured</span>
+> - **Full Lab:** TODO cloud CLI <span data-tip="Section 1 Step 1 covers install and auth.">for your provider</span>
 
 <!-- AUTHOR: REQUIRED credentials callout, directly under Prerequisites, in every lab that uses a CID or
      an API client. Keep the wording and console paths exactly as below so all labs match. Drop the CID

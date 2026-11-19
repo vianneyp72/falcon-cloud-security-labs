@@ -317,6 +317,12 @@ export default function LabRenderer({ labKey: route }) {
       }
       return <li className={className} {...props}>{children}</li>
     },
+    span({ node, children, ...props }) {
+      if (props['data-tip']) {
+        return <span className="tip-term" tabIndex={0} {...props}>{children}</span>
+      }
+      return <span {...props}>{children}</span>
+    },
     blockquote({ children, ...props }) {
       const text = getTextContent(children)
       let variant = 'info'

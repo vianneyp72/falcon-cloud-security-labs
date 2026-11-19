@@ -4,21 +4,20 @@ Deploy CrowdStrike Falcon on an EKS cluster that runs both EC2 nodes and Fargate
 
 > **Prerequisites:**
 >
-> - Helm 3 or later installed (`helm version` prints a version)
-> - `aws` CLI and `kubectl` installed and configured (`eksctl` is optional: Quick Deploy creates the Fargate profiles with the AWS CLI by default, or the AWS Console, and only the Full Lab needs `eksctl` to provision the cluster)
-> - Docker, Podman, or Skopeo installed **and running** (to copy the images to ECR; `docker info` should print server details, not an error. Start Docker Desktop if it fails)
-> - CrowdStrike Falcon API credentials (Client ID + Secret)
->   - Required API scopes to pull the images (sensor, sidecar, KAC, IAR):
+> - Helm 3 or later <span data-tip="helm version should print a version.">installed</span>
+> - `aws` CLI and `kubectl` <span data-tip="Installed and configured. eksctl is optional: Quick Deploy creates the Fargate profiles with the AWS CLI by default (or the AWS Console), and only the Full Lab needs eksctl to provision the cluster.">configured</span>
+> - <span data-tip="Used to copy the images to ECR. It must be running: docker info should print server details, not an error. Start Docker Desktop if it fails.">Docker, Podman, or Skopeo</span> installed **and running**
+> - CrowdStrike Falcon API <span data-tip="The pull scopes let you download the images from the CrowdStrike registry. The runtime scopes let IAR upload image assessments after it is running.">credentials</span> (Client ID + Secret)
+>   - Scopes to pull the images (sensor, sidecar, KAC, IAR):
 >     - **Falcon Images Download** (Read)
 >     - **Sensor Download** (Read)
->   - Additional scopes IAR needs at runtime to upload image assessments:
+>   - Runtime scopes (IAR):
 >     - **Falcon Container Image** (Read/Write)
 >     - **Falcon Container CLI** (Write)
-> - CrowdStrike CID (with checksum)
-> - **Quick Deploy path:** an existing EKS cluster that has **both** an EC2 managed node group and Fargate enabled, with `kubectl` pointed at it (`kubectl get nodes` lists your EC2 nodes)
-> - **Full Lab path:** an AWS account and credentials; Section 1 provisions the hybrid cluster for you
->
-> **Note:** This lab hosts all four Falcon images in **same-account ECR**. EC2 nodes pull with the **node instance role** and Fargate pods pull with the **pod execution role**, so no image pull secret is used anywhere.
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
+> - Images hosted in <span data-tip="All four Falcon images live in same-account ECR. EC2 nodes pull with the node instance role and Fargate pods pull with the pod execution role, so no image pull secret is used anywhere.">same-account ECR</span>
+> - **Quick Deploy path:** an existing EKS cluster with <span data-tip="The cluster needs both an EC2 managed node group and Fargate enabled, with kubectl pointed at it. kubectl get nodes should list your EC2 nodes.">EC2 nodes and Fargate</span>
+> - **Full Lab path:** an AWS account and credentials <span data-tip="Section 1 provisions the hybrid cluster for you.">(cluster provisioned for you)</span>
 
 > **Tip:** Where to find your Falcon credentials:
 >

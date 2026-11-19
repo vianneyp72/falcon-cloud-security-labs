@@ -3,8 +3,8 @@
 > **Prerequisites:**
 >
 > - Docker Desktop installed and running
-> - CrowdStrike Falcon API client credentials (Falcon Images Download: Read, Sensor Download: Read)
-> - Your CrowdStrike CID with checksum
+> - CrowdStrike Falcon API client (**Falcon Images Download**: Read, **Sensor Download**: Read)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The credentials tip below shows where to find it.">CID</span> (with checksum)
 > - `curl` and `jq` installed
 
 > **Tip:** Where to find your Falcon credentials:
