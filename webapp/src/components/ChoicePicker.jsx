@@ -30,6 +30,14 @@ export const CHOICES = {
     ],
     default: 'ui',
   },
+  secrets: {
+    label: 'Store credentials as',
+    options: [
+      { id: 'inline', label: 'Inline in the Application' },
+      { id: 'k8s', label: 'Kubernetes Secrets' },
+    ],
+    default: 'inline',
+  },
   falconcloud: {
     label: 'Falcon cloud',
     options: [
@@ -54,10 +62,12 @@ function load(key) {
 
 // Module-level shared state so every picker and gated block for a key stays in sync.
 const current = Object.fromEntries(Object.keys(CHOICES).map(k => [k, load(k)]))
+let snapshot = { ...current }
 const subscribers = new Set()
 
 function setChoice(key, id) {
   current[key] = id
+  snapshot = { ...current }
   try {
     localStorage.setItem(storageKey(key), id)
   } catch {}
@@ -74,6 +84,11 @@ export function useChoice(key) {
   const value = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const set = useCallback(id => setChoice(key, id), [key])
   return [value, set]
+}
+
+// All current choices, for per-line `#@choice=key:option` markers inside code blocks.
+export function useChoices() {
+  return useSyncExternalStore(subscribe, () => snapshot, () => snapshot)
 }
 
 // gate: "os:linux" or "os:windows,linux"

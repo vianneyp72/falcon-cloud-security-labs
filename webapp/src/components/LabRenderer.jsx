@@ -20,7 +20,7 @@ import FillFields from './FillFields'
 import DetectionMatrix from './DetectionMatrix'
 import ArgoMockup from './ArgoMockup'
 import Expandable from './Expandable'
-import ChoicePicker, { ChoiceBlockGate } from './ChoicePicker'
+import ChoicePicker, { ChoiceBlockGate, useChoices, parseChoiceGate } from './ChoicePicker'
 import RegistryChoice, { useRegistryChoice, registryMatches } from './RegistryChoice'
 import DeployOptions, { useDeployOptions, markerMatches } from './DeployOptions'
 import ProfileMethod, { useProfileMethod, profileMatches } from './ProfileMethod'
@@ -110,11 +110,12 @@ function TestTargetBlockGate({ target, children, ...props }) {
 
 // Per-line gating inside a code block: trailing `#@registry=<gate>`, `#@region=<gate>` or
 // `#@opt=<gate>` markers (stackable, all must match) keep the line with the markers stripped,
-// otherwise the line is dropped.
-const LINE_MARKER_RE = /\s*#@(registry|region|opt)=(\S+)\s*$/
+// otherwise the line is dropped. `#@choice=key:option` follows the shared choice picker.
+const LINE_MARKER_RE = /\s*#@(registry|region|opt|choice)=(\S+)\s*$/
 function RegistryFilteredCodeBlock({ language, hasVariables, children }) {
   const registry = useRegistryChoice()
   const deploy = useDeployOptions()
+  const choices = useChoices()
   const filtered = children
     .split('\n')
     .flatMap(line => {
@@ -123,7 +124,10 @@ function RegistryFilteredCodeBlock({ language, hasVariables, children }) {
       let m
       while ((m = LINE_MARKER_RE.exec(rest))) {
         const [, kind, gate] = m
-        if (kind === 'registry' ? !registryMatches(gate, registry) : !markerMatches(kind, gate, deploy)) keep = false
+        if (kind === 'choice') {
+          const { key, ids } = parseChoiceGate(gate)
+          if (!ids.includes(choices[key])) keep = false
+        } else if (kind === 'registry' ? !registryMatches(gate, registry) : !markerMatches(kind, gate, deploy)) keep = false
         rest = rest.slice(0, m.index)
       }
       return keep ? [rest] : []
@@ -196,7 +200,7 @@ export default function LabRenderer({ labKey: route }) {
         if (isAsciiDiagram(codeContent)) {
           return <FlowDiagram content={codeContent} />
         }
-        if (/#@(registry|region|opt)=/.test(codeContent)) {
+        if (/#@(registry|region|opt|choice)=/.test(codeContent)) {
           return (
             <RegistryFilteredCodeBlock language={match ? match[1] : ''} hasVariables={hasVariables}>
               {codeContent}

@@ -309,7 +309,7 @@ echo "IAR            : $([ -n "$IAR_REGISTRY" ] && echo ✅ || echo ❌) ($IAR_R
 
 > **Verify:** Every line should show ✅. A ❌ means that variable is empty, so re-run the step that sets it before creating the Application.
 
-### 3. Create the Falcon namespaces
+### 3. Prepare the Falcon namespaces
 
 > **Note:** Open **Additional settings** below for GovCloud, proxy, and which components (KAC, Image Analyzer) to deploy. The commands in the next steps update to match.
 
@@ -327,6 +327,80 @@ done
 ```
 
 > **Why this matters:** The chart has a `createComponentNamespaces` option, but it works through an install-only Helm hook that Argo CD turns into a pre-sync hook and can recreate on every sync. Creating the namespaces once yourself is simpler and safe to re-run.
+
+Choose how the Application gets your CID, API client secret, and registry pull token:
+
+<div data-choice-picker="secrets"></div>
+
+<div data-choice="secrets:inline">
+
+Nothing more to do in this step. The values go straight into the Application in the next step, which is the quickest route for a lab or demo.
+
+</div>
+
+<div data-choice="secrets:k8s">
+
+> **Why this matters:** Values written into the Application are stored in plain text in the `argocd` namespace, and in Git if you keep the manifest there. A Kubernetes Secret keeps them out: the Application only names the secret, and the chart reads it at runtime. A pod can only read secrets in its own namespace, so each Falcon namespace gets its own copy.
+
+Create the CID secret for the sensor and KAC. Both read the CID from the `FALCONCTL_OPT_CID` key of a secret named `falcon-secret`:
+
+```bash
+for ns in falcon-system falcon-kac; do #@opt=kac
+for ns in falcon-system; do #@opt=nokac
+  kubectl create secret generic falcon-secret -n $ns \
+    --from-literal=FALCONCTL_OPT_CID=<FALCON_CID> \
+    --dry-run=client -o yaml | kubectl apply -f -
+done
+```
+
+<div data-opt="iar">
+
+Create the Image Analyzer secret. It reads the CID and your API client credentials from the `AGENT_*` keys of a secret with the same name:
+
+```bash
+kubectl create secret generic falcon-secret -n falcon-image-analyzer \
+  --from-literal=AGENT_CID=<FALCON_CID> \
+  --from-literal=AGENT_CLIENT_ID=<FALCON_CLIENT_ID> \
+  --from-literal=AGENT_CLIENT_SECRET="$FALCON_CLIENT_SECRET" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+</div>
+
+<div data-registry="crowdstrike,generic">
+
+Create the registry pull secret in each namespace. The value is already base64 (it is the Docker config from step 2), so it goes in as is:
+
+```bash
+for ns in falcon-system falcon-kac falcon-image-analyzer; do #@opt=kac #@opt=iar
+for ns in falcon-system falcon-kac; do #@opt=kac #@opt=noiar
+for ns in falcon-system falcon-image-analyzer; do #@opt=nokac #@opt=iar
+for ns in falcon-system; do #@opt=nokac #@opt=noiar
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: falcon-pull-secret
+  namespace: $ns
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: $FALCON_PULL_TOKEN #@registry=crowdstrike
+  .dockerconfigjson: $REGISTRY_CONFIG_JSON #@registry=generic
+EOF
+done
+```
+
+</div>
+
+Confirm the secrets exist:
+
+```bash
+kubectl get secret -A | grep falcon-
+```
+
+> **Verify:** `falcon-secret` is listed in every Falcon namespace you created (and `falcon-pull-secret` too if you pull from CrowdStrike or your own username and password registry). If a namespace is missing, re-run step 3's namespace block first. Argo CD cannot create these for you.
+
+</div>
 
 ### 4. Create the Argo CD Application
 
@@ -352,12 +426,17 @@ spec:
     helm:
       values: |
         global:
-          falcon:
-            cid: <FALCON_CID>
-          containerRegistry: #@registry=crowdstrike
-            configJSON: "$FALCON_PULL_TOKEN" #@registry=crowdstrike
-          containerRegistry: #@registry=generic
-            configJSON: "$REGISTRY_CONFIG_JSON" #@registry=generic
+          falcon: #@choice=secrets:inline
+            cid: <FALCON_CID> #@choice=secrets:inline
+          falconSecret: #@choice=secrets:k8s
+            enabled: true #@choice=secrets:k8s
+            secretName: falcon-secret #@choice=secrets:k8s
+          containerRegistry: #@registry=crowdstrike #@choice=secrets:inline
+            configJSON: "$FALCON_PULL_TOKEN" #@registry=crowdstrike #@choice=secrets:inline
+          containerRegistry: #@registry=generic #@choice=secrets:inline
+            configJSON: "$REGISTRY_CONFIG_JSON" #@registry=generic #@choice=secrets:inline
+          containerRegistry: #@registry=crowdstrike,generic #@choice=secrets:k8s
+            pullSecret: falcon-pull-secret #@registry=crowdstrike,generic #@choice=secrets:k8s
         falcon-sensor:
           falcon:
             tags: "<SENSOR_TAGS:argocd-daemonset>"
@@ -386,8 +465,8 @@ spec:
             clusterName: <CLUSTER_NAME> #@opt=iar
             agentRegion: gov1 #@opt=iar #@region=gov1
             agentRegion: gov2 #@opt=iar #@region=gov2
-            clientID: <FALCON_CLIENT_ID> #@opt=iar
-            clientSecret: "$FALCON_CLIENT_SECRET" #@opt=iar
+            clientID: <FALCON_CLIENT_ID> #@opt=iar #@choice=secrets:inline
+            clientSecret: "$FALCON_CLIENT_SECRET" #@opt=iar #@choice=secrets:inline
           proxyConfig: #@opt=iar #@opt=proxy
             HTTP_PROXY: http://<PROXY_HOST>:<PROXY_PORT> #@opt=iar #@opt=proxy
             HTTPS_PROXY: http://<PROXY_HOST>:<PROXY_PORT> #@opt=iar #@opt=proxy
@@ -471,7 +550,17 @@ kubectl apply -f falcon-platform-app.yaml
 
 > **Why this matters:** The KAC chart generates a fresh TLS certificate every time it renders, and Argo CD renders without cluster lookups, so each comparison sees a "new" certificate and reports `OutOfSync` forever (with `selfHeal` it would keep re-syncing). The `ignoreDifferences` block tells Argo CD to ignore the generated Secret data and the webhook's `caBundle`, and `RespectIgnoreDifferences=true` keeps syncs from overwriting them. The certificate and the CA are still created together on first sync, so they match.
 
-> **Warning:** This puts the API client secret and the registry pull token inside the `Application` object, readable by anyone who can read Applications in the `argocd` namespace. That is fine for a lab or demo. For production, keep secrets out of the Application (an external secrets operator, Sealed Secrets, or the chart's `global.falconSecret` with an existing Secret) and follow your GitOps secrets standard.
+<div data-choice="secrets:inline">
+
+> **Warning:** This puts the API client secret and the registry pull token inside the `Application` object, readable by anyone who can read Applications in the `argocd` namespace. That is fine for a lab or demo. To keep them out, switch the picker in step 3 to Kubernetes Secrets, or use an external secrets operator or Sealed Secrets.
+
+</div>
+
+<div data-choice="secrets:k8s">
+
+> **Tip:** The Application above holds no credentials, only the Secret names (`falcon-secret`, `falcon-pull-secret`). Argo CD does not manage those Secrets, so they survive an app delete and sync, and you rotate a credential by updating the Secret and restarting the pods. To manage them from Git, use Sealed Secrets or an external secrets operator.
+
+</div>
 
 > **Heads-up:** The chart's `falcon-sensor.container.image.pullSecrets.allNamespaces` option is not supported under Argo CD, which is why this lab uses the DaemonSet sensor with `global.containerRegistry.configJSON`.
 

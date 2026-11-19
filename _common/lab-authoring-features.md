@@ -10,7 +10,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Registry picker | `<div data-registry-picker></div>` | Guide mode | `RegistryChoice.jsx` |
 | Registry block gate | `<div data-registry="ecr,acr">` | Anywhere | `RegistryChoice.jsx` |
 | Deploy options picker | `<div data-deploy-options></div>` | Guide mode | `DeployOptions.jsx` |
-| Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` | Code blocks | `LabRenderer.jsx` |
+| Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` / `#@choice=` | Code blocks | `LabRenderer.jsx` |
 | Option block gate | `<div data-opt="kac">` | Anywhere | `LabRenderer.jsx` |
 | Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Both modes | `ProfileMethod.jsx` |
 | Test-target picker + gate | `<div data-test-target-picker>` / `<div data-test-target="ec2">` | Both modes | `TestTarget.jsx` |
@@ -67,6 +67,7 @@ Append a marker to the end of a line. The marker is stripped from what the reade
 | Marker | Values |
 |---|---|
 | `#@opt=` | `kac`, `nokac`, `iar`, `noiar`, `proxy` |
+| `#@choice=` | `key:option` from the Choice picker table (comma list of options means any match), for example `#@choice=secrets:k8s` |
 | `#@region=` | `commercial`, `gov`, `gov1`, `gov2` |
 | `#@registry=` | see the registry table above |
 
@@ -171,6 +172,7 @@ Blank lines around the `## H2` inside `<summary>` are required, so it still rend
 | `os` | `windows`, `linux` | `linux` |
 | `distro` | `debian` (Debian / Ubuntu), `rhel` (RHEL / Fedora), `amazon` (Amazon Linux) | `debian` |
 | `argo` | `ui` (Argo CD UI), `cli` (Argo CD CLI) | `ui` |
+| `secrets` | `inline` (values in the Application), `k8s` (Kubernetes Secrets) | `inline` |
 | `falconcloud` | `commercial`, `govcloud-1`, `govcloud-2` | `commercial` |
 
 Every picker for a key shares one value, saved in localStorage, so the reader picks once and every gated block on the page (and on other pages) follows. Put one picker per key at the top of a section or card, not before every step. Gate shared steps with a comma list (`distro:rhel,amazon`). Once a step is gated, drop any prose that only explains another option ("on Linux use `-c`", "on Amazon Linux use dnf instead"); the reader never sees the other variant. Use it instead of stacking `Debian / Ubuntu:` / `RHEL:` labels over two blocks: each step then stays one visible block. Gates nest, so wrap the `distro` picker in `<div data-choice="os:linux">` when the card also has an `os` picker. Add a new key to `CHOICES` to reuse the pattern for another choice. Example: `detections/quick-detection-samples.md`.
