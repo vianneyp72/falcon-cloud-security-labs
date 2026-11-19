@@ -1232,6 +1232,7 @@
 }
 
 .lab-variables__label {
+  margin-bottom: auto;
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 500;

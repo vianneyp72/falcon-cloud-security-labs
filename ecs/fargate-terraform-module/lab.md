@@ -138,7 +138,7 @@ Move to the folder that holds your ECS Terraform (the one with your `aws_ecs_ser
 
 The module starts the sensor by wrapping your app's **entrypoint** (the program the container runs on start). It only wraps what you tell it, so the module needs your app's entrypoint and command written out. Find them in your existing `aws_ecs_task_definition`: the `name`, `image`, and port in its `container_definitions`.
 
-<div data-fill-fields="APP_NAME:Container name (also the task definition family),APP_IMAGE:App image,APP_PORT:Container port"></div>
+<div data-fill-fields="APP_NAME:Container name,APP_IMAGE:App image,APP_PORT:Container port"></div>
 
 Read the entrypoint and command baked into your image:
 
