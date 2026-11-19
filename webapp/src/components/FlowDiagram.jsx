@@ -1727,6 +1727,115 @@ function buildEcsFargateTerraformDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEcsFargatePatchingDiagram(text) {
+  const nodes = [
+    // Image path: CrowdStrike registry -> your ECR (setup)
+    {
+      id: 'cs-registry',
+      position: { x: 0, y: 0 },
+      data: { label: 'CrowdStrike Registry', sublabel: 'falcon-container image', isCloud: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+    {
+      id: 'ecr',
+      position: { x: 0, y: 130 },
+      data: { label: 'Your ECR', sublabel: 'falcon-container:<tag>', isCloud: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+    // Patch path: existing task definition -> script (runs the official utility) -> new revision
+    {
+      id: 'td-old',
+      position: { x: 300, y: 0 },
+      data: { label: 'Your task definition', sublabel: 'revision 1, no sensor' },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+    {
+      id: 'script',
+      position: { x: 640, y: 0 },
+      data: { label: 'falcon-ecs-patch', sublabel: 'runs the patching utility, shows a diff, registers revision 2', isApi: true },
+      type: 'custom',
+      style: { width: 320, height: 60 },
+    },
+    // Customer's existing ECS cluster
+    {
+      id: 'cluster',
+      position: { x: 300, y: 130 },
+      data: { label: 'Your ECS cluster', sublabel: 'unchanged', isContainer: true },
+      type: 'custom',
+      style: { width: 760, height: 320 },
+    },
+    {
+      id: 'service',
+      position: { x: 30, y: 60 },
+      data: { label: 'Your existing service', sublabel: 'same network and settings, only its task definition revision changes', isPhase: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      zIndex: 20,
+      style: { width: 700, height: 56 },
+    },
+    {
+      id: 'task',
+      position: { x: 30, y: 140 },
+      data: { label: 'ECS Fargate Task (revision 2)', isContainer: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 700, height: 160 },
+    },
+    {
+      id: 'init',
+      position: { x: 20, y: 60 },
+      data: { label: 'crowdstrike-falcon-init-container', sublabel: 'copies sensor files, then exits' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 200, height: 70 },
+    },
+    {
+      id: 'volume',
+      position: { x: 255, y: 60 },
+      data: { label: 'Shared volume', sublabel: 'sensor binaries' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 170, height: 70 },
+    },
+    {
+      id: 'app',
+      position: { x: 460, y: 60 },
+      data: { label: 'Application container', sublabel: 'falcon-entrypoint → your app' },
+      type: 'custom',
+      parentId: 'task',
+      extent: 'parent',
+      style: { width: 220, height: 70 },
+    },
+    {
+      id: 'cs-cloud',
+      position: { x: 560, y: 520 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 240, height: 60 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-reg-ecr', source: 'cs-registry', target: 'ecr', label: 'setup (pull script --copy)', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-ecr-task', source: 'ecr', sourceHandle: 'right-source', target: 'task', targetHandle: 'left-target', label: 'image pull', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-td-script', source: 'td-old', sourceHandle: 'right-source', target: 'script', targetHandle: 'left-target', label: 'export', type: 'smoothstep', style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-script-service', source: 'script', target: 'service', targetHandle: 'top-target', label: 'register + update-service', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-service-task', source: 'service', target: 'task', targetHandle: 'top-target', label: 'rolls to new task', type: 'smoothstep', zIndex: 20, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-init-vol', source: 'init', sourceHandle: 'right-source', target: 'volume', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-vol-app', source: 'volume', sourceHandle: 'right-source', target: 'app', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-app-cloud', source: 'app', target: 'cs-cloud', targetHandle: 'top-target', label: 'TLS 443', type: 'smoothstep', animated: true, zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildArgoHelmApplicationDiagram(text) {
   const nodes = [
     {
@@ -1806,6 +1915,9 @@ function buildDiagramFromContent(text) {
   }
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) {
     return buildEcsFargateTerraformDiagram(text)
+  }
+  if (text.includes('ECS FARGATE TASK PATCHING') && text.includes('crowdstrike-falcon-init-container')) {
+    return buildEcsFargatePatchingDiagram(text)
   }
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) {
     return buildAciEmbeddedDiagram(text)
@@ -2243,6 +2355,7 @@ export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
   if (text.includes('ARGO CD — HELM CHART APPLICATION') && text.includes('falcon-platform')) return true
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) return true
+  if (text.includes('ECS FARGATE TASK PATCHING') && text.includes('crowdstrike-falcon-init-container')) return true
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) return true
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('Container Sensor Image')) return true

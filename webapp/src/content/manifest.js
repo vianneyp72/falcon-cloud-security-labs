@@ -193,7 +193,7 @@ const LABS = [
   { id: 'kubernetes/operator/generic',   label: 'Generic',   area: 'Kubernetes · Operator', md: 'kubernetes/operator/generic/lab.md' },
   { id: 'kubernetes/operator/openshift', label: 'OpenShift', area: 'Kubernetes · Operator', md: 'kubernetes/operator/openshift/lab.md' },
 
-  { id: 'ecs/fargate-task-patching',   label: 'Fargate Task Patching',   area: 'ECS', md: 'ecs/fargate-task-patching/lab.md' },
+  { id: 'ecs/fargate-task-patching',   label: 'Fargate Task Patching',   area: 'ECS', md: 'ecs/fargate-task-patching/lab.md', modernized: true },
   { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Falcon Utility',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md' },
   { id: 'ecs/fargate-terraform-module', label: 'Fargate Terraform Module', area: 'ECS', md: 'ecs/fargate-terraform-module/lab.md', modernized: true },
   { id: 'ecs/ec2-daemon-service',      label: 'EC2 Daemon Service',      area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md' },

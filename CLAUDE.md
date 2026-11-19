@@ -21,7 +21,7 @@ The folders above are organized by compute type, but the **webapp nav is cloud-f
 
 Each lab is tracked on a modernization roadmap (`/roadmap`, generated from the manifest):
 
-- **Modernized** (green): meets the current lab standard (the helm-daemonset template). Set `modernized: true` on the lab's entry in `LABS`. Today: `k8s-standard`, `eks-fargate`, `fargate-terraform-module`.
+- **Modernized** (green): meets the current lab standard (the helm-daemonset template). Set `modernized: true` on the lab's entry in `LABS`. Today: `k8s-standard`, `eks-fargate`, `fargate-terraform-module`, `fargate-task-patching`.
 - **Legacy** (yellow): written, but not yet brought up to the standard. Shows a banner pointing at the roadmap.
 - **Roadmap** (yellow, hollow): stub, not written yet.
 
