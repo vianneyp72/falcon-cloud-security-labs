@@ -74,8 +74,6 @@ Steps 1 to 3 are the same either way: a one-time setup from your own terminal. A
 
 <div data-choice-picker="runfrom"></div>
 
-> **Note:** **My terminal** suits a proof of value or a service you manage by hand. **CI pipeline** suits a task definition JSON kept in Git: every new revision gets patched before it deploys, so nothing ships unprotected.
-
 ### 1. Set your values
 
 <div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,SERVICE_NAME:ECS service name"></div>
