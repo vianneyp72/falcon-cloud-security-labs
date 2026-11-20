@@ -102,7 +102,7 @@ Check the file matches its published checksum, then make it executable:
 (sha256sum -c falcon-ecs-patch.sh.sha256 2>/dev/null || shasum -a 256 -c falcon-ecs-patch.sh.sha256) && chmod +x falcon-ecs-patch.sh
 ```
 
-> **Verify:** The output is `falcon-ecs-patch.sh: OK`. Anything else means the download is corrupt or was changed; do not run it.
+> **Verify:** The output is `falcon-ecs-patch.sh: OK`. Anything else means the download is corrupt or was changed; stop and download it again.
 
 ### 3. Copy the sensor image into your ECR
 
@@ -134,7 +134,7 @@ Pick the Falcon cloud your CID belongs to. `setup` creates the `falcon-container
 
 </div>
 
-> **Verify:** The last line is an image URI like `<account>.dkr.ecr.<region>.amazonaws.com/falcon-container:8.12.0-8207`. You do not need to copy it; later steps find the newest tag automatically.
+> **Verify:** The last line is an image URI like `<account>.dkr.ecr.<region>.amazonaws.com/falcon-container:8.12.0-8207`. You can skip copying it; later steps find the newest tag automatically.
 
 ### 4. See what is unprotected
 
@@ -158,6 +158,8 @@ This is a dry run by default. It exports the task definition, runs the patching 
 >
 > **Look for:** The `Rollout:` line shows the service's minimum and maximum healthy percent, the circuit breaker, and the task size. The sensor shares the task's CPU and memory, so check there is headroom. A `NOTE` says the circuit breaker is off: enable it on the service so a failed rollout rolls back by itself (command below). A `WARN` about no public IP means the tasks need a NAT route before this will work. A `NOTE` about the `CODE_DEPLOY` or `EXTERNAL` deployment controller means the script registers the revision but leaves the service alone; deploy the revision with your own process.
 
+> **Tip:** The diff below the summary is long. To review it, confirm three things: one added `crowdstrike-falcon-init-container`, a rewritten `entryPoint` on each of your app containers, and only your own `entryPoint` and empty `volumes` lines replaced. Full Lab section 4 explains every changed field.
+
 To turn the circuit breaker on before you deploy:
 
 ```bash
@@ -166,13 +168,17 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 
 ### 6. Deploy
 
-Try a non-production service first. `--deploy` registers the patched revision, points the service at it, and waits until the service is stable. It asks for confirmation first:
+Try a non-production service first. `--deploy` registers the patched revision, points the service at it, and waits until the service is stable. It prints the diff, then asks `[y/N]`; type `y` to continue:
 
 ```bash
 ./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deploy
 ```
 
-> **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Copy that command somewhere safe. The service is protected as soon as the rollout finishes, but the sensor takes a couple of minutes to appear in the Falcon console.
+> **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply overwrites the revision registered here and the sensor disappears. See the warning at the top of this lab.
+
+> **Heads-up:** If you see `--deploy needs a terminal to confirm`, the command is not running in an interactive terminal (a CI job, a script, a piped shell). Add `--yes` to skip the prompt. Any answer other than `y` prints `Aborted.` and changes nothing.
+
+> **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Copy that command somewhere safe. The service is protected as soon as the rollout finishes, but the sensor takes about two minutes after the new task starts to register, and the Falcon console can lag a few minutes beyond that.
 
 ### 7. Verify
 
@@ -193,7 +199,7 @@ echo $TASK_ID | sed -E 's/^(.{8})(.{4})(.{4})(.{4})(.{12})$/\1-\2-\3-\4-\5/'
 
 In the Falcon console go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and paste that value.
 
-> **Look for:** A host entry with a populated **Host ID** within a few minutes. No entry after five minutes usually means the task cannot reach the Falcon cloud; check that the service has a public IP or a NAT route.
+> **Look for:** A host entry with a populated **Host ID**. The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud; check that the service has a public IP or a NAT route.
 
 Run the audit again to see the service protected:
 
@@ -227,7 +233,7 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-
 
 ## 1. Your Environment
 
-> **What & Why:** The script works against a cluster and service that already exist. This section gets the values in one place, and gives you a sample service if you do not have one handy.
+> **What & Why:** The script works against a cluster and service that already exist. This section gets the values in one place, and gives you a sample service if you lack one.
 
 ### Step 1: Set your values
 
@@ -250,7 +256,7 @@ read -rs -p "Falcon API client secret: " FALCON_CLIENT_SECRET && export FALCON_C
 
 > **What & Why:** The patch targets a **service**, which keeps tasks running from a task definition. You need its cluster name and service name.
 
-- [ ] In the AWS console, open **Amazon ECS** > **Clusters**, select your cluster, and open the **Services** tab. Note the service name and the **Task definition: revision** column.
+- [ ] In the AWS console, open **Amazon ECS** > **Clusters**, select your cluster, and open the **Services** tab. Note the service name and the **Task definition** column (for example `acme-web:1`, which is family and revision).
 
 <details>
 <summary>CLI equivalent</summary>
@@ -328,7 +334,7 @@ curl -fsSLO $BASE/falcon-ecs-patch.sh.sha256
 
 </div>
 
-- [ ] In the console, open **Amazon ECR** > **Private repositories** > `falcon-container` and confirm one image tag exists.
+- [ ] In the console, open **Amazon ECR** > **Private registry** > **Repositories** > `falcon-container` and confirm a tag like `8.12.0-8207` is listed. The untagged rows beneath it are the per-architecture images the tag points to; ignore them.
 
 > **Verify:** The script's last line is the image URI, and the repository shows a tag like `8.12.0-8207`.
 
@@ -369,7 +375,7 @@ export TASK_DEF=$(aws ecs describe-services --cluster <CLUSTER_NAME> --services 
 echo $TASK_DEF
 ```
 
-> **Verify:** It prints an ARN ending in `<family>:<revision>`. The revision should match the **Task definition: revision** column you saw on the service.
+> **Verify:** It prints an ARN ending in `<family>:<revision>`. The revision should match the **Task definition** column you saw on the service.
 
 - [ ] Save the task definition without the managed fields:
 
@@ -384,7 +390,7 @@ mkdir -p manual && aws ecs describe-task-definition --task-definition $TASK_DEF 
 
 > **What & Why:** At patch time the utility reads each app image's entrypoint and command, so it needs credentials for your registry. The pull token is a base64-encoded Docker config. It is only for patching; ECS pulls at runtime with the execution role.
 
-> **Warning:** Do not use `cat ~/.docker/config.json | base64`. On Docker Desktop that file holds a credential-helper pointer, not credentials, so the utility fails with `Failed to retrieve image details (credentials tried: 2)`. Build the token explicitly.
+> **Warning:** Avoid `cat ~/.docker/config.json | base64`. On Docker Desktop that file holds a credential-helper pointer, not credentials, so the utility fails with `Failed to retrieve image details (credentials tried: 2)`. Build the token explicitly.
 
 - [ ] Create the token for your ECR registry. ECR tokens expire after 12 hours, so build it right before you patch:
 
@@ -453,7 +459,7 @@ That is the whole mechanism. You have not changed anything in ECS yet: the patch
 
 > **Look for:** The `Rollout:` line shows the service's minimum and maximum healthy percent, the circuit breaker, and the task size. The sensor shares the task's CPU and memory, so check there is headroom. A `NOTE` that the circuit breaker is off means a failed rollout will not roll back by itself: enable it on the service (command below). A `WARN` about no public IP means tasks need a NAT route to reach the Falcon cloud (TLS 443) or no sensor will ever register. A `NOTE` about the `CODE_DEPLOY` or `EXTERNAL` deployment controller means the script registers the revision but leaves the service alone; deploy it with your own process.
 
-- [ ] If the circuit breaker is off, turn it on before you deploy. In the console, open the service, choose **Update service**, and under **Deployment options** enable **Use the Amazon ECS deployment circuit breaker** with **Rollback on failures**.
+- [ ] If the circuit breaker is off, turn it on before you deploy. In the console, open the service, choose **Update service**, and under **Deployment options** > **Deployment failure detection** select **Use the Amazon ECS deployment circuit breaker**, then **Rollback on failures**.
 
 <details>
 <summary>CLI equivalent</summary>
@@ -466,11 +472,15 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 
 ### Step 3: Deploy
 
-- [ ] Use a non-production service first. Register the patched revision, update the service, and wait until stable. It asks for confirmation:
+- [ ] Use a non-production service first. Register the patched revision, update the service, and wait until stable. It prints the diff, then asks `[y/N]`; type `y` to continue:
 
 ```bash
 ./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deploy
 ```
+
+> **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply overwrites the revision registered here and the sensor disappears. See the warning at the top of this lab.
+
+> **Heads-up:** If you see `--deploy needs a terminal to confirm`, the command is not running in an interactive terminal (a CI job, a script, a piped shell). Add `--yes` to skip the prompt. Any answer other than `y` prints `Aborted.` and changes nothing.
 
 > **Verify:** The output ends with `Registered: <family>:<N>` and a `Roll back with:` command. Keep it.
 
@@ -523,7 +533,7 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 
 - [ ] In the console, open **Amazon ECS** > **Clusters** > your cluster > your service > **Tasks**, open the newest task, and look at the **Containers** table.
 
-> **Verify:** `crowdstrike-falcon-init-container` is `Stopped` with exit code `0`, and your app container is `Running`. The init container is expected to stop: it only copies files.
+> **Verify:** In the **Containers** table, `crowdstrike-falcon-init-container` has **Status** `Stopped` and `Exit code: 0` (shown under **Health status**), and your app container is `Running`. The init container is expected to stop: it only copies files.
 
 <details>
 <summary>CLI equivalent</summary>
@@ -545,7 +555,7 @@ aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_R
 echo $TASK_ID | sed -E 's/^(.{8})(.{4})(.{4})(.{4})(.{12})$/\1-\2-\3-\4-\5/'
 ```
 
-> **Look for:** A host entry with a populated **Host ID** (the sensor's AID) within a few minutes. No entry after five minutes usually means the task cannot reach the Falcon cloud: it needs a public IP or a NAT route.
+> **Look for:** A host entry with a populated **Host ID** (the sensor's AID). The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud: it needs a public IP or a NAT route.
 
 > **Note:** ECS Exec is off by default, so this lab does not exec into the container. If you enabled it, `/tmp/CrowdStrike/rootfs/bin/falconctl -g --aid` prints the AID.
 
