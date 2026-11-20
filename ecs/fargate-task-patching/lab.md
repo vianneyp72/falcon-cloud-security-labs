@@ -98,7 +98,7 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 Download a pinned release and its checksum, then verify before running anything:
 
 ```bash
-VERSION=v0.2.2
+VERSION=v0.2.3
 BASE=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
 curl -fsSLO $BASE/falcon-ecs-patch.sh
 curl -fsSLO $BASE/falcon-ecs-patch.sh.sha256
@@ -192,6 +192,27 @@ Try a non-production service first. `--deploy` registers the patched revision, p
 
 > **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Save that command. The sensor registers about two minutes after the new task starts, and the Falcon console can lag a few minutes beyond that.
 
+<details>
+<summary>Patch ALL services?</summary>
+
+`--all` patches every unprotected Fargate service in the cluster. Services that already have the sensor, and EC2 services, are skipped. Preview first, since it changes nothing:
+
+```bash
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all
+```
+
+Then deploy. It shows each service's diff and asks `[y/N]` before changing it. Add `--yes` to skip the prompts (needed in CI):
+
+```bash
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all --deploy
+```
+
+> **Verify:** If every service already has the sensor, it prints a green check and `Nothing to patch`.
+
+> **Warning:** Services roll out one after another, each with its own `Roll back with:` command, so save the output. Do not use `--all` on services managed by Terraform, CDK, or CloudFormation, or on any ARM64 service (the script stops at the first one it hits).
+
+</details>
+
 </div>
 
 <div data-choice="runfrom:pipeline">
@@ -226,7 +247,7 @@ jobs:
     env:
       AWS_REGION: <AWS_REGION>
       FALCON_CID: ${{ secrets.FALCON_CID }}
-      VERSION: v0.2.2
+      VERSION: v0.2.3
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -283,7 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: <AWS_REGION>
-      VERSION: v0.2.2
+      VERSION: v0.2.3
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -418,7 +439,7 @@ aws ecs list-services --cluster <CLUSTER_NAME> --region $AWS_REGION --output tab
 - [ ] Download the pinned release and its checksum:
 
 ```bash
-VERSION=v0.2.2
+VERSION=v0.2.3
 BASE=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
 curl -fsSLO $BASE/falcon-ecs-patch.sh
 curl -fsSLO $BASE/falcon-ecs-patch.sh.sha256
