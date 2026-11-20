@@ -67,6 +67,7 @@ import seYasi from '@content/se-built/yet-another-sensor-installer.md?raw'
 import seEcsFargate from '@content/se-built/ecs-fargate-sidecar-injector.md?raw'
 import seRegoExamples from '@content/se-built/simple-rego-examples.md?raw'
 import seAzurePreReqs from '@content/se-built/azure-fcs-prereqs-checker.md?raw'
+import seFalconResourceTest from '@content/se-built/falcon-resource-test.md?raw'
 import toolQuickDetections from '@content/detections/quick-detection-samples.md?raw'
 
 // Overview READMEs
@@ -144,6 +145,7 @@ const labs = {
   'se-built/ecs-fargate-sidecar-injector.md': seEcsFargate,
   'se-built/simple-rego-examples.md': seRegoExamples,
   'se-built/azure-fcs-prereqs-checker.md': seAzurePreReqs,
+  'se-built/falcon-resource-test.md': seFalconResourceTest,
   'detections/quick-detection-samples.md': toolQuickDetections,
 }
 
@@ -292,6 +294,7 @@ const LABS = [
   { id: 'se-built/ecs-fargate-sidecar-injector', label: 'ECS Fargate Sidecar Injector', area: 'SE-Built', md: 'se-built/ecs-fargate-sidecar-injector.md', reference: true },
   { id: 'se-built/simple-rego-examples',         label: 'Simple Rego Examples',         area: 'SE-Built', md: 'se-built/simple-rego-examples.md',         reference: true },
   { id: 'se-built/azure-fcs-prereqs-checker',    label: 'Azure FCS Pre-Reqs Checker',    area: 'SE-Built', md: 'se-built/azure-fcs-prereqs-checker.md',    reference: true },
+  { id: 'se-built/falcon-resource-test',         label: 'Falcon Resource Test',         area: 'SE-Built', md: 'se-built/falcon-resource-test.md',         reference: true },
 
   { id: 'detections/quick-detection-samples', label: 'Quick Detection Samples', area: 'Tooling', md: 'detections/quick-detection-samples.md', reference: true },
 ]
@@ -599,6 +602,7 @@ export const manifest = [
         l('se-built/ecs-fargate-sidecar-injector', 'ecs-fargate-sidecar-injector'),
         l('se-built/simple-rego-examples', 'simple-rego-examples'),
         l('se-built/azure-fcs-prereqs-checker', 'azure-fcs-prereqs-checker'),
+        l('se-built/falcon-resource-test', 'falcon-resource-test'),
       ]),
     ]),
   ]),
