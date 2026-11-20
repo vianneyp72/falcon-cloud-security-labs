@@ -13,7 +13,7 @@ Protect an existing ECS Fargate service by patching its task definition with the
 > - Tasks can reach the Falcon cloud: a <span data-tip="The sensor sends telemetry to CrowdStrike over TLS 443. Tasks in private subnets with no NAT gateway or VPC egress start fine but never register a sensor. The preview step warns if the service has no public IP.">public IP or NAT route</span>
 > - Task <span data-tip="The IAM role ECS uses to pull images and write logs. For same-account ECR the AWS managed policy AmazonECSTaskExecutionRolePolicy is enough. The script warns if it cannot confirm pull access.">execution role</span> that can pull from ECR
 > - CrowdStrike Falcon API <span data-tip="Only used once to copy the sensor image into your ECR. Create the client with Falcon Images Download (Read) and Sensor Download (Read).">credentials</span> (Client ID + Secret)
-> - CrowdStrike <span data-tip="Use the full Customer ID including the two-character suffix after the dash. The tip below shows where to find it.">CID</span> (full value, with suffix)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The tip below shows where to find it.">CID</span> (with checksum)
 
 > **Tip:** Where to find your Falcon credentials:
 >
@@ -70,24 +70,28 @@ CrowdStrike Cloud — Telemetry
 
 <div data-mode="guide">
 
-Steps 1 to 3 are the same either way: a one-time setup from your own terminal. After that, choose where the patching runs:
+Steps 1 to 3 are one-time setup from your terminal. Then choose where patching runs:
 
 <div data-choice-picker="runfrom"></div>
 
 ### 1. Set your values
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,SERVICE_NAME:ECS service name"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,SERVICE_NAME:ECS service name"></div>
 
-Copy this to export the values the script reads. The API client secret is only ever passed through the environment, never a flag, so it does not show up in process lists or CI logs. You type the secret at the prompt, so it is not in the form above:
+Export the values the script reads. The secret goes through the environment only, never a flag, so it stays out of process lists and logs:
 
 ```bash
 export AWS_REGION="<AWS_REGION>"
 export FALCON_CID="<FALCON_CID>"
 export FALCON_CLIENT_ID="<FALCON_CLIENT_ID>"
-read -rs -p "Falcon API client secret: " FALCON_CLIENT_SECRET && export FALCON_CLIENT_SECRET
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
 
-> **Tip:** `read -s` keeps the secret out of your shell history and the screen. In CI, store it in your secret manager and expose it as an environment variable.
+<div data-choice="runfrom:pipeline">
+
+> **Tip:** In CI, store the secret in your secret manager and expose it as an environment variable.
+
+</div>
 
 ### 2. Download the script and verify it
 
@@ -162,9 +166,11 @@ This is a dry run by default. It exports the task definition, runs the patching 
 
 > **Verify:** The summary lists `+ added init container: crowdstrike-falcon-init-container` and one `~ wrapped entrypoint` line per app container. The original and patched JSON are saved under `./falcon-ecs-patch-out/`.
 >
-> **Look for:** The `Rollout:` line shows the service's minimum and maximum healthy percent, the circuit breaker, and the task size. The sensor shares the task's CPU and memory, so check there is headroom. A `NOTE` says the circuit breaker is off: enable it on the service so a failed rollout rolls back by itself (command below). A `WARN` about no public IP means the tasks need a NAT route before this will work. A `NOTE` about the `CODE_DEPLOY` or `EXTERNAL` deployment controller means the script registers the revision but leaves the service alone; deploy the revision with your own process.
+> **Look for:** The `Rollout:` line shows healthy percent, circuit breaker, and task size; the sensor shares the task's CPU and memory, so leave headroom. A circuit breaker `NOTE` means enable it (command below) so a failed rollout rolls back. A no-public-IP `WARN` means tasks need a NAT route. A `CODE_DEPLOY` or `EXTERNAL` controller `NOTE` means the script registers the revision but you deploy it.
 
-> **Tip:** The diff below the summary is long. To review it, confirm three things: one added `crowdstrike-falcon-init-container`, a rewritten `entryPoint` on each of your app containers, and only your own `entryPoint` and empty `volumes` lines replaced. Full Lab section 4 explains every changed field.
+> **Tip:** The diff is long. Confirm three things: one added `crowdstrike-falcon-init-container`, an `entryPoint` on each app container that starts the sensor, then your app's command, and no removed lines except empty `environment`, `mountPoints`, and `volumes` lists that gain contents. Full Lab section 4 explains every field.
+
+> **Why this matters:** The circuit breaker is an ECS service setting. If the new revision's tasks keep failing to start, it stops the rollout and redeploys your last working revision, so a bad patch never takes the service down.
 
 To turn the circuit breaker on before you deploy:
 
@@ -180,11 +186,11 @@ Try a non-production service first. `--deploy` registers the patched revision, p
 ./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deploy
 ```
 
-> **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply overwrites the revision registered here and the sensor disappears. See the warning at the top of this lab.
+> **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply removes the sensor. See the warning at the top.
 
-> **Heads-up:** If you see `--deploy needs a terminal to confirm`, the command is not running in an interactive terminal (a CI job, a script, a piped shell). Add `--yes` to skip the prompt. Any answer other than `y` prints `Aborted.` and changes nothing.
+> **Heads-up:** `--deploy needs a terminal to confirm` means there is no interactive terminal (CI, script, pipe). Add `--yes`. Any answer other than `y` prints `Aborted.` and changes nothing.
 
-> **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Copy that command somewhere safe. The service is protected as soon as the rollout finishes, but the sensor takes about two minutes after the new task starts to register, and the Falcon console can lag a few minutes beyond that.
+> **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Save that command. The sensor registers about two minutes after the new task starts, and the Falcon console can lag a few minutes beyond that.
 
 </div>
 
@@ -192,18 +198,16 @@ Try a non-production service first. `--deploy` registers the patched revision, p
 
 ### 4. Give the pipeline access
 
-The pipeline needs two things: your CID and an AWS role it can assume. These steps use GitHub Actions; any CI works the same way (download, verify, patch, deploy).
-
-In your repository, go to **Settings** > **Secrets and variables** > **Actions** and add:
+The pipeline needs your CID and an AWS role it can assume. These steps use GitHub Actions; any CI follows the same flow. In your repository, go to **Settings** > **Secrets and variables** > **Actions** and add:
 
 - `FALCON_CID`: your CID with checksum.
-- `AWS_ROLE_ARN`: the ARN of an <span data-tip="An IAM role is an AWS identity with permissions but no password or keys. A pipeline assumes it for a short time instead of storing access keys. In IAM, create the role with Web identity as the trusted entity and token.actions.githubusercontent.com as the provider, and limit the trust relationship to your repository.">IAM role</span> the workflow can assume with OIDC. Give it ECR read access (`ecr:GetAuthorizationToken`, `DescribeImages`, `BatchGetImage`, `GetDownloadUrlForLayer`, `BatchCheckLayerAvailability`), plus the ECS and `iam:PassRole` permissions your deploy step already uses.
+- `AWS_ROLE_ARN`: the ARN of an <span data-tip="An IAM role is an AWS identity with permissions but no password or keys. A pipeline assumes it for a short time instead of storing access keys. In IAM, create the role with Web identity as the trusted entity and token.actions.githubusercontent.com as the provider, and limit the trust relationship to your repository.">IAM role</span> the workflow assumes with OIDC. Give it ECR read access plus the ECS and `iam:PassRole` permissions your deploy step already uses.
 
-> **Why this matters:** OIDC lets GitHub prove its identity to AWS and receive credentials that expire in about an hour, so no long-lived access keys sit in your repository. Setup steps are in the [configure-aws-credentials README](https://github.com/aws-actions/configure-aws-credentials). The Falcon API client secret is not needed here; only `setup` in step 3 uses it.
+> **Why this matters:** OIDC gives the workflow short-lived AWS credentials, so no access keys sit in your repository. Setup is in the [configure-aws-credentials README](https://github.com/aws-actions/configure-aws-credentials). The Falcon API client secret is not needed here; only `setup` uses it.
 
 ### 5. Patch the task definition in the workflow
 
-Keep your task definition JSON in Git as it is today, unpatched. Add a patch step before your register-and-deploy step. `patch --file` never touches ECS, so it fits any deploy tool: it reads your JSON and writes a patched copy. Save this as `.github/workflows/patch-ecs-task.yml` and replace `ecs/task-definition.json`, `<SERVICE_NAME>`, and `<CLUSTER_NAME>` with yours:
+Keep your task definition JSON in Git unpatched. `patch --file` reads it and writes a patched copy without touching ECS, so it fits any deploy tool. Save this as `.github/workflows/patch-ecs-task.yml`, replacing `ecs/task-definition.json`, `<SERVICE_NAME>`, and `<CLUSTER_NAME>` with yours:
 
 ```yaml
 name: patch-ecs-task
@@ -251,9 +255,9 @@ Run it from the repository's **Actions** tab: select **patch-ecs-task**, then **
 
 > **Verify:** The patch step log lists `+ added init container: crowdstrike-falcon-init-container`, and the deploy step ends with the service stable. A task definition that already has the init container is skipped, so re-runs are safe.
 
-> **Tip:** Your file in Git stays unpatched, so every run uses the newest sensor image in your ECR. To upgrade the sensor, run `setup` again (step 3) and re-run the workflow.
+> **Tip:** Your Git file stays unpatched, so each run uses the newest sensor in your ECR. To upgrade, run `setup` again and re-run the workflow.
 
-If the revision is already registered in ECS and no file in Git defines it, patch it by family instead. This registers a new revision, prints its ARN on stdout, and updates no service; point your service at that ARN:
+No file in Git? Patch a revision already in ECS by family. It registers a new revision and prints its ARN; point your service at it:
 
 ```bash
 ./falcon-ecs-patch.sh patch --family <FAMILY> --deploy --yes
@@ -261,7 +265,7 @@ If the revision is already registered in ECS and no file in Git defines it, patc
 
 ### 6. Catch unprotected services
 
-A new service someone launches later will not be patched. A scheduled audit fails the job when one appears, and the log names it. Save this as `.github/workflows/audit-ecs-protection.yml`:
+A scheduled audit fails the job when someone launches an unpatched service. Save this as `.github/workflows/audit-ecs-protection.yml`:
 
 ```yaml
 name: audit-ecs-protection
@@ -296,7 +300,7 @@ jobs:
         run: ./falcon-ecs-patch.sh audit --cluster <CLUSTER_NAME> --fail-on-unprotected
 ```
 
-> **Look for:** With every Fargate service protected the job passes. An unprotected one exits 3 and the job fails with that service listed. EC2 launch type services show `OUT-OF-SCOPE` and never fail the job. An ARM64 Fargate service counts as unprotected but cannot be patched yet, so point the audit at a cluster without one.
+> **Look for:** The job passes when every Fargate service is protected, and exits 3 listing any that are not. EC2 services show `OUT-OF-SCOPE` and never fail it. ARM64 Fargate services count as unprotected but cannot be patched yet.
 
 </div>
 
@@ -311,13 +315,13 @@ aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_R
 
 > **Verify:** `crowdstrike-falcon-init-container` is `STOPPED` with `Exit` `0`, and your app container is `RUNNING`.
 
-The Falcon console shows the task ID as a dashed UUID. Print yours in that form:
+The Falcon console identifies the sensor by your app container's runtime ID. Print it:
 
 ```bash
-echo $TASK_ID | sed -E 's/^(.{8})(.{4})(.{4})(.{4})(.{12})$/\1-\2-\3-\4-\5/'
+aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_REGION --query "tasks[0].containers[?name!='crowdstrike-falcon-init-container'].runtimeId" --output text
 ```
 
-In the Falcon console go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and paste that value.
+In the Falcon console go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and paste that value (one per app container).
 
 > **Look for:** A host entry with a populated **Host ID**. The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud; check that the service has a public IP or a NAT route.
 
@@ -355,13 +359,13 @@ Already-protected task definitions are skipped, so re-running `patch` never chan
 
 ### 8. Roll back (optional)
 
-Point the service back at the revision it ran before the pipeline deployed. In the ECS console, open **Task definitions**, pick your family, and copy the ARN of the revision before the patched one. Then point the service at it:
+Point the service back at the revision it ran before the pipeline deployed. Copy the ARN of the revision before the patched one from **Task definitions** in the ECS console, then point the service at it:
 
 ```bash
 aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-definition <PREVIOUS_REVISION_ARN> --region $AWS_REGION
 ```
 
-> **Note:** Your task definition file in Git is still unpatched, so the next pipeline run protects the service again. To stop that, revert or pause the workflow first.
+> **Note:** Your Git file is still unpatched, so the next pipeline run protects the service again. Pause the workflow first to stop that.
 
 </div>
 
@@ -377,18 +381,16 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-
 
 - [ ] Fill in the values below once. Every command in this lab uses them.
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,SERVICE_NAME:ECS service name"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,SERVICE_NAME:ECS service name"></div>
 
-- [ ] Export the values the script reads. The secret travels only through the environment, never a flag, and you type it at the prompt:
+- [ ] Export the values the script reads. The secret travels only through the environment, never a flag, and the secret field is masked and never saved in your browser:
 
 ```bash
 export AWS_REGION="<AWS_REGION>"
 export FALCON_CID="<FALCON_CID>"
 export FALCON_CLIENT_ID="<FALCON_CLIENT_ID>"
-read -rs -p "Falcon API client secret: " FALCON_CLIENT_SECRET && export FALCON_CLIENT_SECRET
+export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 ```
-
-> **Tip:** `read -s` keeps the secret out of your shell history and the screen. In CI, store it in your secret manager and expose it as an environment variable.
 
 ### Step 2: Find your service (or create a sample)
 
@@ -567,6 +569,8 @@ diff -u <(jq -S . manual/taskdef.json) <(jq -S . manual/taskdef.patched.json)
 
 > **Look for:** One added container, `crowdstrike-falcon-init-container`, and a new volume `crowdstrike-falcon-volume`. On each of your containers: `dependsOn` the init container, an `entryPoint` that starts the sensor first and then your original command, `FALCONCTL_OPTS` carrying your CID, `SYS_PTRACE`, and a read-only mount at `/tmp/CrowdStrike`.
 
+> **Why this matters:** Your original file may have no `entryPoint` at all. That is normal: ECS then runs the image's built-in command, and the utility reads it from the image and writes it out after the sensor. If your task did set an `entryPoint` or `command`, those are kept.
+
 > **Note:** The patched file contains your CID. It is an identifier, not a secret, but avoid pasting the diff into public places.
 
 That is the whole mechanism. You have not changed anything in ECS yet: the patched file is only on your machine. The only steps left are registering it as a new revision and pointing the service at it, which the script does for you along with everything above.
@@ -596,6 +600,8 @@ That is the whole mechanism. You have not changed anything in ECS yet: the patch
 > **Verify:** The diff matches what you saw in section 4. The original and patched JSON are saved under `./falcon-ecs-patch-out/<family>/`.
 
 > **Look for:** The `Rollout:` line shows the service's minimum and maximum healthy percent, the circuit breaker, and the task size. The sensor shares the task's CPU and memory, so check there is headroom. A `NOTE` that the circuit breaker is off means a failed rollout will not roll back by itself: enable it on the service (command below). A `WARN` about no public IP means tasks need a NAT route to reach the Falcon cloud (TLS 443) or no sensor will ever register. A `NOTE` about the `CODE_DEPLOY` or `EXTERNAL` deployment controller means the script registers the revision but leaves the service alone; deploy it with your own process.
+
+> **Why this matters:** The circuit breaker is an ECS service setting. If the new revision's tasks keep failing to start (sensor image not pullable, no route out, entrypoint problem), ECS stops the rollout and redeploys your last working revision. It does not catch a task that starts but misbehaves.
 
 - [ ] If the circuit breaker is off, turn it on before you deploy. In the console, open the service, choose **Update service**, and under **Deployment options** > **Deployment failure detection** select **Use the Amazon ECS deployment circuit breaker**, then **Rollback on failures**.
 
@@ -687,10 +693,10 @@ aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_R
 
 ### Step 2: Check the Falcon console
 
-- [ ] Go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and enter your task ID **with dashes** in the 8-4-4-4-12 pattern. Print it:
+- [ ] Go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and enter your app container's runtime ID (the task ID followed by a number). Print it:
 
 ```bash
-echo $TASK_ID | sed -E 's/^(.{8})(.{4})(.{4})(.{4})(.{12})$/\1-\2-\3-\4-\5/'
+aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_REGION --query "tasks[0].containers[?name!='crowdstrike-falcon-init-container'].runtimeId" --output text
 ```
 
 > **Look for:** A host entry with a populated **Host ID** (the sensor's AID). The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud: it needs a public IP or a NAT route.
@@ -748,6 +754,6 @@ rm -rf manual falcon-ecs-patch-out falcon-ecs-patch.sh falcon-ecs-patch.sh.sha25
 | CI gate | `audit --cluster <CLUSTER_NAME> --fail-on-unprotected` (exit 3 on drift) |
 | Skip a container | `--skip-container <NAME>` |
 | Corporate TLS proxy | `--ca-bundle /path/to/full-bundle.pem` |
-| Find the sensor in Falcon | Host management > **Pod ID** = task ID with dashes |
+| Find the sensor in Falcon | Host management > **Pod ID** = app container runtime ID |
 
 </div>
