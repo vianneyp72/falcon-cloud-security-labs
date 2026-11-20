@@ -315,13 +315,13 @@ aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_R
 
 > **Verify:** `crowdstrike-falcon-init-container` is `STOPPED` with `Exit` `0`, and your app container is `RUNNING`.
 
-The Falcon console identifies the sensor by your app container's runtime ID. Print it:
+The Falcon console identifies the sensor by the task ID, with no dashes. Print it:
 
 ```bash
-aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_REGION --query "tasks[0].containers[?name!='crowdstrike-falcon-init-container'].runtimeId" --output text
+echo $TASK_ID
 ```
 
-In the Falcon console go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and paste that value (one per app container).
+In the Falcon console go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and paste that value.
 
 > **Look for:** A host entry with a populated **Host ID**. The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud; check that the service has a public IP or a NAT route.
 
@@ -693,10 +693,10 @@ aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_R
 
 ### Step 2: Check the Falcon console
 
-- [ ] Go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and enter your app container's runtime ID (the task ID followed by a number). Print it:
+- [ ] Go to **Host setup and management** > **Host management**, add a **Pod ID** filter, and enter your task ID exactly as printed, with no dashes. Print it:
 
 ```bash
-aws ecs describe-tasks --cluster <CLUSTER_NAME> --tasks $TASK_ID --region $AWS_REGION --query "tasks[0].containers[?name!='crowdstrike-falcon-init-container'].runtimeId" --output text
+echo $TASK_ID
 ```
 
 > **Look for:** A host entry with a populated **Host ID** (the sensor's AID). The sensor registers about two minutes after the task starts and the console can lag a few minutes beyond that, so an empty result right after the deploy is normal; refresh and wait. No entry after ten minutes usually means the task cannot reach the Falcon cloud: it needs a public IP or a NAT route.
@@ -754,6 +754,6 @@ rm -rf manual falcon-ecs-patch-out falcon-ecs-patch.sh falcon-ecs-patch.sh.sha25
 | CI gate | `audit --cluster <CLUSTER_NAME> --fail-on-unprotected` (exit 3 on drift) |
 | Skip a container | `--skip-container <NAME>` |
 | Corporate TLS proxy | `--ca-bundle /path/to/full-bundle.pem` |
-| Find the sensor in Falcon | Host management > **Pod ID** = app container runtime ID |
+| Find the sensor in Falcon | Host management > **Pod ID** = task ID, no dashes |
 
 </div>
