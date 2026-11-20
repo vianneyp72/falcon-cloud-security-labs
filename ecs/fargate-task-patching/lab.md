@@ -98,7 +98,7 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 Download a pinned release and its checksum, then verify before running anything:
 
 ```bash
-VERSION=v0.2.3
+VERSION=v0.2.4
 BASE=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
 curl -fsSLO $BASE/falcon-ecs-patch.sh
 curl -fsSLO $BASE/falcon-ecs-patch.sh.sha256
@@ -207,7 +207,7 @@ Then deploy. It shows each service's diff and asks `[y/N]` before changing it. A
 ./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all --deploy
 ```
 
-> **Verify:** If every service already has the sensor, it prints a green check and `Nothing to patch`.
+> **Verify:** If every service already has the sensor, it prints a green check and `Nothing to patch`. To see each service's status first, run `./falcon-ecs-patch.sh audit --cluster <CLUSTER_NAME>`.
 
 > **Warning:** Services roll out one after another, each with its own `Roll back with:` command, so save the output. Do not use `--all` on services managed by Terraform, CDK, or CloudFormation, or on any ARM64 service (the script stops at the first one it hits).
 
@@ -247,7 +247,7 @@ jobs:
     env:
       AWS_REGION: <AWS_REGION>
       FALCON_CID: ${{ secrets.FALCON_CID }}
-      VERSION: v0.2.3
+      VERSION: v0.2.4
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -304,7 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: <AWS_REGION>
-      VERSION: v0.2.3
+      VERSION: v0.2.4
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -439,7 +439,7 @@ aws ecs list-services --cluster <CLUSTER_NAME> --region $AWS_REGION --output tab
 - [ ] Download the pinned release and its checksum:
 
 ```bash
-VERSION=v0.2.3
+VERSION=v0.2.4
 BASE=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
 curl -fsSLO $BASE/falcon-ecs-patch.sh
 curl -fsSLO $BASE/falcon-ecs-patch.sh.sha256
