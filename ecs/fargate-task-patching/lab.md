@@ -13,14 +13,14 @@ Protect an existing ECS Fargate service by patching its task definition with the
 > - Tasks can reach the Falcon cloud: a <span data-tip="The sensor sends telemetry to CrowdStrike over TLS 443. Tasks in private subnets with no NAT gateway or VPC egress start fine but never register a sensor. The preview step warns if the service has no public IP.">public IP or NAT route</span>
 > - Task <span data-tip="The IAM role ECS uses to pull images and write logs. For same-account ECR the AWS managed policy AmazonECSTaskExecutionRolePolicy is enough. The script warns if it cannot confirm pull access.">execution role</span> that can pull from ECR
 > - CrowdStrike Falcon API <span data-tip="Only used once to copy the sensor image into your ECR. Create the client with Falcon Images Download (Read) and Sensor Download (Read).">credentials</span> (Client ID + Secret)
-> - CrowdStrike <span data-tip="Use the full Customer ID including the checksum suffix. The tip below shows where to find it.">CID</span> (with checksum)
+> - CrowdStrike <span data-tip="Use the full Customer ID including the two-character suffix after the dash. The tip below shows where to find it.">CID</span> (full value, with suffix)
 
 > **Tip:** Where to find your Falcon credentials:
 >
 > - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
 > - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
 
-> **Warning:** **Is the task definition managed by Terraform, CDK, or CloudFormation?** The next apply will overwrite a revision registered by this lab and the sensor silently disappears. Use the Terraform lab if you run CrowdStrike's module, or patch the definition file in your pipeline with `patch --file` (see Challenge 1). Run this lab against a service you manage by hand, or a sample.
+> **Warning:** **Is the task definition managed by Terraform, CDK, or CloudFormation?** The next apply will overwrite a revision registered by this lab and the sensor silently disappears. If you use Terraform, follow the [Terraform Module lab](#/aws/ecs/fargate/terraform-module) instead. For CDK, CloudFormation, or a task definition JSON in Git, patch the source in your pipeline: in Quick Deploy, set **Run it from** to **CI pipeline**. To try this lab hands-on, use a service you manage by hand, or a sample.
 
 ## Reference Docs
 
@@ -69,6 +69,12 @@ CrowdStrike Cloud — Telemetry
 ## Deployment Steps
 
 <div data-mode="guide">
+
+Steps 1 to 3 are the same either way: a one-time setup from your own terminal. After that, choose where the patching runs:
+
+<div data-choice-picker="runfrom"></div>
+
+> **Note:** **My terminal** suits a proof of value or a service you manage by hand. **CI pipeline** suits a task definition JSON kept in Git: every new revision gets patched before it deploys, so nothing ships unprotected.
 
 ### 1. Set your values
 
@@ -136,6 +142,8 @@ Pick the Falcon cloud your CID belongs to. `setup` creates the `falcon-container
 
 > **Verify:** The last line is an image URI like `<account>.dkr.ecr.<region>.amazonaws.com/falcon-container:8.12.0-8207`. You can skip copying it; later steps find the newest tag automatically.
 
+<div data-choice="runfrom:local">
+
 ### 4. See what is unprotected
 
 `audit` only reads. It lists every service in the cluster and whether its task definition already has the Falcon init container:
@@ -180,6 +188,120 @@ Try a non-production service first. `--deploy` registers the patched revision, p
 
 > **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Copy that command somewhere safe. The service is protected as soon as the rollout finishes, but the sensor takes about two minutes after the new task starts to register, and the Falcon console can lag a few minutes beyond that.
 
+</div>
+
+<div data-choice="runfrom:pipeline">
+
+### 4. Give the pipeline access
+
+The pipeline needs two things: your CID and an AWS role it can assume. These steps use GitHub Actions; any CI works the same way (download, verify, patch, deploy).
+
+In your repository, go to **Settings** > **Secrets and variables** > **Actions** and add:
+
+- `FALCON_CID`: your CID with checksum.
+- `AWS_ROLE_ARN`: the ARN of an <span data-tip="An IAM role is an AWS identity with permissions but no password or keys. A pipeline assumes it for a short time instead of storing access keys. In IAM, create the role with Web identity as the trusted entity and token.actions.githubusercontent.com as the provider, and limit the trust relationship to your repository.">IAM role</span> the workflow can assume with OIDC. Give it ECR read access (`ecr:GetAuthorizationToken`, `DescribeImages`, `BatchGetImage`, `GetDownloadUrlForLayer`, `BatchCheckLayerAvailability`), plus the ECS and `iam:PassRole` permissions your deploy step already uses.
+
+> **Why this matters:** OIDC lets GitHub prove its identity to AWS and receive credentials that expire in about an hour, so no long-lived access keys sit in your repository. Setup steps are in the [configure-aws-credentials README](https://github.com/aws-actions/configure-aws-credentials). The Falcon API client secret is not needed here; only `setup` in step 3 uses it.
+
+### 5. Patch the task definition in the workflow
+
+Keep your task definition JSON in Git as it is today, unpatched. Add a patch step before your register-and-deploy step. `patch --file` never touches ECS, so it fits any deploy tool: it reads your JSON and writes a patched copy. Save this as `.github/workflows/patch-ecs-task.yml` and replace `ecs/task-definition.json`, `<SERVICE_NAME>`, and `<CLUSTER_NAME>` with yours:
+
+```yaml
+name: patch-ecs-task
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ["ecs/task-definition.json"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: <AWS_REGION>
+      FALCON_CID: ${{ secrets.FALCON_CID }}
+      VERSION: v0.2.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Download falcon-ecs-patch
+        run: |
+          base=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
+          curl -fsSLO $base/falcon-ecs-patch.sh
+          curl -fsSLO $base/falcon-ecs-patch.sh.sha256
+          sha256sum -c falcon-ecs-patch.sh.sha256
+          chmod +x falcon-ecs-patch.sh
+      - name: Patch the task definition file
+        run: ./falcon-ecs-patch.sh patch --file ecs/task-definition.json --output ecs/task-definition.patched.json
+      - name: Register and deploy the patched file
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ecs/task-definition.patched.json
+          service: <SERVICE_NAME>
+          cluster: <CLUSTER_NAME>
+          wait-for-service-stability: true
+```
+
+Run it from the repository's **Actions** tab: select **patch-ecs-task**, then **Run workflow**.
+
+> **Verify:** The patch step log lists `+ added init container: crowdstrike-falcon-init-container`, and the deploy step ends with the service stable. A task definition that already has the init container is skipped, so re-runs are safe.
+
+> **Tip:** Your file in Git stays unpatched, so every run uses the newest sensor image in your ECR. To upgrade the sensor, run `setup` again (step 3) and re-run the workflow.
+
+If the revision is already registered in ECS and no file in Git defines it, patch it by family instead. This registers a new revision, prints its ARN on stdout, and updates no service; point your service at that ARN:
+
+```bash
+./falcon-ecs-patch.sh patch --family <FAMILY> --deploy --yes
+```
+
+### 6. Catch unprotected services
+
+A new service someone launches later will not be patched. A scheduled audit fails the job when one appears, and the log names it. Save this as `.github/workflows/audit-ecs-protection.yml`:
+
+```yaml
+name: audit-ecs-protection
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: <AWS_REGION>
+      VERSION: v0.2.2
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Download falcon-ecs-patch
+        run: |
+          base=https://github.com/vianneyp72/falcon-ecs-patch/releases/download/$VERSION
+          curl -fsSLO $base/falcon-ecs-patch.sh
+          curl -fsSLO $base/falcon-ecs-patch.sh.sha256
+          sha256sum -c falcon-ecs-patch.sh.sha256
+          chmod +x falcon-ecs-patch.sh
+      - name: Audit
+        run: ./falcon-ecs-patch.sh audit --cluster <CLUSTER_NAME> --fail-on-unprotected
+```
+
+> **Look for:** With every Fargate service protected the job passes. An unprotected one exits 3 and the job fails with that service listed. EC2 launch type services show `OUT-OF-SCOPE` and never fail the job. An ARM64 Fargate service counts as unprotected but cannot be patched yet, so point the audit at a cluster without one.
+
+</div>
+
 ### 7. Verify
 
 Capture a running task's ID and list its containers. During a rollout the service briefly runs old and new tasks side by side; if the init container is missing, you picked an old task, so run it again in a minute:
@@ -209,15 +331,9 @@ Run the audit again to see the service protected:
 
 > **Verify:** Status is `PROTECTED` and the command exits 0. With any unprotected service it exits 3, which is what makes it useful as a CI gate.
 
-### 8. Upgrade the sensor later
+<div data-choice="runfrom:local">
 
-Already-protected task definitions are skipped, so re-running `patch` never changes the sensor version. To move to a newer sensor, copy the new image with `setup`, then patch the original, unpatched revision again. Use the revision number your service ran before step 6 (the rollback command from step 6 shows it). The `SENSOR` column in `audit` shows what each service runs:
-
-```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION> --deploy
-```
-
-### 9. Roll back (optional)
+### 8. Roll back (optional)
 
 Paste the `Roll back with:` command that `--deploy` printed. It points the service back at the revision it ran before that deploy. After step 6 that is your original revision, which has no sensor:
 
@@ -226,6 +342,30 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-
 ```
 
 > **Note:** Rolling back does not delete the patched revision. Re-running `patch` later protects the service again.
+
+### 9. Upgrade the sensor later
+
+Already-protected task definitions are skipped, so re-running `patch` never changes the sensor version. To move to a newer sensor, copy the new image with `setup`, then patch the original, unpatched revision again. Use the revision number your service ran before step 6 (the rollback command from step 6 shows it). The `SENSOR` column in `audit` shows what each service runs:
+
+```bash
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION> --deploy
+```
+
+</div>
+
+<div data-choice="runfrom:pipeline">
+
+### 8. Roll back (optional)
+
+Point the service back at the revision it ran before the pipeline deployed. In the ECS console, open **Task definitions**, pick your family, and copy the ARN of the revision before the patched one. Then point the service at it:
+
+```bash
+aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-definition <PREVIOUS_REVISION_ARN> --region $AWS_REGION
+```
+
+> **Note:** Your task definition file in Git is still unpatched, so the next pipeline run protects the service again. To stop that, revert or pause the workflow first.
+
+</div>
 
 </div>
 
@@ -590,8 +730,8 @@ rm -rf manual falcon-ecs-patch-out falcon-ecs-patch.sh falcon-ecs-patch.sh.sha25
 
 ## Challenges
 
-1. **Patch in your pipeline.** Most teams keep the task definition JSON in Git and let the pipeline register it. Add a step before your register-and-deploy step that runs `./falcon-ecs-patch.sh patch --file <TASK_DEFINITION_FILE> --output <PATCHED_FILE>`, then register `<PATCHED_FILE>` instead of the original. `--file` never touches ECS, so it fits any deploy tool, and protected files are skipped. If the revision is already registered in ECS, use `patch --family <FAMILY> --deploy --yes` instead; it prints the new task definition ARN for your pipeline to deploy. Starter workflows are in the repo's `examples/` folder.
-2. **Catch drift.** Schedule `audit --cluster <CLUSTER_NAME> --fail-on-unprotected` nightly. When someone launches a new unprotected service, the job fails and tells you which one.
+1. **Run it from your pipeline.** Quick Deploy has a **CI pipeline** path; build it end to end. Put a sample task definition JSON in a repository, add the two workflows, and open a pull request that changes the file. Confirm the patch step adds the init container and the service rolls.
+2. **Catch drift.** Launch a second, unpatched service in the cluster and run `audit --cluster <CLUSTER_NAME> --fail-on-unprotected` (or the scheduled workflow). The job fails and tells you which service.
 3. **Practice the rollback.** Deploy, then roll back to the previous revision with only the printed command, and confirm `audit` flips back to `UNPROTECTED`. Rolling back by revision is the safety net that makes this change low-risk for a customer.
 4. **Cross-account ECR.** `setup` copies the sensor into one account and region. To share one repository, add an ECR repository policy that allows `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer`, and `ecr:BatchCheckLayerAvailability` for the other accounts' task execution roles, then pass `--sensor-image <FULL_ECR_IMAGE_URI>` when patching. Run `patch` once per account with that account's credentials.
 

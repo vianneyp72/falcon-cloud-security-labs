@@ -175,6 +175,7 @@ Blank lines around the `## H2` inside `<summary>` are required, so it still rend
 | `argo` | `ui` (Argo CD UI), `cli` (Argo CD CLI) | `ui` |
 | `secrets` | `inline` (values in the Application), `k8s` (Kubernetes Secrets) | `inline` |
 | `falconcloud` | `commercial`, `govcloud-1`, `govcloud-2` | `commercial` |
+| `runfrom` | `local` (My terminal), `pipeline` (CI pipeline) | `local` |
 
 Every picker for a key shares one value, saved in localStorage, so the reader picks once and every gated block on the page (and on other pages) follows. Put one picker per key at the top of a section or card, not before every step. Gate shared steps with a comma list (`distro:rhel,amazon`). Once a step is gated, drop any prose that only explains another option ("on Linux use `-c`", "on Amazon Linux use dnf instead"); the reader never sees the other variant. Use it instead of stacking `Debian / Ubuntu:` / `RHEL:` labels over two blocks: each step then stays one visible block. Gates nest, so wrap the `distro` picker in `<div data-choice="os:linux">` when the card also has an `os` picker. Add a new key to `CHOICES` to reuse the pattern for another choice. Example: `detections/quick-detection-samples.md`.
 

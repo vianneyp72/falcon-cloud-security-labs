@@ -38,6 +38,14 @@ export const CHOICES = {
     ],
     default: 'inline',
   },
+  runfrom: {
+    label: 'Run it from',
+    options: [
+      { id: 'local', label: 'My terminal' },
+      { id: 'pipeline', label: 'CI pipeline' },
+    ],
+    default: 'local',
+  },
   falconcloud: {
     label: 'Falcon cloud',
     options: [
