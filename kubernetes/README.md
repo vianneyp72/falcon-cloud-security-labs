@@ -21,6 +21,7 @@ There are three primary deployment methods:
 | EKS (EC2 + Fargate hybrid) | DaemonSet + Sidecar | Both methods in one cluster |
 | GKE Standard | Helm DaemonSet | Standard privileged workloads |
 | GKE Autopilot | Helm DaemonSet (bpf mode) | Requires allowlist-synchronizer |
+| GKE (auto-protection) | CrowdStrike-managed | Roadmap. Listed in the Cloud-GCP repo; scope unverified |
 | AKS (Standard) | Helm DaemonSet | Standard privileged workloads |
 | AKS Automatic | Helm DaemonSet | Roadmap. Deployment Safeguards block privileged pods; Falcon namespaces must be excluded (unverified) |
 | Azure Arc-enabled Kubernetes | Helm DaemonSet | Roadmap. Arc is the management plane; install is the standard chart |
@@ -55,3 +56,9 @@ There are three primary deployment methods:
 |-------|-------------|
 | [generic/](operator/generic/) | Standard Falcon Operator deployment |
 | [openshift/](operator/openshift/) | OpenShift-specific operator deployment |
+
+### Managed
+
+| Guide | Description |
+|-------|-------------|
+| [gke-auto-protection/](gke-auto-protection/) | GKE Auto-protection (roadmap) |

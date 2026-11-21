@@ -56,6 +56,10 @@ import vmAzurePolicy from '@content/vms/azure-policy/lab.md?raw'
 import vmAzureArc from '@content/vms/azure-arc/lab.md?raw'
 import vmAzureVmss from '@content/vms/azure-vmss/lab.md?raw'
 import vmAzureImageBuilder from '@content/vms/azure-image-builder/lab.md?raw'
+import k8sGkeAutoProtection from '@content/kubernetes/gke-auto-protection/lab.md?raw'
+import vmGcpOsPolicy from '@content/vms/gcp-os-policy/lab.md?raw'
+import vmWinGce from '@content/vms/windows/gce-startup-script/lab.md?raw'
+import vmLinuxOciRunCommand from '@content/vms/linux/oci-run-command/lab.md?raw'
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
@@ -129,6 +133,10 @@ const labs = {
   'vms/azure-arc/lab.md': vmAzureArc,
   'vms/azure-vmss/lab.md': vmAzureVmss,
   'vms/azure-image-builder/lab.md': vmAzureImageBuilder,
+  'kubernetes/gke-auto-protection/lab.md': k8sGkeAutoProtection,
+  'vms/gcp-os-policy/lab.md': vmGcpOsPolicy,
+  'vms/windows/gce-startup-script/lab.md': vmWinGce,
+  'vms/linux/oci-run-command/lab.md': vmLinuxOciRunCommand,
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
@@ -262,6 +270,10 @@ const LABS = [
   { id: 'vms/azure-arc', label: 'Azure Arc-enabled Servers', area: 'VMs · Azure', md: 'vms/azure-arc/lab.md' },
   { id: 'vms/azure-vmss', label: 'Virtual Machine Scale Sets', area: 'VMs · Azure', md: 'vms/azure-vmss/lab.md' },
   { id: 'vms/azure-image-builder', label: 'Azure Image Builder', area: 'VMs · Azure', md: 'vms/azure-image-builder/lab.md' },
+  { id: 'kubernetes/gke-auto-protection', label: 'GKE Auto-protection', area: 'Kubernetes · Helm DaemonSet', md: 'kubernetes/gke-auto-protection/lab.md' },
+  { id: 'vms/gcp-os-policy', label: 'VM Manager (OS Policy)', area: 'VMs · GCP', md: 'vms/gcp-os-policy/lab.md' },
+  { id: 'vms/windows/gce-startup-script', label: 'GCE Startup Script', area: 'VMs · Windows', md: 'vms/windows/gce-startup-script/lab.md' },
+  { id: 'vms/linux/oci-run-command', label: 'OCI Run Command', area: 'VMs · Linux', md: 'vms/linux/oci-run-command/lab.md' },
 
   { id: 'fcs-cli/github-actions-image-scan', label: 'GitHub Actions Image Scan', area: 'FCS CLI', md: 'fcs-cli/github-actions-image-scan/lab.md' },
   { id: 'cspm/account-registration/aws-terraform', label: 'AWS Terraform', area: 'Cloud Registration', md: 'cspm/account-registration/aws/terraform/lab.md' },
@@ -468,20 +480,29 @@ export const manifest = [
     ]),
   ]),
 
-  cloud('Google Cloud', 'gcp', 'gcp', 'GKE, Cloud Run, Compute Engine, and GCP account registration.', [
+  cloud('Google Cloud', 'gcp', 'gcp', 'GKE, serverless containers, Compute Engine, and GCP account registration.', [
     ...cat('Containers', [
       g('GKE', 'gke', [
         l(K8S, 'standard', { label: 'Standard', cloudPreset: 'gke' }),
         l('kubernetes/helm-daemonset/gke-autopilot', 'autopilot'),
+        l('kubernetes/gke-auto-protection', 'auto-protection'),
       ]),
-      l('serverless-containers/cloud-run', 'cloud-run', { label: 'Cloud Run' }),
+      g('Serverless Containers', 'serverless', [
+        l('serverless-containers/cloud-run', 'cloud-run', { label: 'Cloud Run' }),
+      ]),
     ]),
     ...cat('Virtual Machines', [
       g('Compute Engine', 'compute-engine', [
         g('Linux', 'linux', [
           l('vms/linux/gce-startup-script', 'startup-script'),
+          l('vms/gcp-os-policy', 'os-policy'),
           l('vms/linux/ansible', 'ansible'),
           l('vms/linux/manual-cli', 'manual-cli'),
+        ]),
+        g('Windows', 'windows', [
+          l('vms/windows/gce-startup-script', 'startup-script'),
+          l('vms/gcp-os-policy', 'os-policy'),
+          l('vms/windows/manual-cli', 'manual-cli'),
         ]),
       ]),
     ]),
@@ -502,6 +523,7 @@ export const manifest = [
     ...cat('Virtual Machines', [
       g('Compute', 'compute', [
         g('Linux', 'linux', [
+          l('vms/linux/oci-run-command', 'run-command'),
           l('vms/linux/ansible', 'ansible'),
           l('vms/linux/manual-cli', 'manual-cli'),
         ]),
