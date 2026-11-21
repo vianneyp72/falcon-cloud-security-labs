@@ -69,14 +69,18 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 
 ### 2. Copy the Falcon sensor image to ECR
 
-Create an ECR repository for the sensor (skips if it already exists). The repo name must be `falcon-container` because `--copy` does not rename images:
+Create an ECR repository for the sensor (reuses it if it already exists). The repo name must be `falcon-container` because `--copy` does not rename images:
 
 ```bash
-aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1 \
-  || aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text
+if aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1; then
+  echo "✅ falcon-container already exists"
+else
+  aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text \
+    && echo "🆕 Created falcon-container"
+fi
 ```
 
-> **Verify:** A new repo prints its address (`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container`). Nothing prints if it already exists.
+> **Verify:** `✅ ... already exists` means the repo was reused. `🆕 Created ...` follows the new repo's address (`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-container`).
 
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 

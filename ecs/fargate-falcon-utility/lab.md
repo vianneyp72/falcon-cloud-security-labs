@@ -99,11 +99,15 @@ aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS -
 
 ### 3. Copy the sensor image into ECR
 
-Fargate pulls images with the task execution role, so the sensor image has to live in your ECR. First create the repository; the repository name must be `falcon-container` because the copy keeps the image name. Nothing prints if it already exists:
+Fargate pulls images with the task execution role, so the sensor image has to live in your ECR. First create the repository; the repository name must be `falcon-container` because the copy keeps the image name. The output says whether it already existed or was just created:
 
 ```bash
-aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1 \
-  || aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text
+if aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1; then
+  echo "✅ falcon-container already exists"
+else
+  aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text \
+    && echo "🆕 Created falcon-container"
+fi
 ```
 
 Pick the Falcon cloud your CID belongs to. `--platform x86_64` copies a single-architecture image, which is what Fargate X86_64 runs:
@@ -460,8 +464,12 @@ aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS -
 <summary>CLI equivalent</summary>
 
 ```bash
-aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1 \
-  || aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text
+if aws ecr describe-repositories --repository-names falcon-container --region <AWS_REGION> >/dev/null 2>&1; then
+  echo "✅ falcon-container already exists"
+else
+  aws ecr create-repository --repository-name falcon-container --region <AWS_REGION> --query repository.repositoryUri --output text \
+    && echo "🆕 Created falcon-container"
+fi
 ```
 
 </details>

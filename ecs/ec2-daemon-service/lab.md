@@ -86,14 +86,18 @@ The stack pulls the sensor from ECR in your account. Pick whether to create a re
 
 <div data-choice="ecrrepo:new">
 
-Create an ECR repository for the sensor (skips if it already exists). The repo name must be `falcon-sensor` because `--copy` does not rename images:
+Create an ECR repository for the sensor (reuses it if it already exists). The repo name must be `falcon-sensor` because `--copy` does not rename images:
 
 ```bash
-aws ecr describe-repositories --repository-names falcon-sensor --region <AWS_REGION> >/dev/null 2>&1 \
-  || aws ecr create-repository --repository-name falcon-sensor --region <AWS_REGION> --query repository.repositoryUri --output text
+if aws ecr describe-repositories --repository-names falcon-sensor --region <AWS_REGION> >/dev/null 2>&1; then
+  echo "✅ falcon-sensor already exists"
+else
+  aws ecr create-repository --repository-name falcon-sensor --region <AWS_REGION> --query repository.repositoryUri --output text \
+    && echo "🆕 Created falcon-sensor"
+fi
 ```
 
-> **Verify:** A new repo prints its address (`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor`). Nothing prints if it already exists.
+> **Verify:** `✅ ... already exists` means the repo was reused. `🆕 Created ...` follows the new repo's address (`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor`).
 
 </div>
 
@@ -412,7 +416,12 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 <summary>CLI equivalent</summary>
 
 ```bash
-aws ecr create-repository --repository-name falcon-sensor --region {{REGION}} --query repository.repositoryUri --output text
+if aws ecr describe-repositories --repository-names falcon-sensor --region {{REGION}} >/dev/null 2>&1; then
+  echo "✅ falcon-sensor already exists"
+else
+  aws ecr create-repository --repository-name falcon-sensor --region {{REGION}} --query repository.repositoryUri --output text \
+    && echo "🆕 Created falcon-sensor"
+fi
 ```
 
 </details>

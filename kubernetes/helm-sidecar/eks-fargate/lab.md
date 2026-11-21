@@ -222,12 +222,16 @@ for repo in falcon-container falcon-kac falcon-imageanalyzer; do #@opt=kac #@opt
 for repo in falcon-container falcon-kac; do #@opt=kac #@opt=noiar
 for repo in falcon-container falcon-imageanalyzer; do #@opt=nokac #@opt=iar
 for repo in falcon-container; do #@opt=nokac #@opt=noiar
-  aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region <AWS_REGION> --query repository.repositoryUri --output text
+  if aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1; then
+    echo "✅ $repo already exists"
+  else
+    aws ecr create-repository --repository-name $repo --region <AWS_REGION> --query repository.repositoryUri --output text \
+      && echo "🆕 Created $repo"
+  fi
 done
 ```
 
-> **Verify:** Each new repo prints its address (for example `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac`). Nothing prints for a repo that already exists.
+> **Verify:** Each repo prints `✅ ... already exists` (reused) or its address followed by `🆕 Created ...` (new, for example `<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-kac`).
 
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 
@@ -630,8 +634,12 @@ Idempotent, so it is safe to re-run or to use after the Terraform project alread
 
 ```bash
 for repo in falcon-container falcon-kac falcon-imageanalyzer; do
-  aws ecr describe-repositories --repository-names $repo --region {{REGION}} >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region {{REGION}} --query repository.repositoryUri --output text
+  if aws ecr describe-repositories --repository-names $repo --region {{REGION}} >/dev/null 2>&1; then
+    echo "✅ $repo already exists"
+  else
+    aws ecr create-repository --repository-name $repo --region {{REGION}} --query repository.repositoryUri --output text \
+      && echo "🆕 Created $repo"
+  fi
 done
 ```
 

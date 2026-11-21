@@ -137,8 +137,12 @@ for repo in falcon-sensor falcon-kac falcon-imageanalyzer; do #@opt=kac #@opt=ia
 for repo in falcon-sensor falcon-kac; do #@opt=kac #@opt=noiar
 for repo in falcon-sensor falcon-imageanalyzer; do #@opt=nokac #@opt=iar
 for repo in falcon-sensor; do #@opt=nokac #@opt=noiar
-  aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1 \
-    || aws ecr create-repository --repository-name $repo --region <AWS_REGION>
+  if aws ecr describe-repositories --repository-names $repo --region <AWS_REGION> >/dev/null 2>&1; then
+    echo "✅ $repo already exists"
+  else
+    aws ecr create-repository --repository-name $repo --region <AWS_REGION> --query repository.repositoryUri --output text \
+      && echo "🆕 Created $repo"
+  fi
 done
 ```
 
