@@ -21,11 +21,13 @@ There are three primary deployment methods:
 | EKS (EC2 + Fargate hybrid) | DaemonSet + Sidecar | Both methods in one cluster |
 | GKE Standard | Helm DaemonSet | Standard privileged workloads |
 | GKE Autopilot | Helm DaemonSet (bpf mode) | Requires allowlist-synchronizer |
-| AKS | Helm DaemonSet | Standard privileged workloads |
+| AKS (Standard) | Helm DaemonSet | Standard privileged workloads |
+| AKS Automatic | Helm DaemonSet | Roadmap. Deployment Safeguards block privileged pods; Falcon namespaces must be excluded (unverified) |
+| Azure Arc-enabled Kubernetes | Helm DaemonSet | Roadmap. Arc is the management plane; install is the standard chart |
 | OKE (Oracle) | Helm DaemonSet | Guide on the roadmap; use the standard guide meanwhile |
-| AKS (virtual nodes) | Helm Sidecar | No DaemonSet on virtual nodes |
+| AKS (virtual nodes) | Helm Sidecar | No DaemonSet on virtual nodes. Guide on the roadmap |
 | On-prem (kubeadm, Rancher, k3s) | Helm DaemonSet or Operator | Full node access available |
-| OpenShift | Operator | Best compatibility with SCCs |
+| OpenShift (incl. Azure Red Hat OpenShift) | Operator | Best compatibility with SCCs |
 
 ## Guides
 
@@ -37,12 +39,15 @@ There are three primary deployment methods:
 | [eks-hybrid/](helm-daemonset/eks-hybrid/) | EKS with both EC2 and Fargate in the same cluster |
 | [gke-autopilot/](helm-daemonset/gke-autopilot/) | GKE Autopilot (requires bpf backend + allowlist-synchronizer) |
 | [oke/](helm-daemonset/oke/) | Oracle Kubernetes Engine (roadmap) |
+| [aks-automatic/](helm-daemonset/aks-automatic/) | AKS Automatic (roadmap) |
+| [azure-arc/](helm-daemonset/azure-arc/) | Azure Arc-enabled Kubernetes (roadmap) |
 
 ### Helm Sidecar
 
 | Guide | Description |
 |-------|-------------|
 | [eks-fargate/](helm-sidecar/eks-fargate/) | EKS Fargate-only clusters |
+| [aks-virtual-nodes/](helm-sidecar/aks-virtual-nodes/) | AKS virtual nodes (roadmap) |
 
 ### Operator
 

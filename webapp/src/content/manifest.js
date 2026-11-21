@@ -44,6 +44,18 @@ import cspmGcpTerraform from '@content/cspm/account-registration/gcp/terraform/l
 import cspmGcpRm from '@content/cspm/account-registration/gcp/resource-manager/lab.md?raw'
 import cspmOciTerraform from '@content/cspm/account-registration/oci/terraform/lab.md?raw'
 import k8sOke from '@content/kubernetes/helm-daemonset/oke/lab.md?raw'
+import k8sAksAutomatic from '@content/kubernetes/helm-daemonset/aks-automatic/lab.md?raw'
+import k8sAksVirtualNodes from '@content/kubernetes/helm-sidecar/aks-virtual-nodes/lab.md?raw'
+import k8sAzureArc from '@content/kubernetes/helm-daemonset/azure-arc/lab.md?raw'
+import scAzureAppService from '@content/serverless-containers/azure-app-service/lab.md?raw'
+import cipAzureDevops from '@content/container-image-patching/azure-devops/lab.md?raw'
+import vmLinuxAzureExt from '@content/vms/linux/azure-vm-extension/lab.md?raw'
+import vmWinAzureExt from '@content/vms/windows/azure-vm-extension/lab.md?raw'
+import vmWinAvd from '@content/vms/windows/avd/lab.md?raw'
+import vmAzurePolicy from '@content/vms/azure-policy/lab.md?raw'
+import vmAzureArc from '@content/vms/azure-arc/lab.md?raw'
+import vmAzureVmss from '@content/vms/azure-vmss/lab.md?raw'
+import vmAzureImageBuilder from '@content/vms/azure-image-builder/lab.md?raw'
 import commonApiCreds from '@content/_common/api-credentials.md?raw'
 import commonPullImages from '@content/_common/pull-sensor-images.md?raw'
 import commonVerification from '@content/_common/verification.md?raw'
@@ -105,6 +117,18 @@ const labs = {
   'cspm/account-registration/gcp/resource-manager/lab.md': cspmGcpRm,
   'cspm/account-registration/oci/terraform/lab.md': cspmOciTerraform,
   'kubernetes/helm-daemonset/oke/lab.md': k8sOke,
+  'kubernetes/helm-daemonset/aks-automatic/lab.md': k8sAksAutomatic,
+  'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md': k8sAksVirtualNodes,
+  'kubernetes/helm-daemonset/azure-arc/lab.md': k8sAzureArc,
+  'serverless-containers/azure-app-service/lab.md': scAzureAppService,
+  'container-image-patching/azure-devops/lab.md': cipAzureDevops,
+  'vms/linux/azure-vm-extension/lab.md': vmLinuxAzureExt,
+  'vms/windows/azure-vm-extension/lab.md': vmWinAzureExt,
+  'vms/windows/avd/lab.md': vmWinAvd,
+  'vms/azure-policy/lab.md': vmAzurePolicy,
+  'vms/azure-arc/lab.md': vmAzureArc,
+  'vms/azure-vmss/lab.md': vmAzureVmss,
+  'vms/azure-image-builder/lab.md': vmAzureImageBuilder,
   '_common/api-credentials.md': commonApiCreds,
   '_common/pull-sensor-images.md': commonPullImages,
   '_common/verification.md': commonVerification,
@@ -225,6 +249,19 @@ const LABS = [
   { id: 'serverless-containers/azure-container-apps',      label: 'Azure Container Apps',      area: 'Serverless Containers', md: 'serverless-containers/azure-container-apps/lab.md' },
   { id: 'serverless-containers/azure-container-instances', label: 'Azure Container Instances', area: 'Serverless Containers', md: 'serverless-containers/azure-container-instances/lab.md' },
   { id: 'serverless-containers/cloud-run',                 label: 'Cloud Run',                 area: 'Serverless Containers', md: 'serverless-containers/cloud-run/lab.md' },
+
+  { id: 'kubernetes/helm-daemonset/aks-automatic', label: 'AKS Automatic', area: 'Kubernetes · Helm DaemonSet', md: 'kubernetes/helm-daemonset/aks-automatic/lab.md' },
+  { id: 'kubernetes/helm-sidecar/aks-virtual-nodes', label: 'AKS Virtual Nodes', area: 'Kubernetes · Helm Sidecar', md: 'kubernetes/helm-sidecar/aks-virtual-nodes/lab.md' },
+  { id: 'kubernetes/helm-daemonset/azure-arc', label: 'Azure Arc-enabled Kubernetes', area: 'Kubernetes · Helm DaemonSet', md: 'kubernetes/helm-daemonset/azure-arc/lab.md' },
+  { id: 'serverless-containers/azure-app-service', label: 'Azure App Service', area: 'Serverless Containers', md: 'serverless-containers/azure-app-service/lab.md' },
+  { id: 'container-image-patching/azure-devops', label: 'Azure Pipelines', area: 'Container Image Patching', md: 'container-image-patching/azure-devops/lab.md' },
+  { id: 'vms/linux/azure-vm-extension', label: 'Azure VM Extension', area: 'VMs · Linux', md: 'vms/linux/azure-vm-extension/lab.md' },
+  { id: 'vms/windows/azure-vm-extension', label: 'Azure VM Extension', area: 'VMs · Windows', md: 'vms/windows/azure-vm-extension/lab.md' },
+  { id: 'vms/windows/avd', label: 'Azure Virtual Desktop', area: 'VMs · Windows', md: 'vms/windows/avd/lab.md' },
+  { id: 'vms/azure-policy', label: 'Azure Policy', area: 'VMs · Azure', md: 'vms/azure-policy/lab.md' },
+  { id: 'vms/azure-arc', label: 'Azure Arc-enabled Servers', area: 'VMs · Azure', md: 'vms/azure-arc/lab.md' },
+  { id: 'vms/azure-vmss', label: 'Virtual Machine Scale Sets', area: 'VMs · Azure', md: 'vms/azure-vmss/lab.md' },
+  { id: 'vms/azure-image-builder', label: 'Azure Image Builder', area: 'VMs · Azure', md: 'vms/azure-image-builder/lab.md' },
 
   { id: 'fcs-cli/github-actions-image-scan', label: 'GitHub Actions Image Scan', area: 'FCS CLI', md: 'fcs-cli/github-actions-image-scan/lab.md' },
   { id: 'cspm/account-registration/aws-terraform', label: 'AWS Terraform', area: 'Cloud Registration', md: 'cspm/account-registration/aws/terraform/lab.md' },
@@ -383,22 +420,42 @@ export const manifest = [
     ]),
   ]),
 
-  cloud('Azure', 'azure', 'azure', 'AKS, Container Instances, Container Apps, virtual machines, and Azure account registration.', [
+  cloud('Azure', 'azure', 'azure', 'AKS, Azure Red Hat OpenShift, serverless containers, virtual machines, and Azure account registration.', [
     ...cat('Containers', [
       g('AKS', 'aks', [
         l(K8S, 'standard', { label: 'Standard', cloudPreset: 'aks' }),
+        l('kubernetes/helm-daemonset/aks-automatic', 'automatic'),
+        l('kubernetes/helm-sidecar/aks-virtual-nodes', 'virtual-nodes'),
+        l('kubernetes/helm-daemonset/azure-arc', 'arc-enabled'),
       ]),
-      l('serverless-containers/azure-container-instances', 'container-instances', { label: 'Container Instances (ACI)' }),
-      l('serverless-containers/azure-container-apps', 'container-apps', { label: 'Container Apps' }),
+      g('Azure Red Hat OpenShift', 'aro', [
+        l('kubernetes/operator/openshift', 'operator', { label: 'Falcon Operator' }),
+      ]),
+      g('Serverless Containers', 'serverless', [
+        l('serverless-containers/azure-container-instances', 'container-instances', { label: 'Container Instances (ACI)' }),
+        l('serverless-containers/azure-container-apps', 'container-apps', { label: 'Container Apps' }),
+        l('serverless-containers/azure-app-service', 'app-service', { label: 'App Service' }),
+      ]),
     ]),
     ...cat('Virtual Machines', [
       g('Azure VMs', 'vms', [
         g('Linux', 'linux', [
+          l('vms/linux/azure-vm-extension', 'vm-extension'),
+          l('vms/azure-policy', 'azure-policy'),
+          l('vms/azure-image-builder', 'image-builder'),
+          l('vms/azure-vmss', 'scale-sets'),
+          l('vms/azure-arc', 'arc-servers'),
           l('vms/linux/ansible', 'ansible'),
           l('vms/linux/manual-cli', 'manual-cli'),
         ]),
         g('Windows', 'windows', [
+          l('vms/windows/azure-vm-extension', 'vm-extension'),
           l('vms/windows/intune', 'intune'),
+          l('vms/windows/avd', 'virtual-desktop'),
+          l('vms/azure-policy', 'azure-policy'),
+          l('vms/azure-image-builder', 'image-builder'),
+          l('vms/azure-vmss', 'scale-sets'),
+          l('vms/azure-arc', 'arc-servers'),
           l('vms/windows/manual-cli', 'manual-cli'),
         ]),
       ]),
@@ -469,6 +526,7 @@ export const manifest = [
         l('container-image-patching/github-actions', 'github-actions'),
         l('container-image-patching/gitlab-ci', 'gitlab-ci'),
         l('container-image-patching/jenkins', 'jenkins'),
+        l('container-image-patching/azure-devops', 'azure-pipelines'),
       ], 'container-image-patching/README.md'),
     ]),
     ...cat('Virtual Machines', [
