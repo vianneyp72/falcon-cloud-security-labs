@@ -12,9 +12,9 @@ const DEFAULTS = { kac: true, iar: true, proxy: false, logging: false, pacing: f
 // Reader-toggled options that add lines to a command (gate: `#@opt=<id>`). To add one, add an
 // entry here, list its id in the `data-deploy-options` attribute, and gate its lines in the lab.
 const EXTRAS = {
-  logging: { label: 'Send sensor logs to CloudWatch', hint: '(adds EnableLogging)', short: 'logging' },
-  pacing: { label: 'Slow the instance rollout', hint: '(edit the drain percent and bake time in the command)', short: 'rollout pacing' },
-  limits: { label: 'Cap sensor CPU and memory', hint: '(edit the limits in the command)', short: 'resource limits' },
+  logging: { label: 'Send sensor logs to CloudWatch', hint: 'Adds EnableLogging', short: 'logging' },
+  pacing: { label: 'Slow the instance rollout', hint: 'Edit the drain percent and bake time in the command', short: 'rollout pacing' },
+  limits: { label: 'Cap sensor CPU and memory', hint: 'Edit the limits in the command', short: 'resource limits' },
 }
 const DEFAULT_SECTIONS = ['cloud', 'components', 'proxy']
 
@@ -80,11 +80,13 @@ export default function DeployOptions({ sections }) {
   const [open, setOpen] = useState(false)
   const show = new Set(sections?.length ? sections : DEFAULT_SECTIONS)
   const extras = Object.keys(EXTRAS).filter(k => show.has(k))
-  const customized =
-    (show.has('cloud') && cloud !== 'commercial') ||
-    (show.has('components') && (!kac || !iar)) ||
-    (show.has('proxy') && proxy) ||
-    extras.some(k => state[k])
+  const changed = [
+    show.has('cloud') && cloud !== 'commercial',
+    show.has('components') && !kac,
+    show.has('components') && !iar,
+    show.has('proxy') && proxy,
+    ...extras.map(k => state[k]),
+  ].filter(Boolean).length
   const hint = [
     show.has('cloud') && 'GovCloud',
     show.has('proxy') && 'proxy',
@@ -92,90 +94,100 @@ export default function DeployOptions({ sections }) {
     ...extras.map(k => EXTRAS[k].short),
   ].filter(Boolean).join(', ')
 
-  const tab = (active, onClick, label) => (
+  const segment = (active, onClick, label) => (
     <button
-      className={`mode-toggle__tab ${active ? 'mode-toggle__tab--active' : ''}`}
+      type="button"
+      className={`registry-picker__segment ${active ? 'registry-picker__segment--active' : ''}`}
+      aria-pressed={active}
       onClick={onClick}
     >
       {label}
     </button>
   )
-  const check = (checked, key, label, hint) => (
-    <label className="registry-picker__check">
-      <input type="checkbox" checked={checked} onChange={e => set({ [key]: e.target.checked })} />
-      <span>
-        {label}
-        {hint && <span className="registry-picker__hint"> {hint}</span>}
+  const option = (checked, label, hint, onChange, disabled) => (
+    <label className={`registry-picker__option ${disabled ? 'registry-picker__option--disabled' : ''}`}>
+      <span className="registry-picker__option-text">
+        <span className="registry-picker__option-label">{label}</span>
+        {hint && <span className="registry-picker__option-hint">{hint}</span>}
       </span>
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={onChange} />
+      <span className="registry-picker__switch" aria-hidden="true" />
     </label>
+  )
+  const toggle = (key, label, hint) => option(state[key], label, hint, e => set({ [key]: e.target.checked }))
+  const group = (title, body) => (
+    <div className="registry-picker__group">
+      <span className="registry-picker__label">{title}</span>
+      {body}
+    </div>
   )
 
   return (
-    <div className="registry-picker">
+    <div className={`registry-picker registry-picker--panel ${open ? 'registry-picker--open' : ''}`}>
       <details
         className="registry-picker__more"
         open={open}
         onToggle={e => setOpen(e.currentTarget.open)}
       >
         <summary>
-          Additional settings
-          <span className="registry-picker__hint"> {hint}</span>
-          {customized && <span className="registry-picker__badge">customized</span>}
+          <svg className="registry-picker__icon" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M3 5.5h8M15 5.5h2M3 14.5h2M9 14.5h8" />
+            <circle cx="13" cy="5.5" r="2" />
+            <circle cx="7" cy="14.5" r="2" />
+          </svg>
+          <span className="registry-picker__title">
+            Additional settings
+            <span className="registry-picker__hint">{hint}</span>
+          </span>
+          {changed > 0 && <span className="registry-picker__badge">{changed} changed</span>}
         </summary>
-        {show.has('cloud') && (
-          <div className="registry-picker__row">
-            <span className="registry-picker__label">My Falcon cloud</span>
-            <div className="mode-toggle">
-              {tab(cloud === 'commercial', () => setFalconCloud('commercial'), 'Commercial')}
-              {tab(cloud === 'gov', () => cloud !== 'gov' && setFalconCloud(GOV_TYPES[0].choice), 'GovCloud')}
-            </div>
-          </div>
-        )}
-        {show.has('cloud') && cloud === 'gov' && (
-          <div className="registry-picker__row">
-            <span className="registry-picker__label">GovCloud region</span>
-            <div className="mode-toggle">
-              {GOV_TYPES.map(g => (
-                <span key={g.id} style={{ display: 'contents' }}>
-                  {tab(gov === g.id, () => setFalconCloud(g.choice), g.label)}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {show.has('components') && (
-          <div className="registry-picker__row registry-picker__row--top">
-            <span className="registry-picker__label">Components</span>
-            <div className="registry-picker__checks">
-              <label className="registry-picker__check">
-                <input type="checkbox" checked disabled />
-                <span>Sensor <span className="registry-picker__hint">(always installed)</span></span>
-              </label>
-              {check(kac, 'kac', 'KAC', '(Kubernetes Admission Controller)')}
-              {check(iar, 'iar', 'IAR', '(Image Analyzer)')}
-            </div>
-          </div>
-        )}
-        {show.has('proxy') && (
-          <div className="registry-picker__row registry-picker__row--top">
-            <span className="registry-picker__label">Network</span>
-            <div className="registry-picker__checks">
-              {check(proxy, 'proxy', 'Cluster egress goes through an HTTP proxy', '(edit PROXY_HOST and PROXY_PORT in the command)')}
-            </div>
-          </div>
-        )}
-        {extras.length > 0 && (
-          <div className="registry-picker__row registry-picker__row--top">
-            <span className="registry-picker__label">Options</span>
-            <div className="registry-picker__checks">
-              {extras.map(k => (
-                <span key={k} style={{ display: 'contents' }}>
-                  {check(state[k], k, EXTRAS[k].label, EXTRAS[k].hint)}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="registry-picker__body">
+          {show.has('cloud') &&
+            group(
+              'My Falcon cloud',
+              <div className="registry-picker__segments">
+                {segment(cloud === 'commercial', () => setFalconCloud('commercial'), 'Commercial')}
+                {segment(cloud === 'gov', () => cloud !== 'gov' && setFalconCloud(GOV_TYPES[0].choice), 'GovCloud')}
+                {cloud === 'gov' && (
+                  <>
+                    <span className="registry-picker__divider" aria-hidden="true" />
+                    {GOV_TYPES.map(g => (
+                      <span key={g.id} style={{ display: 'contents' }}>
+                        {segment(gov === g.id, () => setFalconCloud(g.choice), g.label)}
+                      </span>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          {show.has('components') &&
+            group(
+              'Components',
+              <div className="registry-picker__options">
+                {option(true, 'Sensor', 'Always installed', undefined, true)}
+                {toggle('kac', 'KAC', 'Kubernetes Admission Controller')}
+                {toggle('iar', 'IAR', 'Image Analyzer')}
+              </div>
+            )}
+          {show.has('proxy') &&
+            group(
+              'Network',
+              <div className="registry-picker__options">
+                {toggle('proxy', 'Cluster egress goes through an HTTP proxy', 'Edit PROXY_HOST and PROXY_PORT in the command')}
+              </div>
+            )}
+          {extras.length > 0 &&
+            group(
+              'Options',
+              <div className="registry-picker__options">
+                {extras.map(k => (
+                  <span key={k} style={{ display: 'contents' }}>
+                    {toggle(k, EXTRAS[k].label, EXTRAS[k].hint)}
+                  </span>
+                ))}
+              </div>
+            )}
+        </div>
       </details>
     </div>
   )

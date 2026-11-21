@@ -156,6 +156,10 @@ helm repo update
 
 ### 4. Deploy the chart (Autopilot settings)
 
+> **Note:** Open **Additional settings** below if your CID is in GovCloud. The command updates to match. Skip it for a commercial deployment.
+
+<div data-deploy-options="cloud"></div>
+
 > **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
 
 ```bash
@@ -176,11 +180,11 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --set falcon-image-analyzer.image.repository=$IAR_REGISTRY \
   --set falcon-image-analyzer.image.tag=$IAR_IMAGE_TAG \
   --set falcon-image-analyzer.crowdstrikeConfig.clusterName=<CLUSTER_NAME> \
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1 \ #@region=gov1
+  --set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov2 \ #@region=gov2
   --set falcon-image-analyzer.crowdstrikeConfig.clientID=<FALCON_CLIENT_ID> \
   --set falcon-image-analyzer.crowdstrikeConfig.clientSecret=$FALCON_CLIENT_SECRET
 ```
-
-> **Note:** If registering to CrowdStrike GovCloud (us-gov-1 or us-gov-2), add one flag so Image Analyzer targets the right region: `--set falcon-image-analyzer.crowdstrikeConfig.agentRegion=gov1` (use `gov2` for us-gov-2). Skip this if your CID is in a commercial cloud.
 
 ### 5. Verify
 

@@ -41,6 +41,8 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 
 Both pickers store the reader's choice in localStorage and every gated block updates live.
 
+**One look and feel.** Pick-one controls render as segmented tabs, on/off options as switch rows, and groups of optional settings as the Additional settings panel. Choose by the reader's decision, not by preference: one of N -> a picker (`data-registry-picker`, `data-choice-picker`, `data-profile-picker`, `data-test-target-picker`); optional add-on to a command -> a switch in the panel (`data-deploy-options`). Never hand-roll toggles with markdown checkboxes or loose HTML. Styling rules for webapp authors are in `webapp/CLAUDE.md`, "Interactive controls".
+
 **Registry picker** (`data-registry-picker`) sets: source (`crowdstrike` or `own`), registry type (`ecr`, `acr`, `gar`, `generic`), and for ECR, `new` vs `existing` repo.
 
 Gate values for `data-registry` and `#@registry=` (comma list means any match):

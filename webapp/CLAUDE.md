@@ -162,6 +162,19 @@ Legacy aliases (`--accent`, `--bg`, `--nav-bg`, `--text`, `--code-bg`, `--card-b
 5. **`prefers-reduced-motion` is respected globally** — animations/transitions collapse to `0.01ms` when the user opts out. New components using `transition:` will inherit this automatically; no per-component work needed.
 6. **`prefers-color-scheme` seeds first-visit theme.** `useTheme` reads `localStorage.theme` first, falls back to the OS setting. Once the user toggles, their choice sticks across reloads.
 
+### Interactive controls — one look everywhere
+
+Every reader-facing control in a lab (pickers, settings panels) uses the same three building blocks. Reuse them; do not invent a fourth style.
+
+| Need | Use | Where it lives |
+|------|-----|----------------|
+| Pick ONE of several options (registry, method, OS, Falcon cloud) | **Segmented control**: `.mode-toggle` + `.mode-toggle__tab` inside a `.registry-picker` or `.choice-picker` wrapper. Active tab is a raised `--bg-card` pill with red text | `ChoicePicker.jsx`, `RegistryChoice.jsx`, `ProfileMethod.jsx`, `TestTarget.jsx` |
+| Turn an OPTION on or off (proxy, logging, KAC, IAR) | **Switch row**: `.registry-picker__option` with a hidden `role="switch"` checkbox and `.registry-picker__switch` track (red when on). Label + one-line muted hint on the left, switch on the right. Never a native checkbox | `DeployOptions.jsx` |
+| Group several optional settings | **Additional settings panel**: collapsible `.registry-picker--panel` card with an icon, a summary line, and an "N changed" pill. Rows grouped under small uppercase labels | `DeployOptions.jsx` |
+| Type values | **Fill panel**: `.lab-variables` (red border, text inputs) | `FillFields.jsx`, `LabVariables.jsx` |
+
+Rules: group labels are 0.7rem uppercase with 0.08em tracking; red marks only the active/on state; every control needs a visible `:focus-visible` ring (`--cs-red`); colors, radii and motion come from tokens; verify in both themes. New pickers must wrap their tabs in `.registry-picker` or `.choice-picker` so they inherit the segmented look automatically. The panel is shared by every lab that uses `data-deploy-options`, so a change to it is a webapp-wide change (call it out in the commit for the kc2 re-port).
+
 ### Where things live
 
 | Concern | File |
