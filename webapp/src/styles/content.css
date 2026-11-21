@@ -1051,6 +1051,10 @@
   gap: 0.5rem 1rem;
 }
 
+.registry-picker__row--top {
+  align-items: flex-start;
+}
+
 .registry-picker__label {
   min-width: 8.5rem;
   font-size: 0.7rem;

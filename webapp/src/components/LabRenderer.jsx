@@ -236,7 +236,9 @@ export default function LabRenderer({ labKey: route }) {
         return <RegistryChoice />
       }
       if (node?.properties?.dataDeployOptions !== undefined) {
-        return <DeployOptions />
+        const list = node.properties.dataDeployOptions
+        const sections = typeof list === 'string' ? list.split(',').map(x => x.trim()).filter(Boolean) : []
+        return <DeployOptions sections={sections} />
       }
       if (node?.properties?.dataProfilePicker !== undefined) {
         return <ProfileMethod />

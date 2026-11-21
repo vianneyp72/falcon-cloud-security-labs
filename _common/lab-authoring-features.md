@@ -9,7 +9,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Mode split | `<div data-mode="guide">` / `<div data-mode="lab">` | Top level | `ModeToggle.jsx` |
 | Registry picker | `<div data-registry-picker></div>` | Guide mode | `RegistryChoice.jsx` |
 | Registry block gate | `<div data-registry="ecr,acr">` | Anywhere | `RegistryChoice.jsx` |
-| Deploy options picker | `<div data-deploy-options></div>` | Guide mode | `DeployOptions.jsx` |
+| Additional settings panel | `<div data-deploy-options></div>` or `<div data-deploy-options="proxy,logging"></div>` | Guide mode | `DeployOptions.jsx` |
 | Line gate in code | trailing `#@registry=` / `#@region=` / `#@opt=` / `#@choice=` | Code blocks | `LabRenderer.jsx` |
 | Option block gate | `<div data-opt="kac">` | Anywhere | `LabRenderer.jsx` |
 | Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Both modes | `ProfileMethod.jsx` |
@@ -53,7 +53,32 @@ Gate values for `data-registry` and `#@registry=` (comma list means any match):
 | `ecr-new` / `ecr-existing` | ECR with per-image repos / one existing repo |
 | `per-image` | Own registry where each image gets its own repo (everything except ECR existing) |
 
-**Deploy options** (`data-deploy-options`) sets: Commercial vs GovCloud (US-GOV-1 / US-GOV-2), optional component toggles, and HTTP proxy.
+**Additional settings panel** (`data-deploy-options`) is the one way to expose optional settings in Quick Deploy. Never list extra parameters in a trailing Note or in loose toggles the reader has to paste by hand; put each one in this panel and gate its lines in the command with `#@opt=`, so ticking a box rewrites the copy block. Put the panel directly above the command it changes, with this lead-in: `> **Note:** Open **Additional settings** below for <what it covers>. The commands update to match.`
+
+With no value the panel shows the Kubernetes set: Falcon cloud, components (KAC, IAR) and proxy. Pass a comma list to show only what the method supports:
+
+| Section id | Panel row | Gate for the command lines |
+|---|---|---|
+| `cloud` | Commercial / GovCloud (US-GOV-1, US-GOV-2) | `#@region=gov1` etc., or `#@choice=falconcloud:govcloud-1` |
+| `components` | KAC and IAR checkboxes | `#@opt=kac`, `nokac`, `iar`, `noiar` |
+| `proxy` | HTTP proxy checkbox | `#@opt=proxy` |
+| `logging` | Send sensor logs to CloudWatch | `#@opt=logging` |
+| `pacing` | Slow the instance rollout | `#@opt=pacing` |
+| `limits` | Cap sensor CPU and memory | `#@opt=limits` |
+
+Example for a CloudFormation lab (the proxy and limits values are editable placeholders, so the reader changes them in the command after ticking the box):
+
+```text
+<div data-deploy-options="proxy,logging,limits"></div>
+
+    "APH=<PROXY_HOST>" \ #@opt=proxy
+    "EnableLogging=true" \ #@opt=logging
+    "SensorCpuLimit=<CPU_LIMIT:512>" \ #@opt=limits
+```
+
+The Falcon cloud row shares state with `<div data-choice-picker="falconcloud">`, so a lab can use either and they stay in sync. Use the panel when the cloud only adds lines to one command (as above); use the standalone picker with `data-choice` blocks when whole steps differ per cloud. Settings that do not map to a command line (for example `Trace`, `Billing`) go in a closed `<details><summary>Other parameters you can add</summary>` table under the command.
+
+To add a new option, add an entry to `EXTRAS` in `DeployOptions.jsx` (label, hint, short name), list its id in the `data-deploy-options` attribute, and gate the lines with `#@opt=<id>`. Update this table. Examples: `ecs/managed-instances-daemon/lab.md`, `ecs/ec2-daemon-service/lab.md`, `kubernetes/helm-daemonset/k8s-standard/lab.md`.
 
 ## Line gates in code blocks
 
@@ -67,7 +92,7 @@ Append a marker to the end of a line. The marker is stripped from what the reade
 
 | Marker | Values |
 |---|---|
-| `#@opt=` | `kac`, `nokac`, `iar`, `noiar`, `proxy` |
+| `#@opt=` | `kac`, `nokac`, `iar`, `noiar`, `proxy`, `logging`, `pacing`, `limits` |
 | `#@choice=` | `key:option` from the Choice picker table (comma list of options means any match), for example `#@choice=secrets:k8s` |
 | `#@region=` | `commercial`, `gov`, `gov1`, `gov2` |
 | `#@registry=` | see the registry table above |
@@ -77,11 +102,11 @@ Gotchas:
 - Keep the trailing `\` BEFORE the marker so the copied command still continues correctly.
 - A line that is only a marker (such as `#@opt=kac` alone) is kept or dropped as an empty line; use it to gate a blank spacer.
 - To vary a `for` loop by component, write one `for` line per combination (see `kac`/`noiar` rows in k8s-standard), each with its own gates.
-- Component names `kac` and `iar` are hardcoded in `DeployOptions.jsx`. A lab with different optional components needs that component extended first.
+- Component names `kac` and `iar` are hardcoded in `DeployOptions.jsx`. Other options are the `EXTRAS` entries there; a lab needing a new one adds it first.
 
 ## Option block gates
 
-`<div data-opt="kac">` shows its contents only when that Additional-settings option is active (same values as `#@opt=`: `kac`, `nokac`, `iar`, `noiar`, `proxy`; comma list means any match). Use it to hide a whole install step, intro line and code block together, when a component is unchecked. Blank lines after the opening tag and before `</div>` are required. See the KAC and Image Analyzer installs in `kubernetes/helm-sidecar/eks-fargate/lab.md`.
+`<div data-opt="kac">` shows its contents only when that Additional-settings option is active (same values as `#@opt=`: `kac`, `nokac`, `iar`, `noiar`, `proxy`, `logging`, `pacing`, `limits`; comma list means any match). Use it to hide a whole install step, intro line and code block together, when a component is unchecked. Blank lines after the opening tag and before `</div>` are required. See the KAC and Image Analyzer installs in `kubernetes/helm-sidecar/eks-fargate/lab.md`.
 
 ## Method picker (Fargate profile)
 

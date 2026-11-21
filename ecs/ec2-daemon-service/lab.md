@@ -174,6 +174,10 @@ cd aws-cloudformation-falcon-sensor-ecs/falcon-sensor-ecs-ec2
 
 ### 5. Deploy the stack
 
+> **Note:** Open **Additional settings** below for proxy, sensor logging, and resource limits. The command updates to match. Skip it for a default deployment.
+
+<div data-deploy-options="proxy,logging,limits"></div>
+
 Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group these hosts in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only. The two GovCloud lines appear only when you pick GovCloud in step 2:
 
 ```bash
@@ -187,12 +191,45 @@ aws cloudformation deploy \
     "FalconImagePath=$FALCON_IMAGE_PATH" \
     "Cloud=us-gov-1" \ #@choice=falconcloud:govcloud-1
     "Cloud=us-gov-2" \ #@choice=falconcloud:govcloud-2
+    "APH=<PROXY_HOST>" \ #@opt=proxy
+    "APP=<PROXY_PORT>" \ #@opt=proxy
+    "EnableLogging=true" \ #@opt=logging
+    "ECSTaskRoleArn=<TASK_ROLE_ARN>" \ #@opt=logging
+    "EnableResourceLimits=true" \ #@opt=limits
+    "SensorCpuLimit=<CPU_LIMIT:512>" \ #@opt=limits
+    "SensorMemoryLimit=<MEMORY_LIMIT:1024>" \ #@opt=limits
     "Tags=<SENSOR_TAGS:ecs-ec2-daemon>"
 ```
 
 > **Look for:** The command waits, then prints `Successfully created/updated stack - falcon-ecs-ec2-daemon-<CLUSTER_NAME>`. If it ends with `Failed to create/update the stack`, run `aws cloudformation describe-stack-events --stack-name falcon-ecs-ec2-daemon-<CLUSTER_NAME> --region <AWS_REGION>` and read the first `FAILED` reason.
 
-> **Note:** Proxy, logging, resource limits, and other options are extra `--parameter-overrides` entries. Full Lab section 4 lists them and Challenges 1 and 2 use two.
+<div data-opt="logging">
+
+> **Heads-up:** Logging needs a task role the cluster can assume (`ecs-tasks.amazonaws.com` with the `AmazonECSTaskExecutionRolePolicy` managed policy); paste its ARN into `TASK_ROLE_ARN`. Full Lab Challenge 1 shows how to create it.
+
+</div>
+
+<div data-opt="limits">
+
+> **Heads-up:** Resource limits should come from measured sensor usage. The CPU limit must be at least the reservation (default 256) and the memory limit above the reservation (default 512).
+
+</div>
+
+<details>
+<summary>Other parameters you can add</summary>
+
+Add any of these as extra `"Name=value" \` lines above the `Tags` line.
+
+| Parameter | Use |
+|---|---|
+| `APD` | `true` turns the sensor's proxy use off |
+| `Trace` | Sensor log level: `none` (default), `err`, `warn`, `info`, `debug` |
+| `Feature` | Sensor feature options passed to `falconctl` |
+| `ProvisioningToken` | Install token, if your CID requires one |
+| `Billing` | `default` or `metered` |
+| `EnableExecuteCommand` | `true` enables ECS Exec on the sensor container; also requires `ECSExecutionRoleArn` and `ECSTaskRoleArn` |
+
+</details>
 
 ### 6. Verify deployment
 

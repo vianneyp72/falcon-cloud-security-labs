@@ -209,6 +209,10 @@ cd aws-cloudformation-falcon-sensor-ecs/falcon-sensor-ecs-managed
 
 ### 5. Deploy the stack
 
+> **Note:** Open **Additional settings** below for proxy, sensor logging, rollout pacing, and resource limits. The command updates to match. Skip it for a default deployment.
+
+<div data-deploy-options="proxy,logging,pacing,limits"></div>
+
 Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group these hosts in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only. The two GovCloud lines appear only when you pick GovCloud in step 2:
 
 ```bash
@@ -224,6 +228,14 @@ aws cloudformation deploy \
     "ECSExecutionRoleArn=<EXECUTION_ROLE_ARN>" \
     "Cloud=us-gov-1" \ #@choice=falconcloud:govcloud-1
     "Cloud=us-gov-2" \ #@choice=falconcloud:govcloud-2
+    "APH=<PROXY_HOST>" \ #@opt=proxy
+    "APP=<PROXY_PORT>" \ #@opt=proxy
+    "EnableLogging=true" \ #@opt=logging
+    "DeploymentDrainPercent=<DRAIN_PERCENT:5>" \ #@opt=pacing
+    "DeploymentBakeTimeInMinutes=<BAKE_MINUTES:10>" \ #@opt=pacing
+    "EnableResourceLimits=true" \ #@opt=limits
+    "SensorCpuLimit=<CPU_LIMIT:512>" \ #@opt=limits
+    "SensorMemoryLimit=<MEMORY_LIMIT:1024>" \ #@opt=limits
     "Tags=<SENSOR_TAGS:ecs-managed-daemon>"
 ```
 
@@ -231,7 +243,29 @@ aws cloudformation deploy \
 
 > **Heads-up:** ECS now drains and replaces your instances in batches (10 percent at a time by default, with a 5-minute bake time between batches), so the rollout can take a while on a larger cluster. Expect new host entries with new AIDs in Falcon.
 
-> **Note:** Proxy, logging, deployment pacing, resource limits, and other options are extra `--parameter-overrides` entries. Full Lab section 4 lists them and Challenges 1 and 2 use some.
+<div data-opt="limits">
+
+> **Heads-up:** Resource limits should come from measured sensor usage; a limit set too low can starve the sensor. The CPU limit must be at least the reservation (default 256) and the memory limit above the reservation (default 512).
+
+</div>
+
+<details>
+<summary>Other parameters you can add</summary>
+
+Add any of these as extra `"Name=value" \` lines above the `Tags` line.
+
+| Parameter | Use |
+|---|---|
+| `APD` | `true` turns the sensor's proxy use off |
+| `DaemonCritical` | `false` keeps workloads running if the sensor fails (default `true`: ECS replaces the instance) |
+| `Trace` | Sensor log level: `none` (default), `err`, `warn`, `info`, `debug` |
+| `Feature` | Sensor feature options passed to `falconctl` |
+| `ProvisioningToken` | Install token, if your CID requires one |
+| `Billing` | `default` or `metered` |
+| `EnableExecuteCommand` | `true` enables ECS Exec on the sensor container; also requires `ECSTaskRoleArn` |
+| `TaskDefinitionFamily` | Keeps revision history when migrating from an earlier deployment |
+
+</details>
 
 ### 6. Verify deployment
 

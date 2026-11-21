@@ -179,9 +179,14 @@ TODO command
 
 ### 4. Deploy
 
-<!-- OPTIONAL: deploy options (GovCloud, proxy, optional components). Delete the picker and every
-     #@opt / #@region marker if the method has none of these. To hide a whole component's step
-     (intro line + code block) when it is unchecked, wrap it in <div data-opt="kac"> ... </div>. -->
+<!-- OPTIONAL: Additional settings panel. This is the required way to offer optional settings
+     (GovCloud, proxy, components, logging, rollout pacing, resource limits): each one is a checkbox
+     whose lines appear in the copy block via #@opt / #@region markers. Do NOT describe optional
+     parameters in a trailing Note or loose toggles. Delete the panel and markers if the method has
+     none. Pass the sections you support, for example data-deploy-options="proxy,logging,limits"
+     (ids in _common/lab-authoring-features.md, "Additional settings panel"). Options that are not a
+     command line go in a closed <details> table. To hide a whole component's step (intro line +
+     code block) when it is unchecked, wrap it in <div data-opt="kac"> ... </div>. -->
 
 > **Note:** Open **Additional settings** below for GovCloud, proxy, and which components to deploy. The commands update to match.
 
