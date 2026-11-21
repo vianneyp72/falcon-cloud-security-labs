@@ -293,8 +293,10 @@ aws ec2 delete-security-group --group-id $SG_ID --region $AWS_REGION
 
 ### Add or change sensor grouping tags
 
+<div data-sensor-tags="SENSOR_TAGS:Environment/Production,Team/Platform"></div>
+
 ```powershell
-& "C:\Program Files\CrowdStrike\falconctl.exe" /s --tags="Environment/Production,Team/Platform"
+& "C:\Program Files\CrowdStrike\falconctl.exe" /s --tags="<SENSOR_TAGS:Environment/Production,Team/Platform>"
 Restart-Service CSFalconService
 ```
 

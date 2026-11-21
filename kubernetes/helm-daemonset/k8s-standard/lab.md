@@ -329,7 +329,7 @@ helm repo update
 
 Install the chart, passing the pull token so Kubernetes can pull from CrowdStrike's registry:
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:daemonset-sensor"></div>
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -367,7 +367,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 
 Install the chart. No registry credentials are passed because the cluster's nodes pull from your registry with their own cloud identity:
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:daemonset-sensor"></div>
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -404,7 +404,7 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 
 Install the chart, passing the registry credentials built in Step 2 so Kubernetes can pull from your registry:
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:daemonset-sensor"></div>
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -884,7 +884,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:daemonset-sensor"></div>
 
 - [ ] Run the Helm install with all component configurations:
 

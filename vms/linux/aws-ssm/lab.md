@@ -89,13 +89,15 @@ export FALCON_CID="<your-cid-with-checksum>"
 
 ### 2. Install via SSM Distributor
 
+<div data-sensor-tags="SENSOR_TAGS:SSM-Deployed"></div>
+
 ```bash
 aws ssm send-command \
   --document-name "AWS-ConfigureAWSPackage" \
   --parameters '{
     "action": ["Install"],
     "name": ["CrowdStrike-FalconSensor"],
-    "additionalArguments": ["{\"SSM_CS_CCID\":\"'"$FALCON_CID"'\",\"SSM_CS_INSTALLPARAMS\":\"--tags=SSM-Deployed\"}"]
+    "additionalArguments": ["{\"SSM_CS_CCID\":\"'"$FALCON_CID"'\",\"SSM_CS_INSTALLPARAMS\":\"--tags=<SENSOR_TAGS:SSM-Deployed>\"}"]
   }' \
   --targets "Key=tag:Name,Values=<YOUR_INSTANCE_TAG>" \
   --region $AWS_REGION
@@ -192,13 +194,15 @@ export FALCON_CID="<your-cid-with-checksum>"
 
 ### Run the SSM command
 
+<div data-sensor-tags="SENSOR_TAGS:SSM-Deployed"></div>
+
 ```bash
 export COMMAND_ID=$(aws ssm send-command \
   --document-name "AWS-ConfigureAWSPackage" \
   --parameters '{
     "action": ["Install"],
     "name": ["CrowdStrike-FalconSensor"],
-    "additionalArguments": ["{\"SSM_CS_CCID\":\"'"$FALCON_CID"'\",\"SSM_CS_INSTALLPARAMS\":\"--tags=SSM-Lab-Deployed\"}"]
+    "additionalArguments": ["{\"SSM_CS_CCID\":\"'"$FALCON_CID"'\",\"SSM_CS_INSTALLPARAMS\":\"--tags=<SENSOR_TAGS:SSM-Deployed>\"}"]
   }' \
   --targets "Key=tag:Name,Values=falcon-ssm-lab" \
   --query 'Command.CommandId' --output text \
@@ -264,7 +268,7 @@ aws ssm send-command \
 3. Both instances should appear with:
    - **Status:** Online (green dot)
    - **OS:** Amazon Linux 2023
-   - **Tags:** `SSM-Lab-Deployed`
+   - **Grouping Tags:** the value you entered
 
 ---
 

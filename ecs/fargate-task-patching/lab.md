@@ -690,12 +690,14 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 
 ### Step 6: Optional flags
 
-> **Heads-up:** Tags allow letters, numbers, `-`, `_`, and `/` only. A space in a tag breaks the sensor, and the app container then exits before it starts.
+> **Heads-up:** A space in a tag breaks the sensor, and the app container then exits before it starts.
 
-- [ ] When you patch your next service, you can group its hosts in the Falcon console with sensor tags and keep a container out of the patch (for example a log router):
+- [ ] When you patch your next service, you can set sensor grouping tags and keep a container out of the patch (for example a log router):
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate,lab"></div>
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <OTHER_SERVICE_NAME> --falconctl-opts "--tags=ecs-fargate,lab" --skip-container <CONTAINER_TO_SKIP>
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <OTHER_SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate,lab>" --skip-container <CONTAINER_TO_SKIP>
 ```
 
 ## 6. Verify

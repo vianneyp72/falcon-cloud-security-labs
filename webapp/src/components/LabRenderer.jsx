@@ -17,6 +17,7 @@ import ModeToggle, { useModeToggle, contentHasMode, contentHasLabMode, resolveMo
 import LabDisclaimer from './LabDisclaimer'
 import LabVariables from './LabVariables'
 import FillFields from './FillFields'
+import SensorTags from './SensorTags'
 import DetectionMatrix from './DetectionMatrix'
 import ArgoMockup from './ArgoMockup'
 import Expandable from './Expandable'
@@ -257,6 +258,9 @@ export default function LabRenderer({ labKey: route }) {
       }
       if (node?.properties?.dataArgoMock) {
         return <ArgoMockup name={node.properties.dataArgoMock} />
+      }
+      if (node?.properties?.dataSensorTags) {
+        return <SensorTags spec={node.properties.dataSensorTags} label={node.properties.dataTagsLabel} />
       }
       if (node?.properties?.dataFillFields) {
         return <FillFields spec={node.properties.dataFillFields} derive={node.properties.dataFillDerive} />

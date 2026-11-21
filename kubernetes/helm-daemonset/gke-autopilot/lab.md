@@ -160,7 +160,7 @@ helm repo update
 
 <div data-deploy-options="cloud"></div>
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:gke-autopilot"></div>
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -461,7 +461,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:gke-autopilot"></div>
 
 - [ ] Run the Helm install:
 

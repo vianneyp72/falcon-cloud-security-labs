@@ -196,7 +196,7 @@ TODO command
 
 Install, passing the pull token so the target can pull from CrowdStrike's registry:
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:TODO-default-tag"></div>
 
 ```bash
 TODO deploy command \

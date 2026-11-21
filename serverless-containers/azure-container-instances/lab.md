@@ -143,7 +143,9 @@ docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/${APP_IMAGE}:${APP_TAG}
 
 ### 5. Patch your application image
 
-`falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). Both the sensor and source images are present locally as single-arch amd64, so `--image-pull-policy IfNotPresent` patches straight from your local cache without pulling from a registry. `--falconctl-opts "--tags=..."` bakes in sensor grouping tags so you can group and filter this host in Host Management.
+`falconutil` runs inside the sensor container and reads/writes your images through the mounted Docker socket (`/var/run/docker.sock`). Both the sensor and source images are present locally as single-arch amd64, so `--image-pull-policy IfNotPresent` patches straight from your local cache without pulling from a registry. `--falconctl-opts "--tags=..."` bakes in the sensor grouping tags.
+
+<div data-sensor-tags="SENSOR_TAGS:ACI-Container"></div>
 
 ```bash
 docker run --user 0:0 \
@@ -156,7 +158,7 @@ docker run --user 0:0 \
   --cid $FALCON_CID \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
-  --falconctl-opts "--tags=ACI-Container" \
+  --falconctl-opts "--tags=<SENSOR_TAGS:ACI-Container>" \
   --cloud-service ACI
 ```
 
@@ -351,7 +353,9 @@ docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/falcon-container:$CONTAIN
 docker pull --platform linux/amd64 ${ACR_LOGIN_SERVER}/aci-web:1.0
 ```
 
-- [ ] Patch the image:
+- [ ] Patch the image. `--falconctl-opts` bakes in the sensor grouping tags:
+
+<div data-sensor-tags="SENSOR_TAGS:ACI-Container"></div>
 
 ```bash
 docker run --user 0:0 \
@@ -364,13 +368,11 @@ docker run --user 0:0 \
   --cid $FALCON_CID \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
-  --falconctl-opts "--tags=Environment/Lab,Team/CloudSecurity" \
+  --falconctl-opts "--tags=<SENSOR_TAGS:ACI-Container>" \
   --cloud-service ACI
 ```
 
 > **What to look for:** Output ends with `Successfully patched image and saved to ...:1.0-falcon`.
-
-> **Sensor grouping tags:** `--falconctl-opts "--tags=..."` bakes in comma-separated grouping tags (letters, numbers, `-`, `_`, `/` only — no spaces, commas, or `=`; 256 chars max) so you can group and filter this host in Host Management. Omit the flag if you don't need tags.
 
 > **Sensor < 7.22:** Older sensors use a subcommand instead of the flag: `falconutil patch-image aci --source-image-uri ... --target-image-uri ... --cid ...`. Prefer 7.22+ with `--cloud-service ACI`.
 

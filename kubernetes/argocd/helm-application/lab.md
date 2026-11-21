@@ -410,7 +410,7 @@ kubectl get secret -A | grep falcon-
 
 An Argo CD `Application` tells Argo CD to render the `falcon-platform` chart with the values below and apply the result to the `falcon-system` namespace on this cluster. First, write the manifest to a file. The `$` variables are filled in by your shell and the `<...>` values by this page, so the file ends up fully resolved and ready to paste:
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group this sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:argocd-daemonset"></div>
 
 ```bash
 cat <<EOF > falcon-platform-app.yaml

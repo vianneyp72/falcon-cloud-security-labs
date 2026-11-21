@@ -270,6 +270,8 @@ helm repo update
 
 Install the `falcon-platform` umbrella chart (DaemonSet sensor + KAC + IAR) pointing at your ECR repos. No pull secret is needed because the EC2 node instance role authenticates the pulls:
 
+<div data-sensor-tags="NODE_SENSOR_TAGS:eks-ec2-node" data-tags-label="EC2 node sensor grouping tags"></div>
+
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
   --namespace falcon-platform \
@@ -302,6 +304,8 @@ helm upgrade --install falcon-platform crowdstrike/falcon-platform \
 > **Why this matters:** On GovCloud, Image Analyzer's `agentRegion` must be pinned to `gov1` or `gov2`; the sensor and KAC derive their region from the CID. The `--copy` step already resolves the correct GovCloud source registry when run with GovCloud API credentials.
 
 Install the sidecar injector for Fargate pods, pointing at your ECR Container Sensor image. No pull secret is needed because the Fargate pod execution role authenticates the pull:
+
+<div data-sensor-tags="FARGATE_SENSOR_TAGS:eks-fargate" data-tags-label="Fargate sidecar grouping tags"></div>
 
 ```bash
 helm upgrade --install falcon-container-injector crowdstrike/falcon-sensor \
@@ -827,7 +831,7 @@ helm search repo crowdstrike/falcon-sensor
 
 ### Step 1: Install the platform chart
 
-> **Note:** Edit the highlighted `NODE_SENSOR_TAGS` field (the page replaces it when you click Copy) to group the EC2 node sensor in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="NODE_SENSOR_TAGS:eks-ec2-node" data-tags-label="EC2 node sensor grouping tags"></div>
 
 - [ ] Deploy with all component images pointed at ECR:
 
@@ -895,7 +899,7 @@ kubectl get pods -n falcon-image-analyzer -o wide
 
 ### Step 1: Deploy the injector
 
-> **Note:** Edit the highlighted `FARGATE_SENSOR_TAGS` field (the page replaces it when you click Copy) to group the Fargate sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="FARGATE_SENSOR_TAGS:eks-fargate" data-tags-label="Fargate sidecar grouping tags"></div>
 
 - [ ] Install the `falcon-sensor` chart in injector mode, pointing at your ECR image:
 

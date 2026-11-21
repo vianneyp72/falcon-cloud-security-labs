@@ -171,7 +171,9 @@ docker pull --platform linux/amd64 <REGISTRY>/<APP_IMAGE>:<APP_TAG>
 
 ### 6. Patch your application image
 
-`falconutil` runs inside the sensor container and reads and writes your images through the mounted Docker socket. Both images are already local, so `IfNotPresent` patches without any registry login inside the container. `--falconctl-opts` bakes in sensor tags so you can group these hosts in the Falcon console:
+`falconutil` runs inside the sensor container and reads and writes your images through the mounted Docker socket. Both images are already local, so `IfNotPresent` patches without any registry login inside the container. `--falconctl-opts` bakes in the sensor grouping tags:
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate,falconutil"></div>
 
 ```bash
 docker run --user 0:0 \
@@ -184,11 +186,11 @@ docker run --user 0:0 \
   --cid <FALCON_CID> \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
-  --falconctl-opts "--tags=ecs-fargate,falconutil" \
+  --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate,falconutil>" \
   --cloud-service ECS_FARGATE
 ```
 
-> **Heads-up:** Tags allow letters, numbers, `-`, `_`, and `/` only. A space in a tag breaks the sensor, and the container then exits before your app starts. `--cloud-service ECS_FARGATE` needs sensor 7.22 or later; older sensors use `falconutil patch-image ecsfargate` instead.
+> **Heads-up:** A space in a tag breaks the sensor, and the container then exits before your app starts. `--cloud-service ECS_FARGATE` needs sensor 7.22 or later; older sensors use `falconutil patch-image ecsfargate` instead.
 
 > **Verify:** The command ends without an error and `docker images <REGISTRY>/<APP_IMAGE>` lists the `<APP_TAG>-falcon` tag.
 
@@ -258,6 +260,8 @@ The pipeline needs your CID and an AWS role it can assume. These steps use GitHu
 
 Keep your task definition JSON in Git. The workflow pulls the sensor from your ECR (copied in step 3), patches the application image, and pushes the `-falcon` tag. Save this as `.github/workflows/falconutil-ecs.yml`, replacing the `<PLACEHOLDERS>` with yours:
 
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate,falconutil"></div>
+
 ```yaml
 name: falconutil-ecs
 on:
@@ -305,7 +309,7 @@ jobs:
             --cid ${{ secrets.FALCON_CID }} \
             --image-pull-policy IfNotPresent \
             --platform linux/amd64 \
-            --falconctl-opts "--tags=ecs-fargate,falconutil" \
+            --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate,falconutil>" \
             --cloud-service ECS_FARGATE
       - name: Push the patched image
         run: docker push $REGISTRY/$APP_IMAGE:$APP_TAG-falcon
@@ -559,7 +563,9 @@ docker pull --platform linux/amd64 <REGISTRY>/<APP_IMAGE>:<APP_TAG>
 
 ### Step 2: Run falconutil
 
-- [ ] Patch the image. `--falconctl-opts` bakes in sensor tags so you can group these hosts in the Falcon console:
+- [ ] Patch the image. `--falconctl-opts` bakes in the sensor grouping tags:
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate,falconutil"></div>
 
 ```bash
 docker run --user 0:0 \
@@ -572,7 +578,7 @@ docker run --user 0:0 \
   --cid <FALCON_CID> \
   --image-pull-policy IfNotPresent \
   --platform linux/amd64 \
-  --falconctl-opts "--tags=ecs-fargate,falconutil" \
+  --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate,falconutil>" \
   --cloud-service ECS_FARGATE
 ```
 

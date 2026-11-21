@@ -161,6 +161,8 @@ ansible_ssh_common_args=-o StrictHostKeyChecking=no
 
 Create `deploy-falcon.yml`:
 
+<div data-sensor-tags="SENSOR_TAGS:ansible-deployed"></div>
+
 ```yaml
 ---
 - name: Deploy CrowdStrike Falcon Sensor
@@ -168,7 +170,7 @@ Create `deploy-falcon.yml`:
   vars:
     falcon_client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
     falcon_client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
-    falcon_tags: "ansible-deployed"
+    falcon_tags: "<SENSOR_TAGS:ansible-deployed>"
 
   roles:
     - role: crowdstrike.falcon.falcon_install
@@ -414,12 +416,14 @@ falcon_sensor_version_decrement: 2
 
 - [ ] Create `deploy-falcon.yml`:
 
+<div data-sensor-tags="SENSOR_TAGS:ansible-deployed"></div>
+
 ```yaml
 ---
 - name: Deploy CrowdStrike Falcon Sensor
   hosts: falcon_hosts
   vars:
-    falcon_tags: "<YOUR_CLOUD>/<YOUR_REGION>,Lab,ansible-deployed"
+    falcon_tags: "<SENSOR_TAGS:ansible-deployed>"
 
   roles:
     - role: crowdstrike.falcon.falcon_install
@@ -497,13 +501,13 @@ ansible-playbook -i inventory.ini deploy-falcon.yml --ask-vault-pass
 > - **Platform:** Linux
 > - **OS:** Debian 12 / Debian 13
 > - **Sensor version:** N-2 (two behind latest, as configured)
-> - **Tags:** `<YOUR_CLOUD>/<YOUR_REGION>,Lab,ansible-deployed`
+> - **Grouping Tags:** the value you entered
 
 ### Step 2: Verify tags are applied
 
 - [ ] Click on any host → Check the **Grouping Tags** field in the detail panel
 
-> Tags should show: `<YOUR_CLOUD>/<YOUR_REGION>,Lab,ansible-deployed`
+> Tags should show the value you entered in the playbook step.
 
 > ⚠️ **Hosts not appearing?** Check:
 >

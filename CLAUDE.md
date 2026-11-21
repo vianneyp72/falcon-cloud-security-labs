@@ -51,6 +51,10 @@ When you finish modernizing a lab, flip its `modernized` flag. Steps to add or p
 - [ ] Is every explanatory sentence earning its place, or is it filler?
 - [ ] Are teaching notes short and inline (at the step), not batched into a background wall?
 
+## Sensor grouping tags (required wherever a sensor is deployed)
+
+Wherever a lab installs a sensor and the method accepts grouping tags (Helm `falcon.tags`, `--falconctl-opts "--tags=..."`, CloudFormation `Tags=`, SSM, Ansible `falcon_tags`, `falconctl -s --tags`), put `<div data-sensor-tags="SENSOR_TAGS:default"></div>` directly above the command and use `<SENSOR_TAGS:default>` inside it. Never hardcode tags and never write an "edit the highlighted field" note. The box carries the best-practice tooltip (tags are what dynamic host groups scope on, so policies follow the workload) and validates the allowed characters. Details in `_common/lab-authoring-features.md`, "Sensor tags field".
+
 ## Concise by default: terse prerequisites + tooltips
 
 Labs must be straight to the point, with only the important callouts. Do not add a callout or sentence just to be thorough; if it does not unblock the reader or teach a cloud concept they will hit right here, cut it.

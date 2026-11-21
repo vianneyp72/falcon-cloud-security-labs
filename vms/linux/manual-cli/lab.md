@@ -285,8 +285,10 @@ aws ec2 delete-security-group --group-id $SG_ID --region $AWS_REGION
 
 ### Add or change sensor grouping tags
 
+<div data-sensor-tags="SENSOR_TAGS:Environment/Production,Team/Platform"></div>
+
 ```bash
-sudo /opt/CrowdStrike/falconctl -s --tags="Environment/Production,Team/Platform"
+sudo /opt/CrowdStrike/falconctl -s --tags="<SENSOR_TAGS:Environment/Production,Team/Platform>"
 sudo systemctl restart falcon-sensor
 ```
 

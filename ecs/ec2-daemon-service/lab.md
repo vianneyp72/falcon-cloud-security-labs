@@ -178,7 +178,9 @@ cd aws-cloudformation-falcon-sensor-ecs/falcon-sensor-ecs-ec2
 
 <div data-deploy-options="proxy,logging,limits"></div>
 
-Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group these hosts in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only. The two GovCloud lines appear only when you pick GovCloud in step 2:
+<div data-sensor-tags="SENSOR_TAGS:ecs-ec2-daemon"></div>
+
+The two GovCloud lines appear only when you pick GovCloud in step 2:
 
 ```bash
 aws cloudformation deploy \

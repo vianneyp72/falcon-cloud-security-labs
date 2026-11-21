@@ -15,6 +15,7 @@ Reference for the interactive markers the webapp understands. Start from [`lab-t
 | Method picker + gate | `<div data-profile-picker>` / `<div data-profile="awscli">` | Both modes | `ProfileMethod.jsx` |
 | Test-target picker + gate | `<div data-test-target-picker>` / `<div data-test-target="ec2">` | Both modes | `TestTarget.jsx` |
 | Fill-in panel | `<div data-fill-fields="NAME:Label,...">` | Anywhere | `FillFields.jsx` |
+| Sensor tags field | `<div data-sensor-tags="SENSOR_TAGS:default"></div>` | Anywhere a sensor is deployed | `SensorTags.jsx` |
 | Lab Variables panel | `<div data-lab-variables></div>` + manifest `variables` | Lab mode | `LabVariables.jsx` |
 | Cloud block gate | `<div data-cloud="gke">` | Lab mode | `LabRenderer.jsx` |
 | Collapsible section | `<details class="lab-section">` + `## H2` in `<summary>` | Anywhere | `content.css` |
@@ -117,6 +118,15 @@ Gotchas:
 ## Test-target picker (EC2 or Fargate)
 
 `<div data-test-target-picker></div>` renders a "Test the app on: Fargate (sidecar) / EC2 (DaemonSet)" toggle (default Fargate, stored in localStorage). Wrap each variant in `<div data-test-target="fargate">` or `"ec2"` (comma list means any match), with blank lines after the opening tag and before `</div>`. Gates can nest inside `data-profile` blocks, so a cleanup step can vary by both. Used in `kubernetes/helm-daemonset/eks-hybrid/lab.md` (Quick Deploy step 7 and Full Lab section 6) because a hybrid cluster protects the same test app differently on each compute type. The two values are hardcoded in `TestTarget.jsx`; extend that file to reuse the pattern for another choice.
+
+## Sensor tags field
+
+`<div data-sensor-tags="SENSOR_TAGS:eks-fargate"></div>` renders a labeled text box with the best-practice tooltip and live validation (letters, numbers, `-`, `_`, `/` only; 256 characters; no spaces or empty tags). It edits the shared placeholder named before the colon, so the matching `<SENSOR_TAGS:eks-fargate>` in the command below updates as the reader types, and Copy uses it. The text after the colon is the default and must equal the default inside the placeholder. Place it directly above the command it feeds, and do not add a separate "edit the highlighted field" note: the tooltip carries the why, and the box carries the rules.
+
+- Use it in every lab that deploys a sensor (Helm `falcon.tags`, CloudFormation `Tags=`, falconutil `--falconctl-opts "--tags=<SENSOR_TAGS:...>"`, SSM `--tags=`, Ansible `falcon_tags`, `falconctl -s --tags`). Never hardcode tags in a command.
+- Two sensors in one lab (for example EC2 nodes and Fargate) use two names (`NODE_SENSOR_TAGS`, `FARGATE_SENSOR_TAGS`) and `data-tags-label="Fargate sidecar grouping tags"` to tell the boxes apart.
+- Keep a sensible default so the command works untouched, but name the lab or platform in it (`eks-fargate`) so the reader sees the pattern worth copying.
+- Skip it only where the platform cannot set tags (for example the Falcon console install of a pre-tagged AMI).
 
 ## Fill-in panel
 

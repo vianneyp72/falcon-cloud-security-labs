@@ -285,7 +285,7 @@ helm repo update
 
 Install the `falcon-platform` chart, which deploys the injector, KAC, and Image Analyzer in one release. No pull secret is needed because the pod execution role authenticates the pull.
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group the injected sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:eks-fargate"></div>
 
 ```bash
 helm upgrade --install falcon-platform crowdstrike/falcon-platform \
@@ -718,7 +718,7 @@ helm search repo crowdstrike/falcon-platform
 
 ### Step 1: Install the chart
 
-> **Note:** Edit the highlighted `SENSOR_TAGS` field (the page replaces it when you click Copy) to group the injected sidecars in the Falcon console. Use comma-separated values; letters, numbers, `-`, `_`, `/` only.
+<div data-sensor-tags="SENSOR_TAGS:eks-fargate"></div>
 
 - [ ] Install the chart with all three components pointed at your ECR images:
 
