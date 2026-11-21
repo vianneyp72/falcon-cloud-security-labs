@@ -33,32 +33,33 @@ export default function SensorTags({ spec, label }) {
 
   return (
     <div className="lab-variables sensor-tags">
+      <div className="lab-variables__header">
+        <span className="lab-variables__title">{label || 'Sensor grouping tags'}</span>
+        {stored !== undefined && stored !== def && (
+          <button className="lab-variables__reset" type="button" onClick={reset}>
+            Reset
+          </button>
+        )}
+      </div>
       <label className="lab-variables__field">
         <span className="lab-variables__label">
           <span className="tip-term" tabIndex={0} data-tip={TIP}>
-            {label || 'Sensor grouping tags'}
+            Best practice for scoping host groups
           </span>
           <span className="sensor-tags__hint"> comma-separated; letters, numbers, - _ / only</span>
         </span>
-        <span className="sensor-tags__row">
-          <input
-            type="text"
-            value={value}
-            placeholder={def || 'env/prod,team/payments'}
-            aria-label={label || 'Sensor grouping tags'}
-            aria-invalid={error ? 'true' : undefined}
-            onChange={e => setValue(e.target.value)}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-            autoComplete="off"
-          />
-          {stored !== undefined && stored !== def && (
-            <button className="lab-variables__reset" type="button" onClick={reset}>
-              Reset
-            </button>
-          )}
-        </span>
+        <input
+          type="text"
+          value={value}
+          placeholder={def || 'env/prod,team/payments'}
+          aria-label={label || 'Sensor grouping tags'}
+          aria-invalid={error ? 'true' : undefined}
+          onChange={e => setValue(e.target.value)}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+        />
         {error && <span className="sensor-tags__error" role="alert">{error}</span>}
       </label>
     </div>

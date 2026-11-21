@@ -1536,15 +1536,12 @@
   padding: 0.8rem 1.1rem;
 }
 
-.sensor-tags__row {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
+.lab-variables.sensor-tags .lab-variables__header {
+  margin-bottom: 0.4rem;
 }
 
-.sensor-tags__row input {
-  flex: 1;
-  min-width: 0;
+.lab-variables.sensor-tags .lab-variables__label {
+  margin-bottom: 0;
 }
 
 .sensor-tags__hint {
