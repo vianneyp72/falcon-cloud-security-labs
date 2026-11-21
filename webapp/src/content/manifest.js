@@ -196,7 +196,7 @@ const LABS = [
   { id: 'kubernetes/operator/openshift', label: 'OpenShift', area: 'Kubernetes · Operator', md: 'kubernetes/operator/openshift/lab.md' },
 
   { id: 'ecs/fargate-task-patching',   label: 'Fargate Task Patching',   area: 'ECS', md: 'ecs/fargate-task-patching/lab.md', modernized: true },
-  { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Falcon Utility',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md', modernized: true },
+  { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Image Patching',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md', modernized: true },
   { id: 'ecs/fargate-terraform-module', label: 'Fargate Terraform Module', area: 'ECS', md: 'ecs/fargate-terraform-module/lab.md', modernized: true },
   { id: 'ecs/ec2-daemon-service',      label: 'EC2 Daemon Service',      area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md', modernized: true, variables: labVars('falcon-ec2-lab', 'us-east-1') },
   { id: 'ecs/managed-instances-daemon', label: 'Managed Instances Daemon', area: 'ECS', md: 'ecs/managed-instances-daemon/lab.md', modernized: true, variables: labVars('falcon-mi-lab', 'us-east-1') },
@@ -350,7 +350,7 @@ export const manifest = [
       g('ECS', 'ecs', [
         g('ECS on Fargate', 'fargate', [
           l('ecs/fargate-task-patching', 'task-patching', { label: 'Task Patching' }),
-          l('ecs/fargate-falcon-utility', 'falcon-utility', { label: 'Falcon Utility' }),
+          l('ecs/fargate-falcon-utility', 'falcon-utility', { label: 'Image Patching' }),
           l('ecs/fargate-terraform-module', 'terraform-module', { label: 'Terraform Module' }),
         ]),
         g('ECS on EC2', 'ec2', [

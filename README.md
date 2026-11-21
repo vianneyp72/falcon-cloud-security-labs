@@ -19,7 +19,7 @@ Find the right guide: "I have X compute type" → follow the link.
 | **OKE** (Oracle Kubernetes Engine) | Helm DaemonSet (roadmap) | [kubernetes/helm-daemonset/oke/](kubernetes/helm-daemonset/oke/) |
 | **Any K8s** (CRD-based) | Falcon Operator | [kubernetes/operator/](kubernetes/operator/) |
 | **ECS Fargate** | Task definition patching | [ecs/fargate-task-patching/](ecs/fargate-task-patching/) |
-| **ECS Fargate** (falcon-utility) | Falcon utility sidecar | [ecs/fargate-falcon-utility/](ecs/fargate-falcon-utility/) |
+| **ECS Fargate** (image patching) | Image patching with falconutil | [ecs/fargate-falcon-utility/](ecs/fargate-falcon-utility/) |
 | **ECS Fargate** (Terraform) | CrowdStrike Terraform module | [ecs/fargate-terraform-module/](ecs/fargate-terraform-module/) |
 | **ECS EC2** | Daemon service | [ecs/ec2-daemon-service/](ecs/ec2-daemon-service/) |
 | **Linux VMs** | Manual, SSM, Ansible, startup script | [vms/linux/](vms/linux/) |

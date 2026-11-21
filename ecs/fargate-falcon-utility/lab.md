@@ -1,4 +1,4 @@
-# Falcon Container Sensor on ECS Fargate — Falcon Utility (Image Patching)
+# Falcon Container Sensor on ECS Fargate — Image Patching
 
 Protect an ECS Fargate service by building the Falcon Container Sensor into your application image. You run CrowdStrike's `falconutil patch-image` once per image, push the result to ECR, and point the task definition at it. No init container, no shared volume: the sensor ships inside the image your task already runs.
 
@@ -44,7 +44,7 @@ The **Falcon utility**, `falconutil`, ships inside the `falcon-container` image.
 
 The patched image is a new tag (this lab uses a `-falcon` suffix), so the original stays untouched. Fargate still needs two task-definition changes, which you make in a new revision: point the container at the `-falcon` image, and add the `SYS_PTRACE` Linux capability the sensor needs.
 
-| | Falcon utility (this lab) | Task Patching |
+| | Image Patching (this lab) | Task Patching |
 |---|---|---|
 | What changes | Your application image | The task definition |
 | Containers per task | One (sensor inside your app) | App + init container |

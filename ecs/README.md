@@ -12,7 +12,7 @@ Fargate tasks do not have access to the underlying host, so the sensor must be i
 
 1. **Task definition patching** -- Patch your existing task definition with the sensor using the `falcon-ecs-patch` script, which wraps CrowdStrike's official patching utility. Best when you want a repeatable step for CI/CD or have no Terraform.
 2. **Terraform module** -- CrowdStrike's official `terraform-aws-ecs-fargate` module builds the patched task definition for you. Best when you already manage ECS with Terraform.
-3. **Falcon utility (image patching)** -- Run `falconutil patch-image` to build the sensor into your application image, push it to ECR, and point the task definition at it. Best when you own the image build.
+3. **Image patching** -- Run `falconutil patch-image` to build the sensor into your application image, push it to ECR, and point the task definition at it. Best when you own the image build.
 
 ### ECS on EC2
 
@@ -27,7 +27,7 @@ With ECS Managed Instances, AWS launches, patches, and replaces the EC2 instance
 ## Guides
 
 - [Fargate task patching](fargate-task-patching/) -- Patch the task definition with the `falcon-ecs-patch` script
-- [Fargate falcon-utility](fargate-falcon-utility/) -- Patch the application image with `falconutil`
+- [Fargate image patching](fargate-falcon-utility/) -- Patch the application image with `falconutil`
 - [Fargate Terraform module](fargate-terraform-module/) -- CrowdStrike's official Terraform module
 - [EC2 daemon service](ec2-daemon-service/) -- Daemon service on EC2-backed clusters, deployed with CrowdStrike's CloudFormation stack
 - [Managed Instances daemon](managed-instances-daemon/) -- Managed daemon on ECS Managed Instances clusters, deployed with CrowdStrike's Managed CloudFormation template
