@@ -46,6 +46,14 @@ export const CHOICES = {
     ],
     default: 'local',
   },
+  ecrrepo: {
+    label: 'ECR repository',
+    options: [
+      { id: 'new', label: 'Create a new repository' },
+      { id: 'existing', label: 'Use an existing repository' },
+    ],
+    default: 'new',
+  },
   falconcloud: {
     label: 'Falcon cloud',
     options: [

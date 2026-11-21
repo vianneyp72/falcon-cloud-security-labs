@@ -23,6 +23,8 @@ Deploy the Falcon sensor as an ECS **daemon service** on a cluster whose EC2 ins
 
 > **Note:** **Which lab is this?** This one is for **self-managed EC2**: you create the instances (usually an Auto Scaling group) and patch them, and the sensor runs as an ECS *daemon service*, a regular ECS service that places one task on each instance. If AWS launches and patches the instances for you (**ECS Managed Instances**), use [Managed Instances (Managed Daemon)](../managed-instances-daemon/) instead. It deploys a different CloudFormation template that creates an ECS *managed daemon*.
 
+> **Note:** **Which registry?** The CloudFormation template only pulls the sensor from **Amazon ECR**, either a new repository or one you already have. For Artifactory, Harbor, Docker Hub, ACR, or GAR, mirror the sensor into ECR first; the template has no registry-credential parameter.
+
 ## Reference Docs
 
 | Source | Link |
@@ -76,6 +78,14 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 
 ### 2. Copy the Falcon sensor image to ECR
 
+The stack pulls the sensor from ECR in your account. Pick whether to create a repository for it or use one you already have, and the Falcon cloud your CID belongs to:
+
+<div data-choice-picker="ecrrepo"></div>
+
+<div data-choice-picker="falconcloud"></div>
+
+<div data-choice="ecrrepo:new">
+
 Create an ECR repository for the sensor (skips if it already exists). The repo name must be `falcon-sensor` because `--copy` does not rename images:
 
 ```bash
@@ -85,50 +95,59 @@ aws ecr describe-repositories --repository-names falcon-sensor --region <AWS_REG
 
 > **Verify:** A new repo prints its address (`<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor`). Nothing prints if it already exists.
 
+</div>
+
+<div data-choice="ecrrepo:existing">
+
+Enter the name of your existing ECR repository. It must already exist in this account and region:
+
+<div data-fill-fields="ECR_REPOSITORY:ECR repository"></div>
+
+> **Note:** The sensor is stored in that repository tagged `falcon-sensor-<version>`, so it can sit next to your other images. The repository must be in the same account as the cluster; for another account, add a repository policy that lets the instance role pull from it.
+
+</div>
+
 Log Docker in to your ECR registry (the pull script does not log in to the destination):
 
 ```bash
 aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
 ```
 
-Pick the Falcon cloud your CID belongs to, then copy the `falcon-sensor` image (the node sensor, not `falcon-container`) from CrowdStrike's registry into your ECR:
+<div data-choice="ecrrepo:existing">
 
-<div data-choice-picker="falconcloud"></div>
-
-<div data-choice="falconcloud:commercial">
+Look up the current sensor version. `--copy-custom-tag` needs it to name the tag in your repository:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
+export SENSOR_VERSION=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor \
+  --region us-gov-1 \ #@choice=falconcloud:govcloud-1
+  --region us-gov-2 \ #@choice=falconcloud:govcloud-2
+  --get-image-path | cut -d: -f2)
+echo "SENSOR_VERSION: $SENSOR_VERSION"
 ```
 
 </div>
 
-<div data-choice="falconcloud:govcloud-1">
+Copy the `falcon-sensor` image (the node sensor, not `falcon-container`) from CrowdStrike's registry into your ECR:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --region us-gov-1 --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor \
+  --region us-gov-1 \ #@choice=falconcloud:govcloud-1
+  --region us-gov-2 \ #@choice=falconcloud:govcloud-2
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com #@choice=ecrrepo:new
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<ECR_REPOSITORY> --copy-omit-image-name --copy-custom-tag "falcon-sensor-$SENSOR_VERSION" #@choice=ecrrepo:existing
 ```
-
-</div>
-
-<div data-choice="falconcloud:govcloud-2">
-
-```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --region us-gov-2 --copy <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com
-```
-
-</div>
 
 ### 3. Build the image path
 
-`--copy` keeps the image tag, so read it back from ECR and build the full path the stack will pull:
+`--copy` keeps the image tag, so build the full path the stack will pull:
 
 ```bash
-export FALCON_IMAGE_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region <AWS_REGION> --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
-export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor:$FALCON_IMAGE_TAG"
+export FALCON_IMAGE_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region <AWS_REGION> --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text) #@choice=ecrrepo:new
+export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/falcon-sensor:$FALCON_IMAGE_TAG" #@choice=ecrrepo:new
+export FALCON_IMAGE_TAG="falcon-sensor-$SENSOR_VERSION" #@choice=ecrrepo:existing
+export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<ECR_REPOSITORY>:$FALCON_IMAGE_TAG" #@choice=ecrrepo:existing
 ```
 
 Validate the client secret and image path were populated (a ✅ means set, a ❌ means missing):
@@ -138,7 +157,7 @@ echo "Client Secret : $([ -n "$FALCON_CLIENT_SECRET" ] && echo ✅ || echo ❌)"
 echo "Image path    : $([ -n "$FALCON_IMAGE_TAG" ] && [ "$FALCON_IMAGE_TAG" != None ] && echo ✅ || echo ❌) ($FALCON_IMAGE_PATH)"
 ```
 
-> **Verify:** The tag looks like `7.39.0-19204-1`. `None` means the copy in step 2 did not finish; re-run it and read the error.
+> **Verify:** The tag looks like `7.39.0-19204-1` (`falcon-sensor-7.39.0-19204-1` in an existing repository). `None` means the copy in step 2 did not finish; re-run it and read the error.
 
 ### 4. Get the CloudFormation template
 
@@ -235,7 +254,7 @@ aws cloudformation delete-stack --stack-name falcon-ecs-ec2-daemon-cleanup-<CLUS
 
 > **Why this matters:** Deleting the install stack only stops the sensor task. The init container already wrote files to `/opt/CrowdStrike` on every host, so the cleanup service runs the sensor's uninstall on each instance to remove them. Skip it and the host files stay behind.
 
-> **Note:** Host entries stay in the Falcon console for a while after the sensors are gone. The ECR repo and copied image are not removed.
+> **Note:** Host entries stay in the Falcon console for a while after the sensors are gone. The copied image stays in ECR (delete the `falcon-sensor` repo, or only the `falcon-sensor-<version>` tag if you used your own repository).
 
 </div>
 
@@ -371,11 +390,19 @@ export FALCON_CLIENT_SECRET="<FALCON_CLIENT_SECRET>"
 
 ## 3. Copy the Sensor Image to ECR
 
-> **What & Why:** The CloudFormation template pulls the sensor from an ECR repo in your account. You create the repo, then copy the image from CrowdStrike's registry into it.
+> **What & Why:** The CloudFormation template pulls the sensor from an ECR repo in your account. You prepare a repo (new or one you already have), then copy the image from CrowdStrike's registry into it.
 
 > **Tip:** Use the **node sensor** (`falcon-sensor`) here, not `falcon-container`. The container sensor is for Fargate; the node sensor is the one that installs on a host.
 
-### Step 1: Create the ECR repository
+- [ ] Pick the ECR repository option and the Falcon cloud your CID belongs to. The steps below update to match:
+
+<div data-choice-picker="ecrrepo"></div>
+
+<div data-choice-picker="falconcloud"></div>
+
+### Step 1: Prepare the ECR repository
+
+<div data-choice="ecrrepo:new">
 
 - [ ] **Console:** Navigate to **Elastic Container Registry** → **Private registry** → **Repositories** → **Create repository**
   - Repository name: `falcon-sensor` (it must match exactly because the copy keeps the image name)
@@ -392,6 +419,21 @@ aws ecr create-repository --repository-name falcon-sensor --region {{REGION}} --
 
 > **Verify:** The repo list shows `falcon-sensor` with the URI `<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-sensor`.
 
+</div>
+
+<div data-choice="ecrrepo:existing">
+
+> **What & Why:** An existing repository keeps the sensor next to your other images. Because every image shares one repo, the tag carries the image name: `falcon-sensor-<version>`.
+
+- [ ] **Console:** Navigate to **Elastic Container Registry** → **Private registry** → **Repositories** and confirm your repository is listed in region `{{REGION}}`
+- [ ] Enter its name:
+
+<div data-fill-fields="ECR_REPOSITORY:ECR repository"></div>
+
+> **Warning:** The repository must be in the same account and region as the cluster. For another account, add a repository policy that lets the instance role pull from it, or the sensor task fails with an image pull error.
+
+</div>
+
 ### Step 2: Log Docker in to ECR
 
 > **What & Why:** The pull script pushes with your local Docker, which has to authenticate to ECR first. The script does not do this for you.
@@ -406,47 +448,57 @@ aws ecr get-login-password --region {{REGION}} | docker login --username AWS --p
 
 ### Step 3: Copy the image
 
-- [ ] Pick the Falcon cloud your CID belongs to, then copy the image:
+<div data-choice="ecrrepo:existing">
 
-<div data-choice-picker="falconcloud"></div>
+> **What & Why:** `--copy-omit-image-name` puts the image directly in your repository, and `--copy-custom-tag` names the tag. You need the sensor version first so the tag matches what the script copies.
 
-<div data-choice="falconcloud:commercial">
+- [ ] Look up the current sensor version:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
+export SENSOR_VERSION=$(curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor \
+  --region us-gov-1 \ #@choice=falconcloud:govcloud-1
+  --region us-gov-2 \ #@choice=falconcloud:govcloud-2
+  --get-image-path | cut -d: -f2)
+echo "SENSOR_VERSION: $SENSOR_VERSION"
 ```
 
 </div>
 
-<div data-choice="falconcloud:govcloud-1">
+- [ ] Copy the image:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --region us-gov-1 --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
+  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor \
+  --region us-gov-1 \ #@choice=falconcloud:govcloud-1
+  --region us-gov-2 \ #@choice=falconcloud:govcloud-2
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com #@choice=ecrrepo:new
+  --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/<ECR_REPOSITORY> --copy-omit-image-name --copy-custom-tag "falcon-sensor-$SENSOR_VERSION" #@choice=ecrrepo:existing
 ```
-
-</div>
-
-<div data-choice="falconcloud:govcloud-2">
-
-```bash
-curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/heads/main/bash/containers/falcon-container-sensor-pull/falcon-container-sensor-pull.sh | bash -s -- \
-  --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --region us-gov-2 --copy <AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com
-```
-
-</div>
 
 > **Note:** Add `-p x86_64` or `-p aarch64` to copy only one CPU architecture. Without it the script copies every architecture CrowdStrike publishes, so the same image works on Intel and Graviton instances.
 
 ### Step 4: Read the tag and build the image path
 
+<div data-choice="ecrrepo:new">
+
 - [ ] **Console:** Open **Elastic Container Registry** → **Repositories** → `falcon-sensor`; the **Image tags** column shows the tag (for example `7.39.0-19204-1`)
+
+</div>
+
+<div data-choice="ecrrepo:existing">
+
+- [ ] **Console:** Open **Elastic Container Registry** → **Repositories** → your repository; the **Image tags** column shows `falcon-sensor-<version>`
+
+</div>
+
 - [ ] Save the tag and full path (the path is what the stack's `FalconImagePath` parameter takes):
 
 ```bash
-export FALCON_IMAGE_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region {{REGION}} --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text)
-export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-sensor:$FALCON_IMAGE_TAG"
+export FALCON_IMAGE_TAG=$(aws ecr describe-images --repository-name falcon-sensor --region {{REGION}} --query 'sort_by(imageDetails[?imageTags!=null],&imagePushedAt)[-1].imageTags[0]' --output text) #@choice=ecrrepo:new
+export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/falcon-sensor:$FALCON_IMAGE_TAG" #@choice=ecrrepo:new
+export FALCON_IMAGE_TAG="falcon-sensor-$SENSOR_VERSION" #@choice=ecrrepo:existing
+export FALCON_IMAGE_PATH="<AWS_ACCOUNT_ID>.dkr.ecr.{{REGION}}.amazonaws.com/<ECR_REPOSITORY>:$FALCON_IMAGE_TAG" #@choice=ecrrepo:existing
 ```
 
 ### Step 5: Validate the saved variables
@@ -672,7 +724,9 @@ If `delete-cluster` reports the cluster still has container instances, wait a mi
 
 </details>
 
-### Step 2: Delete the ECR repository
+### Step 2: Remove the sensor image
+
+<div data-choice="ecrrepo:new">
 
 - [ ] **Console:** Navigate to **Elastic Container Registry** → **Repositories** → select `falcon-sensor` → **Delete** → type `delete` to confirm
 
@@ -684,6 +738,25 @@ aws ecr delete-repository --repository-name falcon-sensor --region {{REGION}} --
 ```
 
 </details>
+
+</div>
+
+<div data-choice="ecrrepo:existing">
+
+> **Do NOT:** Delete the repository. It is yours and may hold other images. Remove only the sensor image tag.
+
+- [ ] **Console:** Navigate to **Elastic Container Registry** → **Repositories** → your repository → select the `falcon-sensor-<version>` image → **Delete**
+
+<details>
+<summary>CLI equivalent</summary>
+
+```bash
+aws ecr batch-delete-image --repository-name <ECR_REPOSITORY> --region {{REGION}} --image-ids imageTag=$FALCON_IMAGE_TAG
+```
+
+</details>
+
+</div>
 
 ---
 
@@ -754,7 +827,7 @@ curl -sSL https://raw.githubusercontent.com/CrowdStrike/falcon-scripts/refs/head
   --client-id <FALCON_CLIENT_ID> --client-secret $FALCON_CLIENT_SECRET --type falcon-sensor --list-tags
 ```
 
-Re-run the section 3 copy (add `--version <SENSOR_VERSION>` to pick one), re-run the tag and path exports from step 4, then the section 4 deploy. CloudFormation registers a new task definition revision and ECS replaces the sensor task on each instance. If a sensor update policy with **Uninstall and maintenance protection** is on, it blocks updates for sensors 7.33 and earlier.
+Re-run the section 3 copy (add `--version <SENSOR_VERSION>` to pick one; with an existing repository also set `SENSOR_VERSION` to that version so the custom tag matches), re-run the tag and path exports from step 4, then the section 4 deploy. CloudFormation registers a new task definition revision and ECS replaces the sensor task on each instance. If a sensor update policy with **Uninstall and maintenance protection** is on, it blocks updates for sensors 7.33 and earlier.
 
 </details>
 
