@@ -198,8 +198,8 @@ const LABS = [
   { id: 'ecs/fargate-task-patching',   label: 'Fargate Task Patching',   area: 'ECS', md: 'ecs/fargate-task-patching/lab.md', modernized: true },
   { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Image Patching',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md', modernized: true },
   { id: 'ecs/fargate-terraform-module', label: 'Fargate Terraform Module', area: 'ECS', md: 'ecs/fargate-terraform-module/lab.md', modernized: true },
-  { id: 'ecs/ec2-daemon-service',      label: 'EC2 Daemon Service',      area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md', modernized: true, variables: labVars('falcon-ec2-lab', 'us-east-1') },
-  { id: 'ecs/managed-instances-daemon', label: 'Managed Instances Daemon', area: 'ECS', md: 'ecs/managed-instances-daemon/lab.md', modernized: true, variables: labVars('falcon-mi-lab', 'us-east-1') },
+  { id: 'ecs/ec2-daemon-service',      label: 'Self-Managed EC2 (Daemon Service)', area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md', modernized: true, variables: labVars('falcon-ec2-lab', 'us-east-1') },
+  { id: 'ecs/managed-instances-daemon', label: 'Managed Instances (Managed Daemon)', area: 'ECS', md: 'ecs/managed-instances-daemon/lab.md', modernized: true, variables: labVars('falcon-mi-lab', 'us-east-1') },
 
   { id: 'vms/linux/ansible',            label: 'Ansible',            area: 'VMs · Linux', md: 'vms/linux/ansible/lab.md' },
   { id: 'vms/linux/gce-startup-script', label: 'GCE Startup Script', area: 'VMs · Linux', md: 'vms/linux/gce-startup-script/lab.md' },

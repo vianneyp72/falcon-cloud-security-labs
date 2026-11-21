@@ -1,6 +1,6 @@
-# Falcon Sensor on ECS EC2 via Daemon Service
+# Falcon Sensor on Self-Managed ECS EC2 via Daemon Service
 
-Deploy the Falcon sensor as an ECS daemon service on an EC2-backed cluster using CrowdStrike's official CloudFormation stack. One sensor task runs on every container instance, and the sensor image is hosted in your own ECR.
+Deploy the Falcon sensor as an ECS **daemon service** on a cluster whose EC2 instances you launch and manage yourself, using CrowdStrike's official CloudFormation stack. One sensor task runs on every container instance, and the sensor image is hosted in your own ECR.
 
 > **Prerequisites:**
 >
@@ -21,7 +21,7 @@ Deploy the Falcon sensor as an ECS daemon service on an EC2-backed cluster using
 > - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
 > - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
 
-> **Note:** This lab is for ECS clusters on the **EC2 launch type**, where you launch and manage the instances. If your cluster uses **ECS Managed Instances**, use the [Managed Instances Daemon](../managed-instances-daemon/) lab instead; it uses a different CloudFormation template.
+> **Note:** **Which lab is this?** This one is for **self-managed EC2**: you create the instances (usually an Auto Scaling group) and patch them, and the sensor runs as an ECS *daemon service*, a regular ECS service that places one task on each instance. If AWS launches and patches the instances for you (**ECS Managed Instances**), use [Managed Instances (Managed Daemon)](../managed-instances-daemon/) instead. It deploys a different CloudFormation template that creates an ECS *managed daemon*.
 
 ## Reference Docs
 
