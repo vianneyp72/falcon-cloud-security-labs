@@ -12,7 +12,7 @@ Fargate tasks do not have access to the underlying host, so the sensor must be i
 
 1. **Task definition patching** -- Patch your existing task definition with the sensor using the `falcon-ecs-patch` script, which wraps CrowdStrike's official patching utility. Best when you want a repeatable step for CI/CD or have no Terraform.
 2. **Terraform module** -- CrowdStrike's official `terraform-aws-ecs-fargate` module builds the patched task definition for you. Best when you already manage ECS with Terraform.
-3. **falcon-utility sidecar** -- Add the `falcon-utility` init container to copy the sensor binary into the application container's filesystem at startup.
+3. **Falcon utility (image patching)** -- Run `falconutil patch-image` to build the sensor into your application image, push it to ECR, and point the task definition at it. Best when you own the image build.
 
 ### ECS on EC2
 
@@ -20,9 +20,14 @@ EC2-backed ECS clusters give you access to the underlying host instances. Deploy
 
 Alternatively, install the sensor directly on the EC2 instances using the same methods documented in [vms/linux/](../vms/linux/).
 
+### ECS Managed Instances
+
+With ECS Managed Instances, AWS launches, patches, and replaces the EC2 instances for you (Bottlerocket, no SSH, replaced at least every 14 days). Because you cannot touch the host, use CrowdStrike's separate **Managed** CloudFormation template, which creates an ECS managed daemon instead of a `DAEMON` service. Not sure which you have? If your capacity provider has a `managedInstancesProvider`, use this method; if you run your own Auto Scaling group of instances, use the EC2 daemon service above.
+
 ## Guides
 
 - [Fargate task patching](fargate-task-patching/) -- Patch the task definition with the `falcon-ecs-patch` script
-- [Fargate falcon-utility](fargate-falcon-utility/) -- Falcon utility init container sidecar
+- [Fargate falcon-utility](fargate-falcon-utility/) -- Patch the application image with `falconutil`
 - [Fargate Terraform module](fargate-terraform-module/) -- CrowdStrike's official Terraform module
-- [EC2 daemon service](ec2-daemon-service/) -- Daemon service deployment on EC2-backed clusters
+- [EC2 daemon service](ec2-daemon-service/) -- Daemon service on EC2-backed clusters, deployed with CrowdStrike's CloudFormation stack
+- [Managed Instances daemon](managed-instances-daemon/) -- Managed daemon on ECS Managed Instances clusters, deployed with CrowdStrike's Managed CloudFormation template

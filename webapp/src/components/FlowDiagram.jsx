@@ -1317,6 +1317,108 @@ function buildK8sDaemonsetDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEcsEc2DaemonDiagram(text) {
+  const instanceNode = (n, x) => ({
+    id: `inst${n}`,
+    position: { x, y: 55 },
+    data: { label: `EC2 instance ${n}`, isContainer: true },
+    type: 'custom',
+    parentId: 'cluster',
+    extent: 'parent',
+    style: { width: 240, height: 360 },
+  })
+  const taskNodes = (n, x) => [
+    {
+      id: `task${n}`,
+      position: { x, y: 40 },
+      data: { label: 'Task', isContainer: true },
+      type: 'custom',
+      parentId: 'daemon',
+      extent: 'parent',
+      style: { width: 190, height: 100 },
+    },
+    {
+      id: `sensor${n}`,
+      position: { x: 10, y: 32 },
+      data: { label: 'falcon-node-sensor', sublabel: 'privileged, host PID' },
+      type: 'custom',
+      parentId: `task${n}`,
+      extent: 'parent',
+      style: { width: 170, height: 58 },
+    },
+  ]
+  const appNode = (n, x) => ({
+    id: `app${n}`,
+    position: { x, y: 280 },
+    data: { label: 'Your app tasks', sublabel: 'watched from the host' },
+    type: 'custom',
+    parentId: 'cluster',
+    extent: 'parent',
+    zIndex: 10,
+    style: { width: 200, height: 56 },
+  })
+
+  const nodes = [
+    {
+      id: 'cluster',
+      position: { x: 0, y: 0 },
+      data: { label: 'ECS Cluster (EC2 capacity)', isContainer: true },
+      type: 'custom',
+      style: { width: 820, height: 440 },
+    },
+    instanceNode(1, 25),
+    instanceNode(2, 290),
+    instanceNode(3, 555),
+    {
+      id: 'daemon',
+      position: { x: 35, y: 100 },
+      data: { label: 'Daemon service — crowdstrike-falcon-node-daemon (1 task per instance)', isContainer: true, isPhase: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 750, height: 150 },
+    },
+    ...taskNodes(1, 25),
+    ...taskNodes(2, 280),
+    ...taskNodes(3, 535),
+    appNode(1, 45),
+    appNode(2, 310),
+    appNode(3, 575),
+    {
+      id: 'cfn',
+      position: { x: -460, y: 60 },
+      data: { label: 'CloudFormation Stack', sublabel: 'falcon-ecs-ec2-daemon.yaml', isApi: true },
+      type: 'custom',
+      style: { width: 300, height: 80 },
+    },
+    {
+      id: 'ecr',
+      position: { x: -460, y: 200 },
+      data: { label: 'Your ECR', sublabel: 'falcon-sensor image copy', isCloud: true },
+      type: 'custom',
+      style: { width: 300, height: 80 },
+    },
+    {
+      id: 'cs-cloud',
+      position: { x: 345, y: 520 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+  ]
+
+  const lbl = { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }
+  const edges = [
+    { id: 'e-cfn-daemon', source: 'cfn', sourceHandle: 'right-source', target: 'daemon', targetHandle: 'left-target', label: 'creates service', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-ecr-daemon', source: 'ecr', sourceHandle: 'right-source', target: 'daemon', targetHandle: 'left-target', label: 'sensor image', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-s1-cloud', source: 'sensor1', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    { id: 'e-s2-cloud', source: 'sensor2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', zIndex: 0, animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-s3-cloud', source: 'sensor3', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildGkeAutopilotDiagram(text) {
   const nodes = [
     // GKE Autopilot cluster container
@@ -1624,6 +1726,103 @@ function buildAciEmbeddedDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEcsFargateFalconutilDiagram(text) {
+  const nodes = [
+    // Terminal or CI runner with Docker
+    {
+      id: 'runner',
+      position: { x: 0, y: 0 },
+      data: { label: 'Your terminal or CI runner (Docker)', isContainer: true },
+      type: 'custom',
+      style: { width: 620, height: 280 },
+    },
+    {
+      id: 'sensor-image',
+      position: { x: 190, y: 40 },
+      data: { label: 'Falcon Container Image', sublabel: 'falconutil + sensor runtime' },
+      type: 'custom',
+      parentId: 'runner',
+      extent: 'parent',
+      style: { width: 230, height: 55 },
+    },
+    {
+      id: 'docker-pull',
+      position: { x: 20, y: 160 },
+      data: { label: 'docker pull', sublabel: 'app:1.0 (source)' },
+      type: 'custom',
+      parentId: 'runner',
+      extent: 'parent',
+      style: { width: 130, height: 55 },
+    },
+    {
+      id: 'falconutil',
+      position: { x: 200, y: 160 },
+      data: { label: 'falconutil patch-image', sublabel: 'app:1.0 → app:1.0-falcon (ECS_FARGATE)' },
+      type: 'custom',
+      parentId: 'runner',
+      extent: 'parent',
+      style: { width: 230, height: 55 },
+    },
+    {
+      id: 'docker-push',
+      position: { x: 470, y: 160 },
+      data: { label: 'docker push', sublabel: 'app:1.0-falcon → ECR' },
+      type: 'custom',
+      parentId: 'runner',
+      extent: 'parent',
+      style: { width: 135, height: 55 },
+    },
+    // Your ECR
+    {
+      id: 'ecr',
+      position: { x: 50, y: 380 },
+      data: {
+        label: 'Amazon ECR',
+        sublabel: 'app:1.0 | app:1.0-falcon | falcon-container:<tag>',
+        isContainer: true,
+      },
+      type: 'custom',
+      style: { width: 520, height: 70 },
+    },
+    // New task definition revision
+    {
+      id: 'taskdef',
+      position: { x: 150, y: 510 },
+      data: { label: 'New task definition revision', sublabel: 'image → :1.0-falcon, add SYS_PTRACE', isApi: true },
+      type: 'custom',
+      style: { width: 320, height: 55 },
+    },
+    // ECS Fargate task
+    {
+      id: 'task',
+      position: { x: 150, y: 630 },
+      data: { label: 'ECS Fargate task', sublabel: 'one container: falcon-entrypoint → your app', isCloud: true },
+      type: 'custom',
+      style: { width: 320, height: 55 },
+    },
+    // CrowdStrike cloud
+    {
+      id: 'cs-cloud',
+      position: { x: 195, y: 750 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+  ]
+
+  const edges = [
+    { id: 'e-pull-patch', source: 'docker-pull', sourceHandle: 'right-source', target: 'falconutil', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-patch-push', source: 'falconutil', sourceHandle: 'right-source', target: 'docker-push', targetHandle: 'left-target', type: 'smoothstep', animated: true, style: { stroke: '#61C4C9', strokeWidth: 1.5 }, markerEnd: { type: 'arrowclosed', color: '#61C4C9' } },
+    { id: 'e-sensor-patch', source: 'sensor-image', target: 'falconutil', label: 'sensor layers', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-push-ecr', source: 'docker-push', target: 'ecr', label: 'push :1.0-falcon', type: 'smoothstep', animated: true, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-ecr-taskdef', source: 'ecr', target: 'taskdef', label: 'reference :*-falcon', type: 'smoothstep', animated: true, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-taskdef-task', source: 'taskdef', target: 'task', label: 'service rolls', type: 'smoothstep', animated: true, style: { stroke: '#3fb950', strokeWidth: 1.5 }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#3fb950' } },
+    { id: 'e-task-cloud', source: 'task', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildEcsFargateTerraformDiagram(text) {
   const nodes = [
     // Image path: CrowdStrike registry -> your ECR
@@ -1908,16 +2107,135 @@ function buildArgoHelmApplicationDiagram(text) {
   return { nodes, edges }
 }
 
+function buildEcsManagedDaemonDiagram(text) {
+  const instanceNode = (n, x) => ({
+    id: `inst${n}`,
+    position: { x, y: 55 },
+    data: { label: `Managed instance ${n}`, isContainer: true },
+    type: 'custom',
+    parentId: 'cluster',
+    extent: 'parent',
+    style: { width: 240, height: 360 },
+  })
+  const taskNodes = (n, x) => [
+    {
+      id: `task${n}`,
+      position: { x, y: 40 },
+      data: { label: 'Daemon task', isContainer: true },
+      type: 'custom',
+      parentId: 'daemon',
+      extent: 'parent',
+      style: { width: 190, height: 100 },
+    },
+    {
+      id: `sensor${n}`,
+      position: { x: 10, y: 32 },
+      data: { label: 'falcon-node-sensor', sublabel: 'privileged, host PID' },
+      type: 'custom',
+      parentId: `task${n}`,
+      extent: 'parent',
+      style: { width: 170, height: 58 },
+    },
+  ]
+  const appNode = (n, x) => ({
+    id: `app${n}`,
+    position: { x, y: 280 },
+    data: { label: 'Your app tasks', sublabel: 'watched from the host' },
+    type: 'custom',
+    parentId: 'cluster',
+    extent: 'parent',
+    zIndex: 10,
+    style: { width: 200, height: 56 },
+  })
+
+  const nodes = [
+    {
+      id: 'cluster',
+      position: { x: 0, y: 0 },
+      data: { label: 'ECS Cluster (Managed Instances capacity)', isContainer: true },
+      type: 'custom',
+      style: { width: 820, height: 440 },
+    },
+    instanceNode(1, 25),
+    instanceNode(2, 290),
+    instanceNode(3, 555),
+    {
+      id: 'daemon',
+      position: { x: 35, y: 100 },
+      data: { label: 'Managed daemon — crowdstrike-falcon-node-daemon (1 task per instance)', isContainer: true, isPhase: true },
+      type: 'custom',
+      parentId: 'cluster',
+      extent: 'parent',
+      style: { width: 750, height: 150 },
+    },
+    ...taskNodes(1, 25),
+    ...taskNodes(2, 280),
+    ...taskNodes(3, 535),
+    appNode(1, 45),
+    appNode(2, 310),
+    appNode(3, 575),
+    {
+      id: 'cfn',
+      position: { x: -460, y: 40 },
+      data: { label: 'CloudFormation Stack', sublabel: 'falcon-ecs-managed-daemon.yaml', isApi: true },
+      type: 'custom',
+      style: { width: 300, height: 80 },
+    },
+    {
+      id: 'ecr',
+      position: { x: -460, y: 160 },
+      data: { label: 'Your ECR', sublabel: 'falcon-sensor image copy', isCloud: true },
+      type: 'custom',
+      style: { width: 300, height: 80 },
+    },
+    {
+      id: 'cp',
+      position: { x: -460, y: 280 },
+      data: { label: 'Capacity provider', sublabel: 'AWS launches and replaces instances', isApi: true },
+      type: 'custom',
+      style: { width: 300, height: 80 },
+    },
+    {
+      id: 'cs-cloud',
+      position: { x: 345, y: 520 },
+      data: { label: 'CrowdStrike Cloud', sublabel: 'Telemetry & Detections', isDanger: true },
+      type: 'custom',
+      style: { width: 230, height: 60 },
+    },
+  ]
+
+  const lbl = { fill: 'rgba(180,180,195,0.8)', fontSize: 10 }
+  const edges = [
+    { id: 'e-cfn-daemon', source: 'cfn', sourceHandle: 'right-source', target: 'daemon', targetHandle: 'left-target', label: 'creates daemon', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5 }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-ecr-daemon', source: 'ecr', sourceHandle: 'right-source', target: 'daemon', targetHandle: 'left-target', label: 'sensor image', type: 'smoothstep', animated: true, zIndex: 20, style: { stroke: '#d29922', strokeWidth: 1.5 }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#d29922' } },
+    { id: 'e-cp-cluster', source: 'cp', sourceHandle: 'right-source', target: 'cluster', targetHandle: 'left-target', label: 'manages instances', type: 'smoothstep', zIndex: 20, style: { stroke: '#a371f7', strokeWidth: 1.5, strokeDasharray: '4 3' }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#a371f7' } },
+    { id: 'e-s1-cloud', source: 'sensor1', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    { id: 'e-s2-cloud', source: 'sensor2', target: 'cs-cloud', label: 'TLS 443', type: 'smoothstep', zIndex: 0, animated: true, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' }, labelStyle: lbl, markerEnd: { type: 'arrowclosed', color: '#f85149' } },
+    { id: 'e-s3-cloud', source: 'sensor3', target: 'cs-cloud', type: 'smoothstep', zIndex: 0, style: { stroke: '#f85149', strokeWidth: 1.5, strokeDasharray: '5 4' } },
+  ]
+
+  return { nodes, edges }
+}
+
 function buildDiagramFromContent(text) {
   // Detect which diagram this is based on content — order matters (specific before generic)
+  if (text.includes('ECS MANAGED INSTANCES DAEMON') && text.includes('crowdstrike-falcon-node-daemon')) {
+    return buildEcsManagedDaemonDiagram(text)
+  }
   if (text.includes('ARGO CD — HELM CHART APPLICATION') && text.includes('falcon-platform')) {
     return buildArgoHelmApplicationDiagram(text)
+  }
+  if (text.includes('ECS EC2 DAEMON SERVICE') && text.includes('crowdstrike-falcon-node-daemon')) {
+    return buildEcsEc2DaemonDiagram(text)
   }
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) {
     return buildEcsFargateTerraformDiagram(text)
   }
   if (text.includes('ECS FARGATE TASK PATCHING') && text.includes('crowdstrike-falcon-init-container')) {
     return buildEcsFargatePatchingDiagram(text)
+  }
+  if (text.includes('ECS FARGATE FALCON UTILITY') && text.includes('falconutil')) {
+    return buildEcsFargateFalconutilDiagram(text)
   }
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) {
     return buildAciEmbeddedDiagram(text)
@@ -2354,8 +2672,11 @@ function buildDockerPatchDiagram(text) {
 export function isAsciiDiagram(text) {
   // Named diagram patterns (no box-drawing chars needed)
   if (text.includes('ARGO CD — HELM CHART APPLICATION') && text.includes('falcon-platform')) return true
+  if (text.includes('ECS MANAGED INSTANCES DAEMON') && text.includes('crowdstrike-falcon-node-daemon')) return true
+  if (text.includes('ECS EC2 DAEMON SERVICE') && text.includes('crowdstrike-falcon-node-daemon')) return true
   if (text.includes('ECS FARGATE TERRAFORM MODULE') && text.includes('crowdstrike-falcon-init-container')) return true
   if (text.includes('ECS FARGATE TASK PATCHING') && text.includes('crowdstrike-falcon-init-container')) return true
+  if (text.includes('ECS FARGATE FALCON UTILITY') && text.includes('falconutil')) return true
   if (text.includes('Azure Container Instances') && text.includes('falconutil')) return true
   if (text.includes('GKE AUTOPILOT — FALCON PLATFORM') && text.includes('AllowlistSynchronizer')) return true
   if (text.includes('EKS HYBRID CLUSTER') && text.includes('Container Sensor Image')) return true

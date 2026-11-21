@@ -13,6 +13,7 @@ import ecsFargatePatch from '@content/ecs/fargate-task-patching/lab.md?raw'
 import ecsFargateUtility from '@content/ecs/fargate-falcon-utility/lab.md?raw'
 import ecsFargateTerraform from '@content/ecs/fargate-terraform-module/lab.md?raw'
 import ecsEc2Daemon from '@content/ecs/ec2-daemon-service/lab.md?raw'
+import ecsManagedDaemon from '@content/ecs/managed-instances-daemon/lab.md?raw'
 import vmLinuxAnsible from '@content/vms/linux/ansible/lab.md?raw'
 import vmLinuxGce from '@content/vms/linux/gce-startup-script/lab.md?raw'
 import vmLinuxTerraform from '@content/vms/linux/terraform-userdata/lab.md?raw'
@@ -73,6 +74,7 @@ const labs = {
   'ecs/fargate-falcon-utility/lab.md': ecsFargateUtility,
   'ecs/fargate-terraform-module/lab.md': ecsFargateTerraform,
   'ecs/ec2-daemon-service/lab.md': ecsEc2Daemon,
+  'ecs/managed-instances-daemon/lab.md': ecsManagedDaemon,
   'vms/linux/ansible/lab.md': vmLinuxAnsible,
   'vms/linux/gce-startup-script/lab.md': vmLinuxGce,
   'vms/linux/terraform-userdata/lab.md': vmLinuxTerraform,
@@ -194,9 +196,10 @@ const LABS = [
   { id: 'kubernetes/operator/openshift', label: 'OpenShift', area: 'Kubernetes · Operator', md: 'kubernetes/operator/openshift/lab.md' },
 
   { id: 'ecs/fargate-task-patching',   label: 'Fargate Task Patching',   area: 'ECS', md: 'ecs/fargate-task-patching/lab.md', modernized: true },
-  { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Falcon Utility',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md' },
+  { id: 'ecs/fargate-falcon-utility',  label: 'Fargate Falcon Utility',  area: 'ECS', md: 'ecs/fargate-falcon-utility/lab.md', modernized: true },
   { id: 'ecs/fargate-terraform-module', label: 'Fargate Terraform Module', area: 'ECS', md: 'ecs/fargate-terraform-module/lab.md', modernized: true },
-  { id: 'ecs/ec2-daemon-service',      label: 'EC2 Daemon Service',      area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md' },
+  { id: 'ecs/ec2-daemon-service',      label: 'EC2 Daemon Service',      area: 'ECS', md: 'ecs/ec2-daemon-service/lab.md', modernized: true, variables: labVars('falcon-ec2-lab', 'us-east-1') },
+  { id: 'ecs/managed-instances-daemon', label: 'Managed Instances Daemon', area: 'ECS', md: 'ecs/managed-instances-daemon/lab.md', modernized: true, variables: labVars('falcon-mi-lab', 'us-east-1') },
 
   { id: 'vms/linux/ansible',            label: 'Ansible',            area: 'VMs · Linux', md: 'vms/linux/ansible/lab.md' },
   { id: 'vms/linux/gce-startup-script', label: 'GCE Startup Script', area: 'VMs · Linux', md: 'vms/linux/gce-startup-script/lab.md' },
@@ -340,17 +343,20 @@ export const manifest = [
   cloud('AWS', 'aws', 'aws', 'EKS, ECS, EC2 fleets, and AWS account registration.', [
     ...cat('Containers', [
       g('EKS', 'eks', [
-        l(K8S, 'standard', { label: 'Standard (EC2 Node Groups)', cloudPreset: 'eks' }),
+        l(K8S, 'standard', { label: 'EKS on EC2', cloudPreset: 'eks' }),
         l('kubernetes/helm-sidecar/eks-fargate', 'fargate'),
         l('kubernetes/helm-daemonset/eks-hybrid', 'hybrid-nodes'),
       ]),
       g('ECS', 'ecs', [
-        g('Fargate', 'fargate', [
+        g('ECS on Fargate', 'fargate', [
           l('ecs/fargate-task-patching', 'task-patching', { label: 'Task Patching' }),
           l('ecs/fargate-falcon-utility', 'falcon-utility', { label: 'Falcon Utility' }),
           l('ecs/fargate-terraform-module', 'terraform-module', { label: 'Terraform Module' }),
         ]),
-        l('ecs/ec2-daemon-service', 'ec2-daemon-service'),
+        g('ECS on EC2', 'ec2', [
+          l('ecs/ec2-daemon-service', 'daemon-service'),
+          l('ecs/managed-instances-daemon', 'managed-instances'),
+        ]),
       ], 'ecs/README.md'),
     ]),
     ...cat('Virtual Machines', [
