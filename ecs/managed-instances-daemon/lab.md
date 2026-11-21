@@ -72,7 +72,29 @@ CrowdStrike Cloud — Telemetry
 
 ### 1. Set credentials
 
-<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,EXECUTION_ROLE_ARN:Execution role ARN"></div>
+<div data-fill-fields="FALCON_CID:CID (with checksum),FALCON_CLIENT_ID:API client ID,FALCON_CLIENT_SECRET:API client secret,AWS_ACCOUNT_ID:AWS account ID,AWS_REGION:AWS region,CLUSTER_NAME:ECS cluster name,EXECUTION_ROLE_ARN:Execution role ARN|execution-role-help"></div>
+
+> **Tip:** To find the execution role ARN, open **IAM** → **Roles**, search `ecsTaskExecutionRole`, and copy the **ARN** from the summary. A custom-named role shows up under **ECS** → **Task definitions** → any task definition → **Task execution role**.
+
+<details id="execution-role-help">
+<summary>No execution role, or want one dedicated to CrowdStrike?</summary>
+
+A dedicated role keeps the sensor's ECR and log permissions separate from your other workloads, so changes to a shared role never affect the sensor. Create one and use its ARN above:
+
+```bash
+aws iam create-role --role-name crowdstrike-falcon-execution-role \
+  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
+  --query Role.Arn --output text
+```
+
+Attach the AWS managed policy that grants ECR pull and log writes:
+
+```bash
+aws iam attach-role-policy --role-name crowdstrike-falcon-execution-role \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+```
+
+</details>
 
 Then copy this to export the API client secret. It is the only value kept as a shell variable, and the page never saves it:
 
@@ -393,7 +415,14 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws
 
 </details>
 
-> **Note:** If `ecsTaskExecutionRole` already exists in your account (many accounts have it), skip this step and reuse it.
+> **Note:** If `ecsTaskExecutionRole` already exists in your account (many accounts have it), skip this step and reuse it. To check, open **IAM** → **Roles** and search `ecsTaskExecutionRole`.
+
+<details>
+<summary>Prefer a role dedicated to CrowdStrike?</summary>
+
+A dedicated role keeps the sensor's ECR and log permissions separate from your other workloads. Repeat the steps above with the role name `crowdstrike-falcon-execution-role`, then use that name in place of `ecsTaskExecutionRole` wherever it appears in the later steps and the cleanup.
+
+</details>
 
 ### Step 5: Create the cluster with a Managed Instances capacity provider
 

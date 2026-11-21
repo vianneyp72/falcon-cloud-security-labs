@@ -2,15 +2,24 @@ import { useContext, useEffect } from 'react'
 import { PlaceholderContext } from './placeholderContext'
 import { isSecretName } from '../hooks/usePlaceholderValues'
 
-// "NAME:Label,NAME2:Label two" -> [{ name, label }]
+// "NAME:Label,NAME2:Label two|target-id" -> [{ name, label, target }]
+// An optional "|target-id" makes the label a tooltip that jumps to (and opens) the element with that id.
 function parseFields(spec) {
   return String(spec || '')
     .split(',')
     .map(part => {
       const [name, ...rest] = part.split(':')
-      return { name: name.trim(), label: rest.join(':').trim() || name.trim() }
+      const [label, target] = rest.join(':').split('|')
+      return { name: name.trim(), label: label.trim() || name.trim(), target: (target || '').trim() }
     })
     .filter(f => f.name)
+}
+
+function jumpTo(id) {
+  const el = document.getElementById(id)
+  if (!el) return
+  if (el.tagName === 'DETAILS') el.open = true
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
 // "NAME=<A>.x.<B>;NAME2=<C>" -> [{ name, template }]
@@ -72,7 +81,20 @@ export default function FillFields({ spec, derive }) {
       <div className="lab-variables__fields">
         {fields.map(f => (
           <label key={f.name} className="lab-variables__field">
-            <span className="lab-variables__label">{f.label}</span>
+            {f.target ? (
+              <span
+                className="lab-variables__label tip-term"
+                data-tip="Not sure where to find this? Click to jump to the steps below."
+                role="link"
+                tabIndex={0}
+                onClick={e => { e.preventDefault(); jumpTo(f.target) }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); jumpTo(f.target) } }}
+              >
+                {f.label}
+              </span>
+            ) : (
+              <span className="lab-variables__label">{f.label}</span>
+            )}
             <input
               type={isSecretName(f.name) ? 'password' : 'text'}
               value={shared.values[f.name] ?? ''}
