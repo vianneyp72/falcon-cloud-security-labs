@@ -1,6 +1,6 @@
 # Falcon Sensor on ECS Managed Instances via Managed Daemon
 
-Deploy the Falcon sensor as an ECS **managed daemon** on a cluster where AWS launches and patches the instances (ECS Managed Instances), using CrowdStrike's official CloudFormation stack. One sensor task runs on every instance AWS launches for the cluster, and the sensor image is hosted in your own ECR.
+Deploy the Falcon sensor as an ECS **managed daemon** on a cluster where AWS launches and patches the instances (ECS Managed Instances), using CrowdStrike's CloudFormation stack. One sensor task runs per instance, with the image hosted in your ECR.
 
 > **Prerequisites:**
 >
@@ -21,9 +21,9 @@ Deploy the Falcon sensor as an ECS **managed daemon** on a cluster where AWS lau
 > - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
 > - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
 
-> **Note:** **Which lab is this?** This one is for **ECS Managed Instances**: AWS launches, patches, and replaces the instances, and the sensor runs as an ECS *managed daemon*, a separate ECS resource that ECS places on every managed instance. If you launch and manage the EC2 instances yourself, use [Self-Managed EC2 (Daemon Service)](../ec2-daemon-service/) instead. It deploys a different CloudFormation template that creates an ECS *daemon service*.
+> **Note:** **Which lab is this?** This one is for **ECS Managed Instances**, where AWS launches, patches, and replaces the instances. If you manage the EC2 instances yourself, use [Self-Managed EC2 (Daemon Service)](../ec2-daemon-service/) instead.
 
-> **Note:** **Which registry?** The CloudFormation template only pulls the sensor from **Amazon ECR**, either a new repository or one you already have. For Artifactory, Harbor, Docker Hub, ACR, or GAR, mirror the sensor into ECR first; the template has no registry-credential parameter.
+> **Note:** **Which registry?** The template pulls only from **Amazon ECR**. For any other registry, mirror the sensor into ECR first.
 
 ## Reference Docs
 
@@ -39,20 +39,20 @@ Deploy the Falcon sensor as an ECS **managed daemon** on a cluster where AWS lau
 
 ## Core Concepts
 
-With **ECS Managed Instances**, you do not launch or patch the EC2 instances. You attach a **capacity provider** to the cluster, and AWS launches the instances your tasks need, runs the ECS agent on them, and replaces each one at least every 14 days. There is no SSH, and you cannot install software on the host yourself, so the sensor ships as a container that runs on every instance instead.
+With **ECS Managed Instances**, you attach a **capacity provider** to the cluster and AWS launches, patches, and replaces the EC2 instances (at least every 14 days). There is no SSH, so the sensor ships as a container instead.
 
-An **ECS managed daemon** is how that works. It is a separate ECS resource (not a regular service) that runs exactly one copy of a task on every instance in the capacity providers you name, starts before your workloads, and is restarted or replaced with the instance. It is the Managed Instances counterpart of the `DAEMON` service used on classic EC2 clusters.
+An **ECS managed daemon** runs exactly one copy of a task on every instance in the capacity providers you name, starts before your workloads, and is replaced with the instance. It is the Managed Instances counterpart of the `DAEMON` service on classic EC2 clusters.
 
-A **CloudFormation stack** is a group of AWS resources created from one template file. CrowdStrike's Managed template creates two things: a daemon task definition and the managed daemon (plus an optional log group).
+CrowdStrike's **CloudFormation stack** (a group of AWS resources created from one template) creates the daemon task definition and the managed daemon, plus an optional log group. The task has two containers:
 
-- **Init container** (`init-falconstore`) — runs first, writes the sensor files to the instance under `/opt/CrowdStrike`, then exits.
-- **Sensor container** (`crowdstrike-falcon-node-sensor`) — starts after the init container finishes. It runs privileged with the instance's PID and IPC namespaces shared, which is how one container sees every process on the instance.
+- **Init container** (`init-falconstore`) — writes the sensor files under `/opt/CrowdStrike` on the instance, then exits.
+- **Sensor container** (`crowdstrike-falcon-node-sensor`) — starts after the init container. It runs privileged with the instance's PID and IPC namespaces shared, which is how one container sees every process on the instance.
 
-> **Why this matters:** The template creates no IAM roles, but it needs an **execution role** you pass in. On Managed Instances the instance role cannot pull from ECR or write logs for the daemon task, so the execution role does both.
+> **Why this matters:** The template creates no IAM roles but needs an **execution role** you pass in. On Managed Instances the instance role cannot pull from ECR or write logs for the daemon task, so the execution role does both.
 
-> **Heads-up:** Deploying, upgrading, changing parameters on, or deleting the stack drains and replaces your instances in batches, because AWS cannot change a managed instance in place. Each replacement registers in Falcon as a **new host with a new Agent ID (AID)**, and the old host entries go offline. Plan a maintenance window before running this against a production cluster.
+> **Heads-up:** Deploying, upgrading, changing parameters on, or deleting the stack drains and replaces your instances in batches. Each replacement registers in Falcon as a **new host with a new Agent ID (AID)**, and the old entries go offline. Plan a maintenance window for production clusters.
 
-The template pulls the sensor from your own ECR, so you copy the `falcon-sensor` image there first. The template needs sensor 8.12 or later, which the pull script's latest image satisfies.
+The template pulls the sensor from your own ECR, so copy the `falcon-sensor` image there first. It needs sensor 8.12 or later, which the pull script's latest image satisfies.
 
 ```
 ECS MANAGED INSTANCES DAEMON — CLOUDFORMATION

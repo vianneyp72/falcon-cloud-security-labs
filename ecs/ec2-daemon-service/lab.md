@@ -1,6 +1,6 @@
 # Falcon Sensor on Self-Managed ECS EC2 via Daemon Service
 
-Deploy the Falcon sensor as an ECS **daemon service** on a cluster whose EC2 instances you launch and manage yourself, using CrowdStrike's official CloudFormation stack. One sensor task runs on every container instance, and the sensor image is hosted in your own ECR.
+Deploy the Falcon sensor as an ECS **daemon service** on a cluster of EC2 instances you manage yourself, using CrowdStrike's CloudFormation stack. One sensor task runs per instance, with the image hosted in your ECR.
 
 > **Prerequisites:**
 >
@@ -21,9 +21,9 @@ Deploy the Falcon sensor as an ECS **daemon service** on a cluster whose EC2 ins
 > - **CID (with checksum):** in the Falcon console, go to **Host setup and management** > **Deploy** > **Sensor downloads** and copy the **Customer ID** from the right panel. Direct link: [US-1](https://falcon.crowdstrike.com/sensor-downloads/all) | [US-2](https://falcon.us-2.crowdstrike.com/sensor-downloads/all) | [EU-1](https://falcon.eu-1.crowdstrike.com/sensor-downloads/all). On GovCloud, open the same page on your GovCloud console host.
 > - **API client:** go to **Support and resources** > **Client Management** > **API Clients** > **Create API client**. Copy the client secret right away; the console shows it only once.
 
-> **Note:** **Which lab is this?** This one is for **self-managed EC2**: you create the instances (usually an Auto Scaling group) and patch them, and the sensor runs as an ECS *daemon service*, a regular ECS service that places one task on each instance. If AWS launches and patches the instances for you (**ECS Managed Instances**), use [Managed Instances (Managed Daemon)](../managed-instances-daemon/) instead. It deploys a different CloudFormation template that creates an ECS *managed daemon*.
+> **Note:** **Which lab is this?** This one is for EC2 instances you launch and patch yourself. If AWS manages the instances (**ECS Managed Instances**), use [Managed Instances (Managed Daemon)](../managed-instances-daemon/) instead.
 
-> **Note:** **Which registry?** The CloudFormation template only pulls the sensor from **Amazon ECR**, either a new repository or one you already have. For Artifactory, Harbor, Docker Hub, ACR, or GAR, mirror the sensor into ECR first; the template has no registry-credential parameter.
+> **Note:** **Which registry?** The template pulls only from **Amazon ECR**. For any other registry, mirror the sensor into ECR first.
 
 ## Reference Docs
 
@@ -38,16 +38,16 @@ Deploy the Falcon sensor as an ECS **daemon service** on a cluster whose EC2 ins
 
 ## Core Concepts
 
-An EC2-backed ECS cluster runs your containers on EC2 instances you can reach, so the sensor protects the **host** and every task on it. In ECS, a **task definition** is the blueprint for a set of containers, and a **service** keeps tasks running from it. A service with the **DAEMON** scheduling strategy places exactly one task on every container instance, including instances added later by Auto Scaling.
+A **task definition** is the blueprint for a set of containers, and a **service** keeps tasks running from it. The **DAEMON** scheduling strategy places exactly one task on every container instance, including ones Auto Scaling adds later, so the sensor protects the host and every task on it.
 
-A **CloudFormation stack** is a group of AWS resources created from one template file. CrowdStrike's template creates two things for you: the task definition and the daemon service (plus an optional log group).
+CrowdStrike's **CloudFormation stack** (a group of AWS resources created from one template) creates the task definition and daemon service, plus an optional log group. The task has two containers:
 
-- **Init container** (`init-falconstore`) — runs first, installs the sensor files onto the host under `/opt/CrowdStrike`, then exits.
-- **Sensor container** (`crowdstrike-falcon-node-sensor`) — starts after the init container finishes. It runs privileged with the host's network, PID, and IPC namespaces, which is how one container sees every process on the instance.
+- **Init container** (`init-falconstore`) — installs the sensor files under `/opt/CrowdStrike` on the host, then exits.
+- **Sensor container** (`crowdstrike-falcon-node-sensor`) — starts after the init container. It runs privileged with the host's network, PID, and IPC namespaces, which is how one container sees every process on the instance.
 
-> **Why this matters:** Host networking and a privileged container are normal for a node sensor, but they mean this task is not like your app tasks. It also needs room to be scheduled: by default each instance must have 256 CPU units and 512 MiB of memory free, or the daemon task is not placed on it.
+> **Why this matters:** Unlike your app tasks, the sensor needs room to be scheduled: each instance must have 256 CPU units and 512 MiB of memory free by default, or the daemon task is not placed on it.
 
-The template pulls the sensor from your own ECR, so you copy the `falcon-sensor` image there first. The template creates no IAM roles, so the stack deploys without any capability acknowledgement.
+The template pulls the sensor from your own ECR, so copy the `falcon-sensor` image there first. It creates no IAM roles, so no capability acknowledgement is needed.
 
 ```
 ECS EC2 DAEMON SERVICE — CLOUDFORMATION
