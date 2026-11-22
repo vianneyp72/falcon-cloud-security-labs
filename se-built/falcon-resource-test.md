@@ -12,6 +12,8 @@ A read-only, in-cluster tool that shows live CPU, memory, and health for every F
 > - metrics-server <span data-tip="Provides live pod CPU and memory, the same data as kubectl top. GKE ships it by default. EKS and some AKS clusters do not; the tool detects this and prints the install command.">running in the cluster</span>
 > - Permission to <span data-tip="The chart creates a ClusterRole and ClusterRoleBinding, which needs cluster-admin or an equivalent role. The tool itself only ever reads.">create RBAC objects</span>
 
+## Reference Docs
+
 | Source | Link |
 |--------|------|
 | Tool source, chart, and image | https://github.com/vianneyp72/falcon-resource-test |
@@ -27,7 +29,7 @@ Falcon Resource Test runs as one small pod (10m CPU and 32Mi memory requested) i
 
 > **Why this matters:** Kubernetes schedules a pod by what it *requests*, not only what it uses. Requests decide how many workloads fit on a node; usage shows the real cost. The report shows both for every Falcon component, which is what a platform team will ask about.
 
-The tool is **read-only**: it lists pods, nodes, events, DaemonSets, Deployments, webhooks, and metrics. It cannot read Secrets, exec into pods, or change anything. History lives on an `emptyDir` volume (disk that exists only as long as the pod does), so it is lost when the pod restarts or is removed.
+The tool is **read-only**. Kubernetes controls access with RBAC: a **ClusterRole** is a cluster-wide list of what an identity may do, and a ClusterRoleBinding attaches it to the pod's service account. This chart's ClusterRole only lets the tool list pods, nodes, events, DaemonSets, Deployments, webhooks, and metrics. It cannot read Secrets, exec into pods, or change anything. History lives on an `emptyDir` volume (disk that exists only as long as the pod does), so it is lost when the pod restarts or is removed.
 
 ---
 
@@ -39,18 +41,24 @@ The tool is **read-only**: it lists pods, nodes, events, DaemonSets, Deployments
 
 <div data-fill-fields="CLUSTER_NAME:Cluster display name"></div>
 
+Get the source:
+
 ```bash
 git clone https://github.com/vianneyp72/falcon-resource-test.git
 cd falcon-resource-test
 ```
 
+Install the chart, wait for the pod, and open a port-forward to the UI:
+
 ```bash
 ./scripts/assess.sh --set clusterName=<CLUSTER_NAME>
 ```
 
-> **Verify:** The script prints `falcon-resource-test is running` and opens `http://localhost:8080` on the **Live** page. Keep the terminal open; closing it stops the port-forward, not the tool.
+> **Verify:** The script prints `falcon-resource-test is running at http://localhost:8080` and opens that address on the **Live** page. Keep the terminal open; closing it stops the port-forward, not the tool.
 
 <details><summary>Plain Helm equivalent (no clone needed)</summary>
+
+Install the chart straight from the registry:
 
 ```bash
 helm upgrade --install falcon-resource-test oci://ghcr.io/vianneyp72/charts/falcon-resource-test \
@@ -58,13 +66,19 @@ helm upgrade --install falcon-resource-test oci://ghcr.io/vianneyp72/charts/falc
   --set clusterName=<CLUSTER_NAME>
 ```
 
+Open the UI at `http://localhost:8080`:
+
 ```bash
 kubectl -n falcon-resource-test port-forward svc/falcon-resource-test 8080:80
 ```
 
 </details>
 
-> **Heads-up:** If the Live page shows a metrics banner, the cluster has no metrics API. Open **Setup** for the install command, run it, and numbers appear within a minute.
+> **Heads-up:**
+>
+> - A metrics banner on **Live** means the cluster has no metrics API. Open **Setup** for the install command, run it, and numbers appear within a minute.
+> - If the port-forward fails with `address already in use`, rerun with another port: `LOCAL_PORT=8081 ./scripts/assess.sh --set clusterName=<CLUSTER_NAME>`.
+> - If the pod shows `ImagePullBackOff`, the cluster can't reach `ghcr.io`. Use the private registry path in Full Lab section 5.
 
 ### 2. Run an assessment
 
@@ -80,15 +94,19 @@ When the scan finishes, click **Export HTML**. The file has no external links or
 
 ### 4. Clean up
 
+Remove the release and everything it created:
+
 ```bash
 helm -n falcon-resource-test uninstall falcon-resource-test
 ```
+
+Delete the now-empty namespace:
 
 ```bash
 kubectl delete namespace falcon-resource-test
 ```
 
-> **Verify:** `kubectl get clusterrole falcon-resource-test` returns `NotFound`. Nothing else is left behind.
+> **Verify:** `kubectl get clusterrole falcon-resource-test` prints `Error from server (NotFound)`. Nothing else is left behind.
 
 </div>
 
@@ -108,7 +126,7 @@ kubectl config current-context
 
 > **Heads-up:** If this prints the wrong cluster, switch first. On EKS run `aws eks update-kubeconfig --name <CLUSTER_NAME> --region <REGION>`, on GKE `gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION>`, and on AKS `az aks get-credentials -g <RESOURCE_GROUP> -n <CLUSTER_NAME>`.
 
-- [ ] Check that the metrics API answers:
+- [ ] Check that the metrics API answers (the tool needs it for live usage):
 
 ```bash
 kubectl top nodes
@@ -124,12 +142,14 @@ kubectl top nodes
 
 <div data-fill-fields="CLUSTER_NAME:Cluster display name"></div>
 
-- [ ] Get the source and run the installer, which installs the chart, waits for the pod, and opens a port-forward to the UI:
+- [ ] Clone the repo, which holds the chart and the installer script:
 
 ```bash
 git clone https://github.com/vianneyp72/falcon-resource-test.git
 cd falcon-resource-test
 ```
+
+- [ ] Run the installer, which installs the chart, waits for the pod, and opens a port-forward to the UI:
 
 ```bash
 ./scripts/assess.sh --set clusterName=<CLUSTER_NAME>
@@ -145,9 +165,19 @@ kubectl -n falcon-resource-test get pods
 
 > **Verify:** One pod, `READY` `1/1`, `STATUS` `Running`.
 
-> **Tip:** The pod meets the Kubernetes **restricted** Pod Security Standard: non-root, read-only root filesystem, no added capabilities. Clusters that enforce restricted admission accept it without exceptions.
+> **Tip:** The pod meets the Kubernetes **restricted** Pod Security Standard, the strictest built-in profile for pod settings: non-root, read-only root filesystem, no added capabilities. Clusters that enforce it accept the pod without exceptions.
 
-> **Why this matters:** A port-forward tunnels one local port to the Service through the Kubernetes API, using your own kubectl credentials. Nothing is exposed outside the cluster, which is why the Service is `ClusterIP` and the Ingress is off by default. The UI has no login of its own.
+> **Why this matters:** A port-forward tunnels one local port to the Service through the Kubernetes API, using your own kubectl credentials. Nothing is exposed outside the cluster, which is why the Service is `ClusterIP` and the Ingress is off by default. The UI has no login of its own, so the chart also adds a **NetworkPolicy** (a firewall rule for pods) that allows only the UI port in and only DNS and the Kubernetes API out.
+
+### Step 3: Troubleshooting
+
+| Symptom | Likely cause | Check |
+|---------|--------------|-------|
+| `ImagePullBackOff` | Cluster can't reach `ghcr.io` | `kubectl -n falcon-resource-test describe pod`; look at `Events`. Use section 5 for a private registry |
+| `address already in use` | Port 8080 is taken locally | Rerun with `LOCAL_PORT=8081 ./scripts/assess.sh --set clusterName=<CLUSTER_NAME>` |
+| **Live** shows a metrics banner | No metrics-server | `kubectl top nodes`; install metrics-server (Step 1) |
+| Browser shows `403` | Opened through a hostname the tool doesn't allow | Use `http://localhost:8080`, or add the name to `allowedHosts` |
+| Pod `Pending` or `Forbidden` on install | Missing RBAC rights or a blocking admission policy | `kubectl auth can-i create clusterrole`; `kubectl -n falcon-resource-test describe pod` |
 
 ## 2. Read the Live Page
 
@@ -181,7 +211,7 @@ kubectl -n falcon-resource-test get pods
 
 > **Tip:** Ask the customer to run their normal or peak workload during the window. Falcon's CPU tracks process and network activity, so an idle cluster understates it.
 
-- [ ] Leave the page open or come back later. Closing the tab doesn't stop the scan; it is listed on the **Assessments** page.
+- [ ] Leave the page open or come back later. Closing the tab doesn't stop the scan; it is listed on the **Assessments** page and the report appears there when it ends.
 
 > **Heads-up:** History lives on an emptyDir and is lost if the pod restarts. A scan that was running at that moment shows **interrupted**; start a new one.
 
@@ -202,7 +232,7 @@ kubectl -n falcon-resource-test get pods
 
 > **What & Why:** Platform teams rarely run `helm install` by hand. They commit an Argo CD or Flux object and let the controller install the chart. Hand them the snippet that matches their tool.
 
-- [ ] **Argo CD:** commit this `Application`:
+- [ ] **Argo CD:** commit this `Application`, which tells Argo CD to install the chart into its own namespace and keep it in sync:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -229,7 +259,7 @@ spec:
 
 > **Heads-up:** Argo CD reads OCI charts only when the registry is added as a Helm repository with OCI enabled. If the sync errors with `repository not found`, add it once: `argocd repo add ghcr.io/vianneyp72/charts --type helm --enable-oci --name ghcr-charts`.
 
-- [ ] **Flux:** commit an `OCIRepository` and a `HelmRelease`:
+- [ ] **Flux:** commit an `OCIRepository` (where the chart lives) and a `HelmRelease` (how to install it):
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1beta2
@@ -268,20 +298,22 @@ spec:
 
 > **What & Why:** Locked-down or air-gapped clusters can't pull from GHCR. Build the image yourself and point the chart at it.
 
-- [ ] From the cloned repo, build the image and push it to the customer's registry:
+- [ ] From the cloned repo, build a multi-architecture image and push it to the customer's registry (run `docker login <YOUR_REGISTRY>` first if needed):
 
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 -t <YOUR_REGISTRY>/falcon-resource-test:0.1.0 --push .
 ```
 
-- [ ] Install from the local chart, pointing at that image:
+- [ ] Install from the local chart, pointing at that image instead of GHCR:
 
 ```bash
 helm upgrade --install falcon-resource-test ./chart -n falcon-resource-test --create-namespace \
   --set image.repository=<YOUR_REGISTRY>/falcon-resource-test --set image.tag=0.1.0
 ```
 
-> **Note:** If the registry needs credentials, create a pull secret in `falcon-resource-test` and add `--set imagePullSecrets[0].name=<SECRET_NAME>`.
+> **Note:** If the registry needs credentials, create an image pull secret in the `falcon-resource-test` namespace and add `--set imagePullSecrets[0].name=<SECRET_NAME>`.
+
+> **Verify:** `kubectl -n falcon-resource-test get pods` shows `Running`, and `kubectl -n falcon-resource-test get pod -o jsonpath='{.items[0].spec.containers[0].image}'` prints your registry path.
 
 ## 6. Clean Up
 
@@ -303,11 +335,64 @@ kubectl delete namespace falcon-resource-test
 
 > **Verify:** `kubectl get clusterrole,clusterrolebinding falcon-resource-test` returns `NotFound` for both.
 
-## Challenges
+## 7. Challenges
 
-1. **Load test.** Start a **1h** scan, then run a CPU-heavy workload in another namespace (for example `kubectl create deploy stress --image=polinux/stress -- stress --cpu 2`). Compare Falcon's p95 and peak with the idle baseline, then delete the deployment.
-2. **Lock down egress.** Find the API server's IP (`kubectl get endpoints kubernetes -n default`) and set `networkPolicy.apiServerCIDRs` to it. Confirm the Live page still updates.
-3. **Prove it's read-only.** Run `kubectl auth can-i get secrets --as=system:serviceaccount:falcon-resource-test:falcon-resource-test` and `kubectl auth can-i delete pods --as=system:serviceaccount:falcon-resource-test:falcon-resource-test`. Both should answer `no`.
+### Challenge 1: Load test
+
+**Scenario:** The customer wants to know Falcon's cost under load, not at idle. Measure it.
+
+<details>
+<summary>Hint</summary>
+
+Start a **1h** scan first, then generate load in a different namespace.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+Start the scan, then run `kubectl create deploy stress --image=polinux/stress -- stress --cpu 2`. Compare Falcon's p95 and peak in the report with the idle baseline, then remove the load with `kubectl delete deploy stress`.
+
+</details>
+
+### Challenge 2: Lock down egress
+
+**Scenario:** The customer's security team wants the tool's API access limited to the control plane address only.
+
+<details>
+<summary>Hint</summary>
+
+The NetworkPolicy in the chart has a value for the API server's address range. Find the address with `kubectl get endpoints kubernetes -n default`.
+
+</details>
+
+<details>
+<summary>Solution</summary>
+
+Upgrade the release with `--set 'networkPolicy.apiServerCIDRs={<API_SERVER_IP>/32}'`, then confirm the **Live** page still updates. If it stops, the address was wrong; set the value back to empty.
+
+</details>
+
+### Challenge 3: Prove it is read-only
+
+**Scenario:** A platform engineer asks you to show the tool can't read Secrets or delete anything.
+
+<details>
+<summary>Solution</summary>
+
+Run both checks; each should answer `no`:
+
+```bash
+kubectl auth can-i get secrets --as=system:serviceaccount:falcon-resource-test:falcon-resource-test
+```
+
+```bash
+kubectl auth can-i delete pods --as=system:serviceaccount:falcon-resource-test:falcon-resource-test
+```
+
+</details>
+
+---
 
 ## Quick Reference
 
