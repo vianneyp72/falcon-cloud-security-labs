@@ -158,17 +158,17 @@ Pick the Falcon cloud your CID belongs to. `setup` creates the `falcon-container
 
 ### 5. Preview the patch
 
-This is a dry run by default. It exports the task definition, runs the patching utility, and prints a diff. Nothing in ECS changes:
+This is a dry run by default. It exports the task definition, runs the patching utility, and prints a diff. Nothing in ECS changes. `--falconctl-opts` bakes the sensor grouping tags into the task:
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate"></div>
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME>
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>"
 ```
 
-> **Verify:** The summary lists `+ added init container: crowdstrike-falcon-init-container` and one `~ wrapped entrypoint` line per app container. The original and patched JSON are saved under `./falcon-ecs-patch-out/`.
+> **Verify:** The summary lists `+ added init container: crowdstrike-falcon-init-container` and one `~ wrapped entrypoint` line per app container.
 >
-> **Look for:** The `Rollout:` line shows healthy percent, circuit breaker, and task size; the sensor shares the task's CPU and memory, so leave headroom. A circuit breaker `NOTE` means enable it (command below) so a failed rollout rolls back. A no-public-IP `WARN` means tasks need a NAT route. A `CODE_DEPLOY` or `EXTERNAL` controller `NOTE` means the script registers the revision but you deploy it.
-
-> **Tip:** The diff is long. Confirm three things: one added `crowdstrike-falcon-init-container`, an `entryPoint` on each app container that starts the sensor, then your app's command, and no removed lines except empty `environment`, `mountPoints`, and `volumes` lists that gain contents. Full Lab section 4 explains every field.
+> **Look for:** In the `Rollout:` section, a circuit breaker `NOTE` means enable it (command below) so a failed rollout rolls back. A no-public-IP `WARN` means tasks need a NAT route to reach the Falcon cloud.
 
 > **Why this matters:** The circuit breaker is an ECS service setting. If the new revision's tasks keep failing to start, it stops the rollout and redeploys your last working revision, so a bad patch never takes the service down.
 
@@ -183,14 +183,10 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 Try a non-production service first. `--deploy` registers the patched revision, points the service at it, and waits until the service is stable. It prints the diff, then asks `[y/N]`; type `y` to continue:
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deploy
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --deploy
 ```
 
-> **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply removes the sensor. See the warning at the top.
-
 > **Heads-up:** `--deploy needs a terminal to confirm` means there is no interactive terminal (CI, script, pipe). Add `--yes`. Any answer other than `y` prints `Aborted.` and changes nothing.
-
-> **Verify:** It prints `Registered: <family>:<N+1>`, waits for the rollout, then ends with `Done.` and a `Roll back with:` command. Save that command. The sensor registers about two minutes after the new task starts, and the Falcon console can lag a few minutes beyond that.
 
 <details>
 <summary>Patch ALL services?</summary>
@@ -208,13 +204,13 @@ First, see which services need it. This is read-only:
 Next, preview the patch for every `UNPROTECTED` service. Nothing is registered or changed without `--deploy`:
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>"
 ```
 
 Finally, add `--deploy` to apply it. The script shows each service's diff and asks `[y/N]` before changing it. Add `--yes` to skip the prompts (needed in CI):
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all --deploy
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --all --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --deploy
 ```
 
 > **Warning:** Services roll out one after another, each with its own `Roll back with:` command, so save the output. Do not use `--all` on services managed by Terraform, CDK, or CloudFormation.
@@ -236,7 +232,11 @@ The pipeline needs your CID and an AWS role it can assume. These steps use GitHu
 
 ### 5. Patch the task definition in the workflow
 
-Keep your task definition JSON in Git unpatched. `patch --file` reads it and writes a patched copy without touching ECS, so it fits any deploy tool. Save this as `.github/workflows/patch-ecs-task.yml`, replacing `ecs/task-definition.json`, `<SERVICE_NAME>`, and `<CLUSTER_NAME>` with yours:
+Keep your task definition JSON in Git unpatched. `patch --file` reads it and writes a patched copy without touching ECS, so it fits any deploy tool. Set the sensor grouping tags first; they are written into the workflow below:
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate"></div>
+
+Save this as `.github/workflows/patch-ecs-task.yml`, replacing `ecs/task-definition.json`, `<SERVICE_NAME>`, and `<CLUSTER_NAME>` with yours:
 
 ```yaml
 name: patch-ecs-task
@@ -270,7 +270,7 @@ jobs:
           sha256sum -c falcon-ecs-patch.sh.sha256
           chmod +x falcon-ecs-patch.sh
       - name: Patch the task definition file
-        run: ./falcon-ecs-patch.sh patch --file ecs/task-definition.json --output ecs/task-definition.patched.json
+        run: ./falcon-ecs-patch.sh patch --file ecs/task-definition.json --output ecs/task-definition.patched.json --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>"
       - name: Register and deploy the patched file
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
@@ -289,7 +289,7 @@ Run it from the repository's **Actions** tab: select **patch-ecs-task**, then **
 No file in Git? Patch a revision already in ECS by family. It registers a new revision and prints its ARN; point your service at it:
 
 ```bash
-./falcon-ecs-patch.sh patch --family <FAMILY> --deploy --yes
+./falcon-ecs-patch.sh patch --family <FAMILY> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --deploy --yes
 ```
 
 ### 6. Catch unprotected services
@@ -379,7 +379,7 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --task-
 Already-protected task definitions are skipped, so re-running `patch` never changes the sensor version. To move to a newer sensor, copy the new image with `setup`, then patch the original, unpatched revision again. Use the revision number your service ran before step 6 (the rollback command from step 6 shows it). The `SENSOR` column in `audit` shows what each service runs:
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION> --deploy
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --deploy
 ```
 
 </div>
@@ -578,11 +578,16 @@ export IMAGE_PULL_TOKEN=$(printf '{"auths":{"%s":{"auth":"%s"}}}' "$ECR_REGISTRY
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 ```
 
+- [ ] Set the sensor grouping tags. The utility bakes them into the task with `--falconctl-opts`:
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate"></div>
+
 - [ ] Run the utility. `--platform linux/amd64` matters on Apple Silicon: Fargate runs x86_64, and without it Docker picks the ARM build and the patched task would carry the wrong loader:
 
 ```bash
 docker run --rm --platform linux/amd64 -v $(pwd)/manual:/var/run/spec $SENSOR_IMAGE \
   -cid $FALCON_CID -image $SENSOR_IMAGE -pulltoken $IMAGE_PULL_TOKEN \
+  --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" \
   -ecs-spec-file /var/run/spec/taskdef.json > manual/taskdef.patched.json
 ```
 
@@ -596,7 +601,7 @@ docker run --rm --platform linux/amd64 -v $(pwd)/manual:/var/run/spec $SENSOR_IM
 diff -u <(jq -S . manual/taskdef.json) <(jq -S . manual/taskdef.patched.json)
 ```
 
-> **Look for:** One added container, `crowdstrike-falcon-init-container`, and a new volume `crowdstrike-falcon-volume`. On each of your containers: `dependsOn` the init container, an `entryPoint` that starts the sensor first and then your original command, `FALCONCTL_OPTS` carrying your CID, `SYS_PTRACE`, and a read-only mount at `/tmp/CrowdStrike`.
+> **Look for:** One added container, `crowdstrike-falcon-init-container`, and a new volume `crowdstrike-falcon-volume`. On each of your containers: `dependsOn` the init container, an `entryPoint` that starts the sensor first and then your original command, `FALCONCTL_OPTS` carrying your CID and `--tags`, `SYS_PTRACE`, and a read-only mount at `/tmp/CrowdStrike`.
 
 > **Why this matters:** Your original file may have no `entryPoint` at all. That is normal: ECS then runs the image's built-in command, and the utility reads it from the image and writes it out after the sensor. If your task did set an `entryPoint` or `command`, those are kept.
 
@@ -620,13 +625,15 @@ That is the whole mechanism. You have not changed anything in ECS yet: the patch
 
 ### Step 2: Preview the patch
 
-- [ ] Dry run. Nothing in ECS changes:
+- [ ] Dry run. Nothing in ECS changes. The script takes the same tags you set in section 4 (the box below shares that value):
+
+<div data-sensor-tags="SENSOR_TAGS:ecs-fargate"></div>
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME>
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>"
 ```
 
-> **Verify:** The diff matches what you saw in section 4. The original and patched JSON are saved under `./falcon-ecs-patch-out/<family>/`.
+> **Verify:** The diff matches what you saw in section 4, including your tags in `FALCONCTL_OPTS`. The original and patched JSON are saved under `./falcon-ecs-patch-out/<family>/`.
 
 > **Look for:** The `Rollout:` line shows the service's minimum and maximum healthy percent, the circuit breaker, and the task size. The sensor shares the task's CPU and memory, so check there is headroom. A `NOTE` that the circuit breaker is off means a failed rollout will not roll back by itself: enable it on the service (command below). A `WARN` about no public IP means tasks need a NAT route to reach the Falcon cloud (TLS 443) or no sensor will ever register. A `NOTE` about the `CODE_DEPLOY` or `EXTERNAL` deployment controller means the script registers the revision but leaves the service alone; deploy it with your own process.
 
@@ -648,7 +655,7 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 - [ ] Use a non-production service first. Register the patched revision, update the service, and wait until stable. It prints the diff, then asks `[y/N]`; type `y` to continue:
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deploy
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --deploy
 ```
 
 > **Warning:** If Terraform, CDK, or CloudFormation owns this task definition, its next apply overwrites the revision registered here and the sensor disappears. See the warning at the top of this lab.
@@ -683,21 +690,17 @@ aws ecs update-service --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --deplo
 - [ ] Patch the unpatched revision (use the revision you saw before step 3; it is `1` for a brand new service):
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION>
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <SERVICE_NAME> --from-revision <UNPATCHED_REVISION> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>"
 ```
 
 > **Verify:** The `+ added init container` line shows the newer image tag. Add `--deploy` to roll it out.
 
-### Step 6: Optional flags
+### Step 6: Skip a container
 
-> **Heads-up:** A space in a tag breaks the sensor, and the app container then exits before it starts.
-
-- [ ] When you patch your next service, you can set sensor grouping tags and keep a container out of the patch (for example a log router):
-
-<div data-sensor-tags="SENSOR_TAGS:ecs-fargate,lab"></div>
+- [ ] To keep a container out of the patch (for example a log router), add `--skip-container`. Your sensor tags still come along:
 
 ```bash
-./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <OTHER_SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate,lab>" --skip-container <CONTAINER_TO_SKIP>
+./falcon-ecs-patch.sh patch --cluster <CLUSTER_NAME> --service <OTHER_SERVICE_NAME> --falconctl-opts "--tags=<SENSOR_TAGS:ecs-fargate>" --skip-container <CONTAINER_TO_SKIP>
 ```
 
 ## 6. Verify
